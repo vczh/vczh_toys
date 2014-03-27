@@ -7,6 +7,8 @@ This repository contains vczh's toys for black magic codes or experiments
 ```c++
 #include "gc_cpp.h"
 
+using namespace gc_cpp;
+
 class Node : ENABLE_GC
 {
 public:
