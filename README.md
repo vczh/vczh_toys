@@ -3,7 +3,8 @@ vczh_toys
 
 This repository contains vczh's toys for black magic codes or experiments
 
-### ./CppGarbageCollection // garbage collection library for C++
+###./CppGarbageCollection
+######// garbage collection library for C++
 ```c++
 #include "gc_ptr.h"
 
