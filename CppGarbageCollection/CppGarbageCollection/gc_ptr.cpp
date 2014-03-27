@@ -218,62 +218,65 @@ namespace gc_cpp
 		}
 	}
 
-	void gc_alloc(gc_record record)
+	namespace unsafe_functions
 	{
-		assert(gc_handles);
-		auto handle = new gc_handle;
-		handle->record = record;
-		handle->counter = 1;
-
-		vector<gc_handle*> garbages;
+		void gc_alloc(gc_record record)
 		{
-			lock_guard<mutex> guard(gc_lock);
-			gc_handles->insert(handle);
-			gc_current_size += handle->record.length;
+			assert(gc_handles);
+			auto handle = new gc_handle;
+			handle->record = record;
+			handle->counter = 1;
 
-			if (gc_current_size > gc_max_size)
+			vector<gc_handle*> garbages;
 			{
-				gc_force_collect_unsafe(garbages);
+				lock_guard<mutex> guard(gc_lock);
+				gc_handles->insert(handle);
+				gc_current_size += handle->record.length;
+
+				if (gc_current_size > gc_max_size)
+				{
+					gc_force_collect_unsafe(garbages);
+				}
+				else if (gc_current_size - gc_last_current_size > gc_step_size)
+				{
+					gc_force_collect_unsafe(garbages);
+				}
 			}
-			else if (gc_current_size - gc_last_current_size > gc_step_size)
-			{
-				gc_force_collect_unsafe(garbages);
-			}
+			gc_destroy_unsafe(garbages);
 		}
-		gc_destroy_unsafe(garbages);
-	}
 
-	void gc_register(void* reference, enable_gc* handle)
-	{
-		assert(gc_handles);
+		void gc_register(void* reference, enable_gc* handle)
+		{
+			assert(gc_handles);
 
-		lock_guard<mutex> guard(gc_lock);
-		gc_find_unsafe(reference)->record.handle = handle;
-	}
+			lock_guard<mutex> guard(gc_lock);
+			gc_find_unsafe(reference)->record.handle = handle;
+		}
 
-	void gc_ref_alloc(void** handle_reference, void* handle)
-	{
-		assert(gc_handles);
+		void gc_ref_alloc(void** handle_reference, void* handle)
+		{
+			assert(gc_handles);
 
-		lock_guard<mutex> guard(gc_lock);
-		gc_ref_connect_unsafe(handle_reference, handle, true);
-	}
+			lock_guard<mutex> guard(gc_lock);
+			gc_ref_connect_unsafe(handle_reference, handle, true);
+		}
 
-	void gc_ref_dealloc(void** handle_reference, void* handle)
-	{
-		assert(gc_handles);
+		void gc_ref_dealloc(void** handle_reference, void* handle)
+		{
+			assert(gc_handles);
 
-		lock_guard<mutex> guard(gc_lock);
-		gc_ref_disconnect_unsafe(handle_reference, handle, true);
-	}
+			lock_guard<mutex> guard(gc_lock);
+			gc_ref_disconnect_unsafe(handle_reference, handle, true);
+		}
 
-	void gc_ref(void** handle_reference, void* old_handle, void* new_handle)
-	{
-		assert(gc_handles);
+		void gc_ref(void** handle_reference, void* old_handle, void* new_handle)
+		{
+			assert(gc_handles);
 
-		lock_guard<mutex> guard(gc_lock);
-		gc_ref_disconnect_unsafe(handle_reference, old_handle, false);
-		gc_ref_connect_unsafe(handle_reference, new_handle, false);
+			lock_guard<mutex> guard(gc_lock);
+			gc_ref_disconnect_unsafe(handle_reference, old_handle, false);
+			gc_ref_connect_unsafe(handle_reference, new_handle, false);
+		}
 	}
 
 	void gc_start(size_t step_size, size_t max_size)

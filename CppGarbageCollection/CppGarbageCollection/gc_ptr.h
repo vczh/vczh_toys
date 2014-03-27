@@ -28,11 +28,14 @@ namespace gc_cpp
 		virtual ~enable_gc();
 	};
 
-	extern void gc_alloc(gc_record record);
-	extern void gc_register(void* reference, enable_gc* handle);
-	extern void gc_ref_alloc(void** handle_reference, void* handle);
-	extern void gc_ref_dealloc(void** handle_reference, void* handle);
-	extern void gc_ref(void** handle_reference, void* old_handle, void* new_handle);
+	namespace unsafe_functions
+	{
+		extern void gc_alloc(gc_record record);
+		extern void gc_register(void* reference, enable_gc* handle);
+		extern void gc_ref_alloc(void** handle_reference, void* handle);
+		extern void gc_ref_dealloc(void** handle_reference, void* handle);
+		extern void gc_ref(void** handle_reference, void* old_handle, void* new_handle);
+	}
 	extern void gc_start(size_t step_size, size_t max_size);
 	extern void gc_stop();
 	extern void gc_force_collect();
@@ -62,38 +65,38 @@ namespace gc_cpp
 		gc_ptr(T* _reference)
 			:reference(_reference)
 		{
-			gc_ref_alloc((void**)this, handle_of(reference));
+			unsafe_functions::gc_ref_alloc((void**)this, handle_of(reference));
 		}
 	public:
 		gc_ptr()
 		{
-			gc_ref_alloc((void**)this, nullptr);
+			unsafe_functions::gc_ref_alloc((void**)this, nullptr);
 		}
 
 		gc_ptr(const gc_ptr<T>& ptr)
 			:reference(ptr.reference)
 		{
-			gc_ref_alloc((void**)this, handle_of(reference));
+			unsafe_functions::gc_ref_alloc((void**)this, handle_of(reference));
 		}
 
 		gc_ptr(gc_ptr<T>&& ptr)
 			:reference(ptr.reference)
 		{
-			gc_ref_alloc((void**)this, handle_of(reference));
+			unsafe_functions::gc_ref_alloc((void**)this, handle_of(reference));
 			ptr.reference = nullptr;
-			gc_ref((void**)&ptr, handle_of(reference), nullptr);
+			unsafe_functions::gc_ref((void**)&ptr, handle_of(reference), nullptr);
 		}
 
 		template<typename U>
 		gc_ptr(const gc_ptr<U>& ptr)
 			:reference(ptr.reference)
 		{
-			gc_ref_alloc((void**)this, handle_of(reference));
+			unsafe_functions::gc_ref_alloc((void**)this, handle_of(reference));
 		}
 
 		~gc_ptr()
 		{
-			gc_ref_dealloc((void**)this, handle_of(reference));
+			unsafe_functions::gc_ref_dealloc((void**)this, handle_of(reference));
 		}
 
 		operator bool()const
@@ -106,7 +109,7 @@ namespace gc_cpp
 			void* old_handle = handle_of(reference);
 			reference = ptr.reference;
 			void* new_handle = handle_of(reference);
-			gc_ref((void**)this, old_handle, new_handle);
+			unsafe_functions::gc_ref((void**)this, old_handle, new_handle);
 			return *this;
 		}
 
@@ -123,16 +126,16 @@ namespace gc_cpp
 		gc_record record;
 		record.start = memory;
 		record.length = sizeof(T);
-		gc_alloc(record);
+		unsafe_functions::gc_alloc(record);
 
 		T* reference = new(memory)T(std::forward<TArgs>(args)...);
 		enable_gc* e = static_cast<enable_gc*>(reference);
 		record.handle = e;
 		e->set_record(record);
-		gc_register(memory, e);
+		unsafe_functions::gc_register(memory, e);
 
 		auto ptr = gc_ptr<T>(reference);
-		gc_ref(nullptr, memory, nullptr);
+		unsafe_functions::gc_ref(nullptr, memory, nullptr);
 		return ptr;
 	}
 
