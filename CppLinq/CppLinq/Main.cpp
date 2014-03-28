@@ -66,6 +66,21 @@ int main()
 		assert(from(xs).where([](int x){return x % 2 == 0; }).sequence_equal(from(ys)));
 	}
 	//////////////////////////////////////////////////////////////////
+	// iterating
+	//////////////////////////////////////////////////////////////////
+	{
+		vector<int> empty;
+		int xs[] = { 1, 2, 3, 4, 5 };
+		int ys[] = { 1, 2, 3 };
+		int zs[] = { 4, 5 };
+		assert(from(xs).take(3).sequence_equal(from(ys)));
+		assert(from(xs).skip(3).sequence_equal(from(zs)));
+		assert(from(xs).take_while([](int a){return a != 4;}).sequence_equal(from(ys)));
+		assert(from(xs).skip_while([](int a){return a != 4;}).sequence_equal(from(zs)));
+		assert(from(xs).take(0).sequence_equal(from(empty)));
+		assert(from(xs).skip(5).sequence_equal(from(empty)));
+	}
+	//////////////////////////////////////////////////////////////////
 	// counting
 	//////////////////////////////////////////////////////////////////
 	{

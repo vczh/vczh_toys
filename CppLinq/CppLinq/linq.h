@@ -262,6 +262,231 @@ namespace vczh
 				return end != it.end;
 			}
 		};
+
+		//////////////////////////////////////////////////////////////////
+		// skip :: [T] -> int -> [T]
+		//////////////////////////////////////////////////////////////////
+
+		template<typename TIterator>
+		class skip_iterator
+		{
+			typedef skip_iterator<TIterator>							TSelf;
+		private:
+			TIterator			iterator;
+			TIterator			end;
+
+		public:
+			skip_iterator(const TIterator& _iterator, const TIterator& _end, int _count)
+				:iterator(_iterator), end(_end)
+			{
+				for (int i = 0; i < _count && iterator != end; i++, iterator++);
+			}
+
+			TSelf& operator++()
+			{
+				iterator++;
+				return *this;
+			}
+
+			TSelf operator++(int)
+			{
+				TSelf t = *this;
+				iterator++;
+				return t;
+			}
+
+			iterator_type<TIterator> operator*()const
+			{
+				return *iterator;
+			}
+
+			bool operator==(const TSelf& it)const
+			{
+				return iterator == it.iterator;
+			}
+
+			bool operator!=(const TSelf& it)const
+			{
+				return iterator != it.iterator;
+			}
+		};
+
+		//////////////////////////////////////////////////////////////////
+		// skip_while :: [T] -> (T -> bool) -> [T]
+		//////////////////////////////////////////////////////////////////
+
+		template<typename TIterator, typename TFunction>
+		class skip_while_iterator
+		{
+			typedef skip_while_iterator<TIterator, TFunction>			TSelf;
+		private:
+			TIterator			iterator;
+			TIterator			end;
+			TFunction			f;
+
+		public:
+			skip_while_iterator(const TIterator& _iterator, const TIterator& _end, const TFunction& _f)
+				:iterator(_iterator), end(_end), f(_f)
+			{
+				while (iterator != end && f(*iterator))
+				{
+					iterator++;
+				}
+			}
+
+			TSelf& operator++()
+			{
+				iterator++;
+				return *this;
+			}
+
+			TSelf operator++(int)
+			{
+				TSelf t = *this;
+				iterator++;
+				return t;
+			}
+
+			iterator_type<TIterator> operator*()const
+			{
+				return *iterator;
+			}
+
+			bool operator==(const TSelf& it)const
+			{
+				return iterator == it.iterator;
+			}
+
+			bool operator!=(const TSelf& it)const
+			{
+				return iterator != it.iterator;
+			}
+		};
+
+		//////////////////////////////////////////////////////////////////
+		// take :: [T] -> int -> [T]
+		//////////////////////////////////////////////////////////////////
+
+		template<typename TIterator>
+		class take_iterator
+		{
+			typedef take_iterator<TIterator>							TSelf;
+		private:
+			TIterator			iterator;
+			TIterator			end;
+			int					count;
+			int					current;
+
+		public:
+			take_iterator(const TIterator& _iterator, const TIterator& _end, int _count)
+				:iterator(_iterator), end(_end), count(_count), current(0)
+			{
+				if (current == count)
+				{
+					iterator = end;
+				}
+			}
+
+			TSelf& operator++()
+			{
+				if (++current == count)
+				{
+					iterator = end;
+				}
+				else
+				{
+					iterator++;
+				}
+				return *this;
+			}
+
+			TSelf operator++(int)
+			{
+				TSelf t = *this;
+				if (++current == count)
+				{
+					iterator = end;
+				}
+				else
+				{
+					iterator++;
+				}
+				return t;
+			}
+
+			iterator_type<TIterator> operator*()const
+			{
+				return *iterator;
+			}
+
+			bool operator==(const TSelf& it)const
+			{
+				return iterator == it.iterator;
+			}
+
+			bool operator!=(const TSelf& it)const
+			{
+				return iterator != it.iterator;
+			}
+		};
+
+		//////////////////////////////////////////////////////////////////
+		// take_while :: [T] -> (T -> bool) -> [T]
+		//////////////////////////////////////////////////////////////////
+
+		template<typename TIterator, typename TFunction>
+		class take_while_iterator
+		{
+			typedef take_while_iterator<TIterator, TFunction>			TSelf;
+		private:
+			TIterator			iterator;
+			TIterator			end;
+			TFunction			f;
+
+		public:
+			take_while_iterator(const TIterator& _iterator, const TIterator& _end, const TFunction& _f)
+				:iterator(_iterator), end(_end), f(_f)
+			{
+				if (iterator != end && !f(*iterator))
+				{
+					iterator = end;
+				}
+			}
+
+			TSelf& operator++()
+			{
+				if (!f(*++iterator))
+				{
+					iterator = end;
+				}
+				return *this;
+			}
+
+			TSelf operator++(int)
+			{
+				TSelf t = *this;
+				if (!f(*++iterator))
+				{
+					iterator = end;
+				}
+				return t;
+			}
+
+			iterator_type<TIterator> operator*()const
+			{
+				return *iterator;
+			}
+
+			bool operator==(const TSelf& it)const
+			{
+				return iterator == it.iterator;
+			}
+
+			bool operator!=(const TSelf& it)const
+			{
+				return iterator != it.iterator;
+			}
+		};
 	}
 
 	template<typename TIterator>
@@ -277,6 +502,18 @@ namespace vczh
 
 		template<typename T>
 		using single_it = iterators::single_iterator<T>;
+
+		template<typename TIterator>
+		using skip_it = iterators::skip_iterator<TIterator>;
+
+		template<typename TIterator, typename TFunction>
+		using skip_while_it = iterators::skip_while_iterator<TIterator, TFunction>;
+
+		template<typename TIterator>
+		using take_it = iterators::take_iterator<TIterator>;
+
+		template<typename TIterator, typename TFunction>
+		using take_while_it = iterators::take_while_iterator<TIterator, TFunction>;
 	}
 
 	//////////////////////////////////////////////////////////////////
@@ -347,13 +584,41 @@ namespace vczh
 				);
 		}
 
+		linq_enumerable<types::skip_it<TIterator>> skip(int count)const
+		{
+			return linq_enumerable<types::skip_it<TIterator>>(
+				types::skip_it<TIterator>(_begin, _end, count),
+				types::skip_it<TIterator>(_end, _end, count)
+				);
+		}
+
+		template<typename TFunction>
+		linq_enumerable<types::skip_while_it<TIterator, TFunction>> skip_while(const TFunction& f)const
+		{
+			return linq_enumerable<types::skip_while_it<TIterator, TFunction>>(
+				types::skip_while_it<TIterator, TFunction>(_begin, _end, f),
+				types::skip_while_it<TIterator, TFunction>(_end, _end, f)
+				);
+		}
+
+		linq_enumerable<types::take_it<TIterator>> take(int count)const
+		{
+			return linq_enumerable<types::take_it<TIterator>>(
+				types::take_it<TIterator>(_begin, _end, count),
+				types::take_it<TIterator>(_end, _end, count)
+				);
+		}
+
+		template<typename TFunction>
+		linq_enumerable<types::take_while_it<TIterator, TFunction>> take_while(const TFunction& f)const
+		{
+			return linq_enumerable<types::take_while_it<TIterator, TFunction>>(
+				types::take_while_it<TIterator, TFunction>(_begin, _end, f),
+				types::take_while_it<TIterator, TFunction>(_end, _end, f)
+				);
+		}
+
 		void concat()const;
-		void cast()const;
-		void typeof()const;
-		void skip()const;
-		void skip_while()const;
-		void sum()const;
-		void then_by()const;
 
 		//////////////////////////////////////////////////////////////////
 		// counting
@@ -578,6 +843,7 @@ namespace vczh
 		void group_join()const;
 		void join()const;
 		void order_by()const;
+		void then_by()const;
 		void zip()const;
 
 		//////////////////////////////////////////////////////////////////
