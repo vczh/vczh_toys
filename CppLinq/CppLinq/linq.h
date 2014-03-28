@@ -1,16 +1,164 @@
 #pragma once
 
 #include <xutility>
+#include <functional>
+#include <memory>
 
 namespace vczh
 {
-	//////////////////////////////////////////////////////////////////
-	// select
-	//////////////////////////////////////////////////////////////////
+	template<typename TIterator>
+	using iterator_type = decltype(**(TIterator*)0);
 
-	//////////////////////////////////////////////////////////////////
-	// where
-	//////////////////////////////////////////////////////////////////
+	namespace iterators
+	{
+		//////////////////////////////////////////////////////////////////
+		// hide_type
+		//////////////////////////////////////////////////////////////////
+
+		template<typename T>
+		class hide_type_iterator
+		{
+		private:
+			class iterator_interface
+			{
+				typedef iterator_interface							TSelf;
+			public:
+				virtual std::shared_ptr<TSelf>	next() = 0;
+				virtual T						deref() = 0;
+				virtual bool					equals(const std::shared_ptr<TSelf>& it) = 0;
+			};
+
+			template<typename TIterator>
+			class iterator_implement : public iterator_interface
+			{
+				typedef iterator_implement<TIterator>				TSelf;
+			private:
+				TIterator						iterator;
+
+			public:
+				iterator_implement(const TIterator& _iterator)
+					:iterator(_iterator)
+				{
+				}
+
+				std::shared_ptr<iterator_interface> next()override
+				{
+					TIterator t = iterator;
+					t++;
+					return std::make_shared<TSelf>(t);
+				}
+
+				T deref()override
+				{
+					return *iterator;
+				}
+
+				bool equals(const std::shared_ptr<iterator_interface>& it)override
+				{
+					auto impl = std::dynamic_pointer_cast<TSelf>(it);
+					return impl && (iterator == impl->iterator);
+				}
+			};
+			
+			typedef hide_type_iterator<T>							TSelf;
+
+			std::shared_ptr<iterator_interface>		iterator;
+		public:
+			template<typename TIterator>
+			hide_type_iterator(const TIterator& _iterator)
+				:iterator(std::make_shared<iterator_implement<TIterator>>(_iterator))
+			{
+			}
+
+			TSelf& operator++()
+			{
+				iterator = iterator->next();
+				return *this;
+			}
+
+			TSelf operator++(int)
+			{
+				TSelf t = *this;
+				iterator = iterator->next();
+				return t;
+			}
+
+			T operator*()const
+			{
+				return iterator->deref();
+			}
+
+			bool operator==(const TSelf& it)const
+			{
+				return iterator->equals(it.iterator);
+			}
+
+			bool operator!=(const TSelf& it)const
+			{
+				return !(iterator->equals(it.iterator));
+			}
+		};
+
+		//////////////////////////////////////////////////////////////////
+		// select
+		//////////////////////////////////////////////////////////////////
+
+		template<typename TIterator, typename TFunction>
+		class select_iterator
+		{
+			typedef select_iterator<TIterator, TFunction>			TSelf;
+		private:
+			TIterator			iterator;
+			TFunction			f;
+
+		public:
+			select_iterator(const TIterator& _iterator, const TFunction& _f)
+				:iterator(_iterator), f(_f)
+			{
+			}
+
+			TSelf& operator++()
+			{
+				iterator++;
+				return *this;
+			}
+
+			TSelf operator++(int)
+			{
+				TSelf t = *this;
+				iterator++;
+				return t;
+			}
+
+			auto operator*()const->decltype(f(*iterator))
+			{
+				return f(*iterator);
+			}
+
+			bool operator==(const TSelf& it)const
+			{
+				return iterator == it.iterator;
+			}
+
+			bool operator!=(const TSelf& it)const
+			{
+				return iterator != it.iterator;
+			}
+		};
+
+		//////////////////////////////////////////////////////////////////
+		// where
+		//////////////////////////////////////////////////////////////////
+	}
+
+	template<typename TIterator>
+	class linq_enumerable;
+
+	namespace types
+	{
+		template<typename TIterator, typename TFunction>
+		using select_it = iterators::select_iterator<TIterator, TFunction>;
+	}
 
 	//////////////////////////////////////////////////////////////////
 	// linq
@@ -19,10 +167,11 @@ namespace vczh
 	template<typename TIterator>
 	class linq_enumerable
 	{
-	public:
+	private:
 		TIterator				_begin;
 		TIterator				_end;
 
+	public:
 		linq_enumerable()
 		{
 		}
@@ -40,6 +189,33 @@ namespace vczh
 		TIterator end()const
 		{
 			return _end;
+		}
+
+		template<typename TFunction>
+		linq_enumerable<types::select_it<TIterator, TFunction>> select(const TFunction& f)
+		{
+			return linq_enumerable<types::select_it<TIterator, TFunction>>(
+				types::select_it<TIterator, TFunction>(_begin, f),
+				types::select_it<TIterator, TFunction>(_end, f)
+				);
+		}
+	};
+
+	template<typename T>
+	class linq : public linq_enumerable<iterators::hide_type_iterator<T>>
+	{
+	public:
+		linq()
+		{
+		}
+
+		template<typename TIterator>
+		linq(const linq_enumerable<TIterator>& e)
+			:linq_enumerable<iterators::hide_type_iterator<T>>(
+				iterators::hide_type_iterator<T>(e.begin()),
+				iterators::hide_type_iterator<T>(e.end())
+				)
+		{
 		}
 	};
 
