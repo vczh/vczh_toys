@@ -64,7 +64,19 @@ int main()
 		{
 			sum += x;
 		}
-		assert(sum == 30);
+		assert(sum == 30); // 1 + 2 + 3 + 4 + 5
+	}
+	//////////////////////////////////////////////////////////////////
+	// where
+	//////////////////////////////////////////////////////////////////
+	{
+		int xs[] = { 1, 2, 3, 4, 5 };
+		int sum = 0;
+		for (auto x : from(xs).where([](int x){return x % 2 == 0; }))
+		{
+			sum += x;
+		}
+		assert(sum == 6); // 2 + 4
 	}
 	_CrtDumpMemoryLeaks();
 	return 0;

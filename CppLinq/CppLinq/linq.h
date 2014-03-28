@@ -149,6 +149,60 @@ namespace vczh
 		//////////////////////////////////////////////////////////////////
 		// where
 		//////////////////////////////////////////////////////////////////
+
+		template<typename TIterator, typename TFunction>
+		class where_iterator
+		{
+			typedef where_iterator<TIterator, TFunction>			TSelf;
+		private:
+			TIterator			iterator;
+			TIterator			end;
+			TFunction			f;
+
+			void move_iterator(bool next)
+			{
+				if (iterator == end) return;
+				if (next) iterator++;
+				while (iterator != end && !f(*iterator))
+				{
+					iterator++;
+				}
+			}
+		public:
+			where_iterator(const TIterator& _iterator, const TIterator& _end, const TFunction& _f)
+				:iterator(_iterator), end(_end), f(_f)
+			{
+				move_iterator(false);
+			}
+
+			TSelf& operator++()
+			{
+				move_iterator(true);
+				return *this;
+			}
+
+			TSelf operator++(int)
+			{
+				TSelf t = *this;
+				move_iterator(true);
+				return t;
+			}
+
+			iterator_type<TIterator> operator*()const
+			{
+				return *iterator;
+			}
+
+			bool operator==(const TSelf& it)const
+			{
+				return iterator == it.iterator;
+			}
+
+			bool operator!=(const TSelf& it)const
+			{
+				return iterator != it.iterator;
+			}
+		};
 	}
 
 	template<typename TIterator>
@@ -158,6 +212,9 @@ namespace vczh
 	{
 		template<typename TIterator, typename TFunction>
 		using select_it = iterators::select_iterator<TIterator, TFunction>;
+
+		template<typename TIterator, typename TFunction>
+		using where_it = iterators::where_iterator<TIterator, TFunction>;
 	}
 
 	//////////////////////////////////////////////////////////////////
@@ -197,6 +254,15 @@ namespace vczh
 			return linq_enumerable<types::select_it<TIterator, TFunction>>(
 				types::select_it<TIterator, TFunction>(_begin, f),
 				types::select_it<TIterator, TFunction>(_end, f)
+				);
+		}
+
+		template<typename TFunction>
+		linq_enumerable<types::where_it<TIterator, TFunction>> where(const TFunction& f)
+		{
+			return linq_enumerable<types::where_it<TIterator, TFunction>>(
+				types::where_it<TIterator, TFunction>(_begin, _end, f),
+				types::where_it<TIterator, TFunction>(_end, _end, f)
 				);
 		}
 	};
