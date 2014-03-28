@@ -226,8 +226,14 @@ int main()
 	{
 		int xs[] = { 1, 2, 3, 4, 5 };
 		int ys[] = { 6, 7, 8, 9, 10 };
+
 		zip_pair<int, int> zs[] = { { 1, 6 }, { 2, 7 }, { 3, 8 }, { 4, 9 }, { 5, 10 } };
 		assert(from(xs).zip_with(ys).sequence_equal(zs));
+
+		auto g = from(xs).group_by([](int x){return x % 2; });
+		assert(g.select([](zip_pair<int, linq<int>> p){return p.first; }).sequence_equal({ 0, 1 }));
+		assert(g.first().second.sequence_equal({ 2, 4 }));
+		assert(g.last().second.sequence_equal({ 1, 3, 5 }));
 	}
 	_CrtDumpMemoryLeaks();
 	return 0;

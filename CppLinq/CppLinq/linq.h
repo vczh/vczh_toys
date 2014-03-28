@@ -831,11 +831,11 @@ namespace vczh
 		}
 		SUPPORT_STL_CONTAINERS(concat)
 
-			//////////////////////////////////////////////////////////////////
-			// counting
-			//////////////////////////////////////////////////////////////////
+		//////////////////////////////////////////////////////////////////
+		// counting
+		//////////////////////////////////////////////////////////////////
 
-			template<typename T>
+		template<typename T>
 		bool contains(const T& t)const
 		{
 			for (auto it = _begin; it != _end; it++)
@@ -957,23 +957,23 @@ namespace vczh
 		}
 		SUPPORT_STL_CONTAINERS(sequence_equal)
 
-			//////////////////////////////////////////////////////////////////
-			// set
-			//////////////////////////////////////////////////////////////////
+		//////////////////////////////////////////////////////////////////
+		// set
+		//////////////////////////////////////////////////////////////////
 
-			linq<TElement> distinct()const
+		linq<TElement> distinct()const
 		{
-				std::set<TElement> set;
-				auto xs = std::make_shared<std::vector<TElement>>();
-				for (auto it = _begin; it != _end; it++)
+			std::set<TElement> set;
+			auto xs = std::make_shared<std::vector<TElement>>();
+			for (auto it = _begin; it != _end; it++)
+			{
+				if (set.insert(*it).second)
 				{
-					if (set.insert(*it).second)
-					{
-						xs->push_back(*it);
-					}
+					xs->push_back(*it);
 				}
-				return from_values(xs);
 			}
+			return from_values(xs);
+		}
 
 		template<typename TIterator2>
 		linq<TElement> except_with(const linq_enumerable<TIterator2>& e)const
@@ -991,7 +991,7 @@ namespace vczh
 		}
 		SUPPORT_STL_CONTAINERS(except_with)
 
-			template<typename TIterator2>
+		template<typename TIterator2>
 		linq<TElement> intersect_with(const linq_enumerable<TIterator2>& e)const
 		{
 			std::set<TElement> seti, set(e.begin(), e.end());
@@ -1007,18 +1007,18 @@ namespace vczh
 		}
 		SUPPORT_STL_CONTAINERS(intersect_with)
 
-			template<typename TIterator2>
+		template<typename TIterator2>
 		linq<TElement> union_with(const linq_enumerable<TIterator2>& e)const
 		{
 			return concat(e).distinct();
 		}
 		SUPPORT_STL_CONTAINERS(union_with)
 
-			//////////////////////////////////////////////////////////////////
-			// aggregating
-			//////////////////////////////////////////////////////////////////
+		//////////////////////////////////////////////////////////////////
+		// aggregating
+		//////////////////////////////////////////////////////////////////
 
-			template<typename TFunction>
+		template<typename TFunction>
 		TElement aggregate(const TFunction& f)const
 		{
 			auto it = _begin;
@@ -1093,7 +1093,39 @@ namespace vczh
 		// restructuring
 		//////////////////////////////////////////////////////////////////
 
-		void group_by()const;
+		template<typename TFunction>
+		auto group_by(const TFunction& keySelector)const->linq<zip_pair<decltype(keySelector(*(TElement*)0)), linq<TElement>>>
+		{
+			typedef decltype(keySelector(*(TElement*)0))	TKey;
+			typedef std::vector<TElement>					TValueVector;
+			typedef std::shared_ptr<TValueVector>			TValueVectorPtr;
+
+			std::map<TKey, TValueVectorPtr> map;
+			for (auto it = _begin; it != _end; it++)
+			{
+				auto value = *it;
+				auto key = keySelector(value);
+				auto it2 = map.find(key);
+				if (it2 == map.end())
+				{
+					auto xs = std::make_shared<TValueVector>();
+					xs->push_back(value);
+					map.insert(std::make_pair(key, xs));
+				}
+				else
+				{
+					it2->second->push_back(value);
+				}
+			}
+
+			auto result = std::make_shared<std::vector<zip_pair<TKey, linq<TElement>>>>();
+			for (auto p : map)
+			{
+				result->push_back(zip_pair<TKey, linq<TElement>>(p.first, from_values(p.second)));
+			}
+			return from_values(result);
+		}
+
 		void group_join()const;
 		void join()const;
 		void order_by()const;
@@ -1109,19 +1141,19 @@ namespace vczh
 		}
 		SUPPORT_STL_CONTAINERS(zip_with)
 
-			//////////////////////////////////////////////////////////////////
-			// containers
-			//////////////////////////////////////////////////////////////////
+		//////////////////////////////////////////////////////////////////
+		// containers
+		//////////////////////////////////////////////////////////////////
 
-			std::vector<TElement> to_vector()const
+		std::vector<TElement> to_vector()const
 		{
-				std::vector<TElement> container;
-				for (auto it = _begin; it != _end; it++)
-				{
-					container.push_back(*it);
-				}
-				return std::move(container);
+			std::vector<TElement> container;
+			for (auto it = _begin; it != _end; it++)
+			{
+				container.push_back(*it);
 			}
+			return std::move(container);
+		}
 
 		std::list<TElement> to_list()const
 		{
@@ -1224,7 +1256,7 @@ namespace vczh
 			iterators::hide_type_iterator<T>(e.end())
 			)
 		{
-			}
+		}
 	};
 
 	template<typename TIterator>
