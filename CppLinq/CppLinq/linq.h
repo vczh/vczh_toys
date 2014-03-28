@@ -487,6 +487,78 @@ namespace vczh
 				return iterator != it.iterator;
 			}
 		};
+
+		//////////////////////////////////////////////////////////////////
+		// concat :: [T] -> [T] -> [T]
+		//////////////////////////////////////////////////////////////////
+
+		template<typename TIterator1, typename TIterator2>
+		class concat_iterator
+		{
+			typedef concat_iterator<TIterator1, TIterator2>				TSelf;
+		private:
+			TIterator1			current1;
+			TIterator1			end1;
+			TIterator2			current2;
+			TIterator2			end2;
+			bool				first;
+
+		public:
+			concat_iterator(const TIterator1& _current1, const TIterator1& _end1, const TIterator2& _current2, const TIterator2& _end2)
+				:current1(_current1), end1(_end1), current2(_current2), end2(_end2), first(_current1 != _end1)
+			{
+			}
+
+			TSelf& operator++()
+			{
+				if (first)
+				{
+					if (++current1 == end1)
+					{
+						first = false;
+					}
+				}
+				else
+				{
+					current2++;
+				}
+				return *this;
+			}
+
+			TSelf operator++(int)
+			{
+				TSelf t = *this;
+				if (first)
+				{
+					if (++current1 == end1)
+					{
+						first = false;
+					}
+				}
+				else
+				{
+					current2++;
+				}
+				return t;
+			}
+
+			iterator_type<TIterator1> operator*()const
+			{
+				return first ? *current1 : *current2;
+			}
+
+			bool operator==(const TSelf& it)const
+			{
+				if (first != it.first) return false;
+				return first ? current1 == it.current1 : current2 == it.current2;
+			}
+
+			bool operator!=(const TSelf& it)const
+			{
+				if (first != it.first) return true;
+				return first ? current1 != it.current1 : current2 != it.current2;
+			}
+		};
 	}
 
 	template<typename TIterator>
@@ -514,6 +586,9 @@ namespace vczh
 
 		template<typename TIterator, typename TFunction>
 		using take_while_it = iterators::take_while_iterator<TIterator, TFunction>;
+
+		template<typename TIterator1, typename TIterator2>
+		using concat_it = iterators::concat_iterator<TIterator1, TIterator2>;
 	}
 
 	//////////////////////////////////////////////////////////////////
@@ -618,7 +693,14 @@ namespace vczh
 				);
 		}
 
-		void concat()const;
+		template<typename TIterator2>
+		linq_enumerable<types::concat_it<TIterator, TIterator2>> concat(const linq_enumerable<TIterator2>& e)const
+		{
+			return linq_enumerable<types::concat_it<TIterator, TIterator2>>(
+				types::concat_it<TIterator, TIterator2>(_begin, _end, e.begin(), e.end()),
+				types::concat_it<TIterator, TIterator2>(_end, _end, e.end(), e.end())
+				);
+		}
 
 		//////////////////////////////////////////////////////////////////
 		// counting
@@ -761,7 +843,7 @@ namespace vczh
 		void union_with()const;
 
 		//////////////////////////////////////////////////////////////////
-		// aggregation
+		// aggregating
 		//////////////////////////////////////////////////////////////////
 
 		template<typename TFunction>

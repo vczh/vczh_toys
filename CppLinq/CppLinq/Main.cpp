@@ -79,6 +79,10 @@ int main()
 		assert(from(xs).skip_while([](int a){return a != 4;}).sequence_equal(from(zs)));
 		assert(from(xs).take(0).sequence_equal(from(empty)));
 		assert(from(xs).skip(5).sequence_equal(from(empty)));
+		assert(from(ys).concat(from(zs)).sequence_equal(from(xs)));
+		assert(from(xs).concat(from(empty)).sequence_equal(from(xs)));
+		assert(from(empty).concat(from(xs)).sequence_equal(from(xs)));
+		assert(from(empty).concat(from(empty)).sequence_equal(from(empty)));
 	}
 	//////////////////////////////////////////////////////////////////
 	// counting
@@ -166,7 +170,7 @@ int main()
 		assert(from(xs).sequence_equal(from(from(xs).to_unordered_map(f)).select([](pair<int, int> p){return p.second; })));
 	}
 	//////////////////////////////////////////////////////////////////
-	// aggregation
+	// aggregating
 	//////////////////////////////////////////////////////////////////
 	{
 		int xs[] = { 1, 2, 3, 4, 5 };
