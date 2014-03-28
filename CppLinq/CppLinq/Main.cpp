@@ -46,37 +46,25 @@ int main()
 	//////////////////////////////////////////////////////////////////
 	{
 		int xs[] = { 1, 2, 3, 4, 5 };
-		int sum = 0;
-		for (auto x : from(xs).select([](int x){return x * 2; }))
-		{
-			sum += x;
-		}
-		assert(sum == 30);
+		int ys[] = { 2, 4, 6, 8, 10 };
+		assert(from(xs).select([](int x){return x * 2; }).sequence_equal(from(ys)));
 	}
 	//////////////////////////////////////////////////////////////////
 	// hide type test
 	//////////////////////////////////////////////////////////////////
 	{
 		int xs[] = { 1, 2, 3, 4, 5 };
-		int sum = 0;
+		int ys[] = { 2, 4, 6, 8, 10 };
 		linq<int> hidden = from(xs).select([](int x){return x * 2; });
-		for (auto x : hidden)
-		{
-			sum += x;
-		}
-		assert(sum == 30); // 1 + 2 + 3 + 4 + 5
+		assert(hidden.sequence_equal(from(ys)));
 	}
 	//////////////////////////////////////////////////////////////////
 	// where
 	//////////////////////////////////////////////////////////////////
 	{
 		int xs[] = { 1, 2, 3, 4, 5 };
-		int sum = 0;
-		for (auto x : from(xs).where([](int x){return x % 2 == 0; }))
-		{
-			sum += x;
-		}
-		assert(sum == 6); // 2 + 4
+		int ys[] = { 2, 4 };
+		assert(from(xs).where([](int x){return x % 2 == 0; }).sequence_equal(from(ys)));
 	}
 	//////////////////////////////////////////////////////////////////
 	// counting
