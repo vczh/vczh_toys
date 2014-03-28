@@ -3,6 +3,7 @@
 #include <xutility>
 #include <functional>
 #include <memory>
+#include <string>
 
 namespace vczh
 {
@@ -203,6 +204,57 @@ namespace vczh
 				return iterator != it.iterator;
 			}
 		};
+
+		//////////////////////////////////////////////////////////////////
+		// single
+		//////////////////////////////////////////////////////////////////
+
+		template<typename T>
+		class single_iterator
+		{
+			typedef single_iterator<T>								TSelf;
+		private:
+			T					value;
+			bool				end;
+
+		public:
+			single_iterator(const T& _value, bool _end)
+				:value(_value), end(_end)
+			{
+			}
+
+			TSelf& operator++()
+			{
+				end = true;
+				return *this;
+			}
+
+			TSelf operator++(int)
+			{
+				TSelf t = *this;
+				end = true;
+				return t;
+			}
+
+			T operator*()const
+			{
+				if (end)
+				{
+					throw linq_exception("Failed to get the value from an iterator which is out of range.");
+				}
+				return value;
+			}
+
+			bool operator==(const TSelf& it)const
+			{
+				return end == it.end;
+			}
+
+			bool operator!=(const TSelf& it)const
+			{
+				return end != it.end;
+			}
+		};
 	}
 
 	template<typename TIterator>
@@ -215,15 +267,33 @@ namespace vczh
 
 		template<typename TIterator, typename TFunction>
 		using where_it = iterators::where_iterator<TIterator, TFunction>;
+
+		template<typename T>
+		using single_it = iterators::single_iterator<T>;
 	}
 
 	//////////////////////////////////////////////////////////////////
 	// linq
 	//////////////////////////////////////////////////////////////////
 
+	class linq_exception
+	{
+	public:
+		std::string				message;
+
+		linq_exception(const std::string& _message)
+			:message(_message)
+		{
+		}
+	};
+
+	template<typename T>
+	class linq;
+
 	template<typename TIterator>
 	class linq_enumerable
 	{
+		typedef typename std::remove_cv<typename std::remove_reference<iterator_type<TIterator>>::type>::type	TElement;
 	private:
 		TIterator				_begin;
 		TIterator				_end;
@@ -282,18 +352,132 @@ namespace vczh
 		// counting
 		//////////////////////////////////////////////////////////////////
 
-		void contains();
-		void count();
-		void default_if_empty();
-		void element_at();
-		void empty();
-		void first();
-		void first_or_default();
-		void last();
-		void last_or_default();
-		void sequence_equal();
-		void single();
-		void single_or_default();
+		template<typename T>
+		bool contains(const T& t)
+		{
+			for (auto it = _begin; it != _end; it++)
+			{
+				if (*it == t) return true;
+			}
+			return false;
+		}
+
+		int count()
+		{
+			int counter = 0;
+			for (auto it = _begin; it != _end; it++)
+			{
+				counter++;
+			}
+			return counter;
+		}
+
+		linq<TElement> default_if_empty(const TElement& value)
+		{
+			if (count() == 0)
+			{
+				return linq_enumerable<types::single_it<TElement>>(
+					types::single_it<TElement>(value, false),
+					types::single_it<TElement>(value, true)
+					);
+			}
+			else
+			{
+				return *this;
+			}
+		}
+
+		TElement element_at(int index)
+		{
+			if (index >= 0)
+			{
+				int counter = 0;
+				for (auto it = _begin; it != _end; it++)
+				{
+					if (counter == index) return *it;
+					counter++;
+				}
+			}
+			throw linq_exception("Argument out of range: index.");
+		}
+
+		bool empty()
+		{
+			return _begin == _end;
+		}
+
+		TElement first()
+		{
+			if (empty()) throw linq_exception("Failed to get a value from an empty collection.");
+			return *_begin;
+		}
+
+		TElement first_or_default(const TElement& value)
+		{
+			return empty() ? value : *_begin;
+		}
+
+		TElement last()
+		{
+			if (empty()) throw linq_exception("Failed to get a value from an empty collection.");
+			auto it = _begin;
+			TElement result = *it;
+			while (++it != _end)
+			{
+				result = *it;
+			}
+			return result;
+		}
+
+		TElement last_or_default(const TElement& value)
+		{
+			auto result = value;
+			for (auto it = _begin; it != _end; it++)
+			{
+				result = *it;
+			}
+			return result;
+		}
+
+		linq_enumerable<TIterator> single()
+		{
+			auto it = _begin;
+			if (it == _end) throw linq_exception("Failed to get a value from an empty collection.");
+
+			it++;
+			if (it!=_end) throw linq_exception("The collection should have exactly one value.");
+
+			return *this;
+		}
+
+		linq<TElement> single_or_default(const TElement& value)
+		{
+			auto it = _begin;
+			if (it == _end) return linq_enumerable<types::single_it<TElement>>(
+				types::single_it<TElement>(value, false),
+				types::single_it<TElement>(value, true)
+				);
+
+			it++;
+			if (it!=_end) throw linq_exception("The collection should have exactly one value.");
+
+			return *this;
+		}
+		
+		template<typename TIterator2>
+		bool sequence_equal(const linq_enumerable<TIterator2>& e)
+		{
+			auto x = _begin;
+			auto xe = _end;
+			auto y = e.begin();
+			auto ye = e.end();
+
+			while (x != xe && y != ye)
+			{
+				if (*x++ != *y++) return false;
+			}
+			return x == xe && y == ye;
+		}
 
 		//////////////////////////////////////////////////////////////////
 		// set

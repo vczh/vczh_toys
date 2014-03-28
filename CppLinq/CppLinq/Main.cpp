@@ -78,6 +78,71 @@ int main()
 		}
 		assert(sum == 6); // 2 + 4
 	}
+	//////////////////////////////////////////////////////////////////
+	// counting
+	//////////////////////////////////////////////////////////////////
+	{
+		int a[] = { 1, 2, 3, 4, 5 };
+		vector<int> b = { 1, 2, 3, 4, 5 };
+		vector<int> c;
+		int d[] = { 1, 2, 3, 4 };
+		int e[] = { 1, 2, 3, 4, 5, 6 };
+		int f[] = { 6, 7, 8, 9, 10 };
+		int g[] = { 0 };
+		linq<int> xs[] = { from(b), from(c), from(d), from(e), from(f) };
+
+		assert(from(a).sequence_equal(from(b)));
+		for (auto& x : xs)
+		{
+			for (auto& y : xs)
+			{
+				assert(x.sequence_equal(y) == (&x == &y));
+			}
+		}
+
+		assert(from(a).contains(1));
+		assert(from(a).contains(5));
+		assert(!from(a).contains(6));
+		assert(!from(c).contains(6));
+
+		assert(from(a).count() == 5);
+		assert(from(c).count() == 0);
+
+		assert(from(a).default_if_empty(0).sequence_equal(from(b)));
+		assert(from(c).default_if_empty(0).sequence_equal(from(g)));
+
+		assert(from(a).element_at(0) == 1);
+		assert(from(a).element_at(4) == 5);
+		try{ from(a).element_at(-1); assert(false); }
+		catch (const linq_exception&){}
+		try{ from(a).element_at(6); assert(false); }
+		catch (const linq_exception&){}
+		try{ from(c).element_at(0); assert(false); }
+		catch (const linq_exception&){}
+
+		assert(!from(a).empty());
+		assert(from(c).empty());
+
+		assert(from(a).first() == 1);
+		assert(from(a).first_or_default(0) == 1);
+		assert(from(a).last() == 5);
+		assert(from(a).last_or_default(0) == 5);
+		assert(from(c).first_or_default(0) == 0);
+		assert(from(c).last_or_default(0) == 0);
+		try{ from(c).first(); assert(false); }
+		catch (const linq_exception&){}
+		try{ from(c).last(); assert(false); }
+		catch (const linq_exception&){}
+		
+		assert(from(c).single_or_default(0).sequence_equal(from(g)));
+		assert(from(g).single().sequence_equal(from(g)));
+		try{ from(a).single(); assert(false); }
+		catch (const linq_exception&){}
+		try{ from(a).single_or_default(0); assert(false); }
+		catch (const linq_exception&){}
+		try{ from(c).single(); assert(false); }
+		catch (const linq_exception&){}
+	}
 	_CrtDumpMemoryLeaks();
 	return 0;
 }
