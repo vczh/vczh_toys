@@ -4,6 +4,13 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <vector>
+#include <list>
+#include <deque>
+#include <map>
+#include <unordered_map>
+#include <set>
+#include <unordered_set>
 
 namespace vczh
 {
@@ -323,7 +330,7 @@ namespace vczh
 		//////////////////////////////////////////////////////////////////
 
 		template<typename TFunction>
-		linq_enumerable<types::select_it<TIterator, TFunction>> select(const TFunction& f)
+		linq_enumerable<types::select_it<TIterator, TFunction>> select(const TFunction& f)const
 		{
 			return linq_enumerable<types::select_it<TIterator, TFunction>>(
 				types::select_it<TIterator, TFunction>(_begin, f),
@@ -332,7 +339,7 @@ namespace vczh
 		}
 
 		template<typename TFunction>
-		linq_enumerable<types::where_it<TIterator, TFunction>> where(const TFunction& f)
+		linq_enumerable<types::where_it<TIterator, TFunction>> where(const TFunction& f)const
 		{
 			return linq_enumerable<types::where_it<TIterator, TFunction>>(
 				types::where_it<TIterator, TFunction>(_begin, _end, f),
@@ -340,20 +347,20 @@ namespace vczh
 				);
 		}
 
-		void concat();
-		void cast();
-		void typeof();
-		void skip();
-		void skip_while();
-		void sum();
-		void then_by();
+		void concat()const;
+		void cast()const;
+		void typeof()const;
+		void skip()const;
+		void skip_while()const;
+		void sum()const;
+		void then_by()const;
 
 		//////////////////////////////////////////////////////////////////
 		// counting
 		//////////////////////////////////////////////////////////////////
 
 		template<typename T>
-		bool contains(const T& t)
+		bool contains(const T& t)const
 		{
 			for (auto it = _begin; it != _end; it++)
 			{
@@ -362,7 +369,7 @@ namespace vczh
 			return false;
 		}
 
-		int count()
+		int count()const
 		{
 			int counter = 0;
 			for (auto it = _begin; it != _end; it++)
@@ -372,7 +379,7 @@ namespace vczh
 			return counter;
 		}
 
-		linq<TElement> default_if_empty(const TElement& value)
+		linq<TElement> default_if_empty(const TElement& value)const
 		{
 			if (count() == 0)
 			{
@@ -387,7 +394,7 @@ namespace vczh
 			}
 		}
 
-		TElement element_at(int index)
+		TElement element_at(int index)const
 		{
 			if (index >= 0)
 			{
@@ -401,23 +408,23 @@ namespace vczh
 			throw linq_exception("Argument out of range: index.");
 		}
 
-		bool empty()
+		bool empty()const
 		{
 			return _begin == _end;
 		}
 
-		TElement first()
+		TElement first()const
 		{
 			if (empty()) throw linq_exception("Failed to get a value from an empty collection.");
 			return *_begin;
 		}
 
-		TElement first_or_default(const TElement& value)
+		TElement first_or_default(const TElement& value)const
 		{
 			return empty() ? value : *_begin;
 		}
 
-		TElement last()
+		TElement last()const
 		{
 			if (empty()) throw linq_exception("Failed to get a value from an empty collection.");
 			auto it = _begin;
@@ -429,7 +436,7 @@ namespace vczh
 			return result;
 		}
 
-		TElement last_or_default(const TElement& value)
+		TElement last_or_default(const TElement& value)const
 		{
 			auto result = value;
 			for (auto it = _begin; it != _end; it++)
@@ -439,7 +446,7 @@ namespace vczh
 			return result;
 		}
 
-		linq_enumerable<TIterator> single()
+		linq_enumerable<TIterator> single()const
 		{
 			auto it = _begin;
 			if (it == _end) throw linq_exception("Failed to get a value from an empty collection.");
@@ -450,7 +457,7 @@ namespace vczh
 			return *this;
 		}
 
-		linq<TElement> single_or_default(const TElement& value)
+		linq<TElement> single_or_default(const TElement& value)const
 		{
 			auto it = _begin;
 			if (it == _end) return linq_enumerable<types::single_it<TElement>>(
@@ -465,7 +472,7 @@ namespace vczh
 		}
 		
 		template<typename TIterator2>
-		bool sequence_equal(const linq_enumerable<TIterator2>& e)
+		bool sequence_equal(const linq_enumerable<TIterator2>& e)const
 		{
 			auto x = _begin;
 			auto xe = _end;
@@ -483,46 +490,128 @@ namespace vczh
 		// set
 		//////////////////////////////////////////////////////////////////
 
-		void distinct_with();
-		void except_with();
-		void intersect_with();
-		void union_with();
+		void distinct_with()const;
+		void except_with()const;
+		void intersect_with()const;
+		void union_with()const;
 
 		//////////////////////////////////////////////////////////////////
 		// aggregation
 		//////////////////////////////////////////////////////////////////
 
-		void aggregate();
-		void all();
-		void any();
-		void average();
-		void max();
-		void min();
+		void aggregate()const;
+		void all()const;
+		void any()const;
+		void average()const;
+		void max()const;
+		void min()const;
 
 		//////////////////////////////////////////////////////////////////
 		// restructuring
 		//////////////////////////////////////////////////////////////////
 
-		void group_by();
-		void group_join();
-		void join();
-		void order_by();
-		void zip();
+		void group_by()const;
+		void group_join()const;
+		void join()const;
+		void order_by()const;
+		void zip()const;
 
 		//////////////////////////////////////////////////////////////////
 		// containers
 		//////////////////////////////////////////////////////////////////
 
-		void to_vector();
-		void to_list();
-		void to_deque();
-		void to_map();
-		void to_multimap();
-		void to_unordered_map();
-		void to_set();
-		void to_multiset();
-		void to_unordered_set();
+		std::vector<TElement> to_vector()const
+		{
+			std::vector<TElement> container;
+			for (auto it = _begin; it != _end; it++)
+			{
+				container.push_back(*it);
+			}
+			return std::move(container);
+		}
 
+		std::list<TElement> to_list()const
+		{
+			std::list<TElement> container;
+			for (auto it = _begin; it != _end; it++)
+			{
+				container.push_back(*it);
+			}
+			return std::move(container);
+		}
+
+		std::deque<TElement> to_deque()const
+		{
+			std::deque<TElement> container;
+			for (auto it = _begin; it != _end; it++)
+			{
+				container.push_back(*it);
+			}
+			return std::move(container);
+		}
+
+		template<typename TFunction>
+		auto to_map(const TFunction& keySelector)const->std::map<decltype(keySelector(*(TElement*)0)), TElement>
+		{
+			std::map<decltype(keySelector(*(TElement*)0)), TElement> container;
+			for (auto it = _begin; it != _end; it++)
+			{
+				container.insert(std::make_pair(keySelector(*it), *it));
+			}
+			return std::move(container);
+		}
+
+		template<typename TFunction>
+		auto to_multimap(const TFunction& keySelector)const->std::multimap<decltype(keySelector(*(TElement*)0)), TElement>
+		{
+			std::multimap<decltype(keySelector(*(TElement*)0)), TElement> container;
+			for (auto it = _begin; it != _end; it++)
+			{
+				container.insert(std::make_pair(keySelector(*it), *it));
+			}
+			return std::move(container);
+		}
+
+		template<typename TFunction>
+		auto to_unordered_map(const TFunction& keySelector)const->std::unordered_map<decltype(keySelector(*(TElement*)0)), TElement>
+		{
+			std::unordered_map<decltype(keySelector(*(TElement*)0)), TElement> container;
+			for (auto it = _begin; it != _end; it++)
+			{
+				container.insert(std::make_pair(keySelector(*it), *it));
+			}
+			return std::move(container);
+		}
+
+		std::set<TElement> to_set()const
+		{
+			std::set<TElement> container;
+			for (auto it = _begin; it != _end; it++)
+			{
+				container.insert(*it);
+			}
+			return std::move(container);
+		}
+
+		std::multiset<TElement> to_multiset()const
+		{
+			std::multiset<TElement> container;
+			for (auto it = _begin; it != _end; it++)
+			{
+				container.insert(*it);
+			}
+			return std::move(container);
+		}
+
+		std::unordered_set<TElement> to_unordered_set()const
+		{
+			std::unordered_set<TElement> container;
+			for (auto it = _begin; it != _end; it++)
+			{
+				container.insert(*it);
+			}
+			return std::move(container);
+		}
 	};
 
 	template<typename T>

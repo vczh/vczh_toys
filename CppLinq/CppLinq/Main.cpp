@@ -4,7 +4,6 @@
 #include <assert.h>
 #include "linq.h"
 #include <assert.h>
-#include <vector>
 
 using namespace std;
 using namespace vczh;
@@ -121,7 +120,7 @@ int main()
 		catch (const linq_exception&){}
 		try{ from(c).last(); assert(false); }
 		catch (const linq_exception&){}
-		
+
 		assert(from(c).single_or_default(0).sequence_equal(from(g)));
 		assert(from(g).single().sequence_equal(from(g)));
 		try{ from(a).single(); assert(false); }
@@ -130,6 +129,26 @@ int main()
 		catch (const linq_exception&){}
 		try{ from(c).single(); assert(false); }
 		catch (const linq_exception&){}
+	}
+	//////////////////////////////////////////////////////////////////
+	// containers
+	//////////////////////////////////////////////////////////////////
+	{
+		int xs[] = { 1, 2, 3, 4, 5 };
+		assert(from(xs).sequence_equal(from(from(xs).to_vector())));
+		assert(from(xs).sequence_equal(from(from(xs).to_deque())));
+		assert(from(xs).sequence_equal(from(from(xs).to_list())));
+		assert(from(xs).sequence_equal(from(from(xs).to_set())));
+		assert(from(xs).sequence_equal(from(from(xs).to_multiset())));
+		assert(from(xs).sequence_equal(from(from(xs).to_unordered_set())));
+
+		auto f = [](int x){return x; };
+		assert(from(xs).sequence_equal(from(from(xs).to_map(f)).select([](pair<int, int> p){return p.first; })));
+		assert(from(xs).sequence_equal(from(from(xs).to_map(f)).select([](pair<int, int> p){return p.second; })));
+		assert(from(xs).sequence_equal(from(from(xs).to_multimap(f)).select([](pair<int, int> p){return p.first; })));
+		assert(from(xs).sequence_equal(from(from(xs).to_multimap(f)).select([](pair<int, int> p){return p.second; })));
+		assert(from(xs).sequence_equal(from(from(xs).to_unordered_map(f)).select([](pair<int, int> p){return p.first; })));
+		assert(from(xs).sequence_equal(from(from(xs).to_unordered_map(f)).select([](pair<int, int> p){return p.second; })));
 	}
 	_CrtDumpMemoryLeaks();
 	return 0;
