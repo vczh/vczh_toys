@@ -499,12 +499,76 @@ namespace vczh
 		// aggregation
 		//////////////////////////////////////////////////////////////////
 
-		void aggregate()const;
-		void all()const;
-		void any()const;
-		void average()const;
-		void max()const;
-		void min()const;
+		template<typename TFunction>
+		TElement aggregate(const TFunction& f)const
+		{
+			auto it = _begin;
+			if (it == _end) throw linq_exception("Failed to get a value from an empty collection.");
+
+			TElement result = *it;
+			while (++it != _end)
+			{
+				result = f(result, *it);
+			}
+			return result;
+		}
+
+		template<typename TResult, typename TFunction>
+		TResult aggregate(const TResult& init, const TFunction& f)
+		{
+			TResult result = init;
+			for (auto it = _begin; it != _end; it++)
+			{
+				result = f(result, *it);
+			}
+			return result;
+		}
+
+		template<typename TFunction>
+		bool all(const TFunction& f)const
+		{
+			return select(f).aggregate(true, [](bool a, bool b){return a&&b; });
+		}
+		
+		template<typename TFunction>
+		bool any(const TFunction& f)const
+		{
+			return !where(f).empty();
+		}
+
+		template<typename TResult>
+		TResult average()const
+		{
+			if (_begin == _end) throw linq_exception("Failed to get a value from an empty collection.");
+			TResult sum = 0;
+			int counter = 0;
+			for (auto it = _begin; it != _end; it++)
+			{
+				sum += (TResult)*it;
+				counter++;
+			}
+			return sum / counter;
+		}
+
+		TElement max()const
+		{
+			return aggregate([](const TElement& a, const TElement& b){return a > b ? a : b; });
+		}
+
+		TElement min()const
+		{
+			return aggregate([](const TElement& a, const TElement& b){return a < b ? a : b; });
+		}
+
+		TElement sum()
+		{
+			return aggregate(0, [](const TElement& a, const TElement& b){return a + b; });
+		}
+
+		TElement product()
+		{
+			return aggregate([](const TElement& a, const TElement& b){return a * b; });
+		}
 
 		//////////////////////////////////////////////////////////////////
 		// restructuring

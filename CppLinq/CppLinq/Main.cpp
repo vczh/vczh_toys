@@ -150,6 +150,35 @@ int main()
 		assert(from(xs).sequence_equal(from(from(xs).to_unordered_map(f)).select([](pair<int, int> p){return p.first; })));
 		assert(from(xs).sequence_equal(from(from(xs).to_unordered_map(f)).select([](pair<int, int> p){return p.second; })));
 	}
+	//////////////////////////////////////////////////////////////////
+	// aggregation
+	//////////////////////////////////////////////////////////////////
+	{
+		int xs[] = { 1, 2, 3, 4, 5 };
+		assert(from(xs).aggregate([](int a, int b){return a + b; }) == 15);
+		assert(from(xs).aggregate(0, [](int a, int b){return a + b; }) == 15);
+		assert(from(xs).sum() == 15);
+		assert(from(xs).aggregate([](int a, int b){return a * b; }) == 120);
+		assert(from(xs).aggregate(1, [](int a, int b){return a * b; }) == 120);
+		assert(from(xs).product() == 120);
+		assert(from(xs).all([](int a){return a > 1; }) == false);
+		assert(from(xs).all([](int a){return a > 0; }) == true);
+		assert(from(xs).any([](int a){return a > 1; }) == true);
+		assert(from(xs).any([](int a){return a > 0; }) == true);
+		assert(from(xs).min() == 1);
+		assert(from(xs).max() == 5);
+		assert(from(xs).average<double>() == 3.0);
+
+		vector<int> ys;
+		try{ from(ys).product(); assert(false); }
+		catch (const linq_exception&){}
+		try{ from(ys).min(); assert(false); }
+		catch (const linq_exception&){}
+		try{ from(ys).max(); assert(false); }
+		catch (const linq_exception&){}
+		try{ from(ys).average<int>(); assert(false); }
+		catch (const linq_exception&){}
+	}
 	_CrtDumpMemoryLeaks();
 	return 0;
 }
