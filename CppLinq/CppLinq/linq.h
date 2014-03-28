@@ -702,6 +702,12 @@ namespace vczh
 				);
 		}
 
+		template<typename TContainer>
+		auto concat(const TContainer& e)const->decltype(concat(from(e)))
+		{
+			return concat(from(e));
+		}
+
 		//////////////////////////////////////////////////////////////////
 		// counting
 		//////////////////////////////////////////////////////////////////
@@ -831,6 +837,12 @@ namespace vczh
 				if (*x++ != *y++) return false;
 			}
 			return x == xe && y == ye;
+		}
+		
+		template<typename TContainer>
+		auto sequence_equal(const TContainer& e)const->decltype(sequence_equal(from(e)))
+		{
+			return sequence_equal(from(e));
 		}
 
 		//////////////////////////////////////////////////////////////////
