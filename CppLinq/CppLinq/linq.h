@@ -100,7 +100,7 @@ namespace vczh
 		};
 
 		//////////////////////////////////////////////////////////////////
-		// select
+		// select :: [T] -> (T -> U) -> [U]
 		//////////////////////////////////////////////////////////////////
 
 		template<typename TIterator, typename TFunction>
@@ -147,7 +147,7 @@ namespace vczh
 		};
 
 		//////////////////////////////////////////////////////////////////
-		// where
+		// where :: [T] -> (T -> bool) -> [T]
 		//////////////////////////////////////////////////////////////////
 
 		template<typename TIterator, typename TFunction>
@@ -248,6 +248,10 @@ namespace vczh
 			return _end;
 		}
 
+		//////////////////////////////////////////////////////////////////
+		// iterating
+		//////////////////////////////////////////////////////////////////
+
 		template<typename TFunction>
 		linq_enumerable<types::select_it<TIterator, TFunction>> select(const TFunction& f)
 		{
@@ -265,6 +269,76 @@ namespace vczh
 				types::where_it<TIterator, TFunction>(_end, _end, f)
 				);
 		}
+
+		void concat();
+		void cast();
+		void typeof();
+		void skip();
+		void skip_while();
+		void sum();
+		void then_by();
+
+		//////////////////////////////////////////////////////////////////
+		// counting
+		//////////////////////////////////////////////////////////////////
+
+		void contains();
+		void count();
+		void default_if_empty();
+		void element_at();
+		void empty();
+		void first();
+		void first_or_default();
+		void last();
+		void last_or_default();
+		void sequence_equal();
+		void single();
+		void single_or_default();
+
+		//////////////////////////////////////////////////////////////////
+		// set
+		//////////////////////////////////////////////////////////////////
+
+		void distinct_with();
+		void except_with();
+		void intersect_with();
+		void union_with();
+
+		//////////////////////////////////////////////////////////////////
+		// aggregation
+		//////////////////////////////////////////////////////////////////
+
+		void aggregate();
+		void all();
+		void any();
+		void average();
+		void max();
+		void min();
+
+		//////////////////////////////////////////////////////////////////
+		// restructuring
+		//////////////////////////////////////////////////////////////////
+
+		void group_by();
+		void group_join();
+		void join();
+		void order_by();
+		void zip();
+
+		//////////////////////////////////////////////////////////////////
+		// containers
+		//////////////////////////////////////////////////////////////////
+
+		void to_vector();
+		void to_list();
+		void to_deque();
+		void to_map();
+		void to_multimap();
+		void to_unordered_map();
+		void to_set();
+		void to_multiset();
+		void to_unordered_set();
+
 	};
 
 	template<typename T>
