@@ -23,9 +23,17 @@ int main()
 		assert(sum == 15);
 	}
 	{
-		vector<int> xs = { 1, 2, 3, 4, 5 };
+	vector<int> xs = { 1, 2, 3, 4, 5 };
+	int sum = 0;
+	for (auto x : from(xs))
+	{
+		sum += x;
+	}
+	assert(sum == 15);
+}
+	{
 		int sum = 0;
-		for (auto x : from(xs))
+		for (auto x : from_values({ 1, 2, 3, 4, 5 }))
 		{
 			sum += x;
 		}
@@ -45,25 +53,22 @@ int main()
 	//////////////////////////////////////////////////////////////////
 	{
 		int xs[] = { 1, 2, 3, 4, 5 };
-		int ys[] = { 2, 4, 6, 8, 10 };
-		assert(from(xs).select([](int x){return x * 2; }).sequence_equal(ys));
+		assert(from(xs).select([](int x){return x * 2; }).sequence_equal({ 2, 4, 6, 8, 10 }));
 	}
 	//////////////////////////////////////////////////////////////////
 	// hide type test
 	//////////////////////////////////////////////////////////////////
 	{
 		int xs[] = { 1, 2, 3, 4, 5 };
-		int ys[] = { 2, 4, 6, 8, 10 };
 		linq<int> hidden = from(xs).select([](int x){return x * 2; });
-		assert(hidden.sequence_equal(ys));
+		assert(hidden.sequence_equal({ 2, 4, 6, 8, 10 }));
 	}
 	//////////////////////////////////////////////////////////////////
 	// where
 	//////////////////////////////////////////////////////////////////
 	{
 		int xs[] = { 1, 2, 3, 4, 5 };
-		int ys[] = { 2, 4 };
-		assert(from(xs).where([](int x){return x % 2 == 0; }).sequence_equal(ys));
+		assert(from(xs).where([](int x){return x % 2 == 0; }).sequence_equal({ 2, 4 }));
 	}
 	//////////////////////////////////////////////////////////////////
 	// iterating
@@ -75,8 +80,8 @@ int main()
 		int zs[] = { 4, 5 };
 		assert(from(xs).take(3).sequence_equal(ys));
 		assert(from(xs).skip(3).sequence_equal(zs));
-		assert(from(xs).take_while([](int a){return a != 4;}).sequence_equal(ys));
-		assert(from(xs).skip_while([](int a){return a != 4;}).sequence_equal(zs));
+		assert(from(xs).take_while([](int a){return a != 4; }).sequence_equal(ys));
+		assert(from(xs).skip_while([](int a){return a != 4; }).sequence_equal(zs));
 		assert(from(xs).take(0).sequence_equal(empty));
 		assert(from(xs).skip(5).sequence_equal(empty));
 		assert(from(ys).concat(from(zs)).sequence_equal(xs));
@@ -201,6 +206,18 @@ int main()
 		catch (const linq_exception&){}
 		try{ from(ys).average<int>(); assert(false); }
 		catch (const linq_exception&){}
+	}
+	//////////////////////////////////////////////////////////////////
+	// set
+	//////////////////////////////////////////////////////////////////
+	{
+		int xs[] = { 1, 1, 2, 2, 3, 3 };
+		int ys[] = { 2, 2, 3, 3, 4, 4 };
+		assert(from(xs).distinct().sequence_equal({ 1, 2, 3 }));
+		assert(from(ys).distinct().sequence_equal({ 2, 3, 4 }));
+		assert(from(xs).except_with(ys).sequence_equal({ 1 }));
+		assert(from(xs).intersect_with(ys).sequence_equal({ 2, 3 }));
+		assert(from(xs).union_with(ys).sequence_equal({ 1, 2, 3, 4 }));
 	}
 	_CrtDumpMemoryLeaks();
 	return 0;

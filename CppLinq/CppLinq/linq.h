@@ -1,7 +1,6 @@
 #pragma once
 
 #include <xutility>
-#include <functional>
 #include <memory>
 #include <string>
 #include <vector>
@@ -29,7 +28,7 @@ namespace vczh
 		private:
 			class iterator_interface
 			{
-				typedef iterator_interface							TSelf;
+				typedef iterator_interface								TSelf;
 			public:
 				virtual std::shared_ptr<TSelf>	next() = 0;
 				virtual T						deref() = 0;
@@ -39,7 +38,7 @@ namespace vczh
 			template<typename TIterator>
 			class iterator_implement : public iterator_interface
 			{
-				typedef iterator_implement<TIterator>				TSelf;
+				typedef iterator_implement<TIterator>					TSelf;
 			private:
 				TIterator						iterator;
 
@@ -67,8 +66,8 @@ namespace vczh
 					return impl && (iterator == impl->iterator);
 				}
 			};
-			
-			typedef hide_type_iterator<T>							TSelf;
+
+			typedef hide_type_iterator<T>								TSelf;
 
 			std::shared_ptr<iterator_interface>		iterator;
 		public:
@@ -108,13 +107,60 @@ namespace vczh
 		};
 
 		//////////////////////////////////////////////////////////////////
+		// storage
+		//////////////////////////////////////////////////////////////////
+
+		template<typename T>
+		class storage_iterator
+		{
+			typedef storage_iterator<T>									TSelf;
+		private:
+			std::shared_ptr<std::vector<T>>		values;
+			typename std::vector<T>::iterator	iterator;
+
+		public:
+			storage_iterator(const std::shared_ptr<std::vector<T>>& _values, const typename std::vector<T>::iterator& _iterator)
+				:values(_values), iterator(_iterator)
+			{
+			}
+
+			TSelf& operator++()
+			{
+				iterator++;
+				return *this;
+			}
+
+			TSelf operator++(int)
+			{
+				TSelf t = *this;
+				iterator++;
+				return t;
+			}
+
+			T operator*()const
+			{
+				return *iterator;
+			}
+
+			bool operator==(const TSelf& it)const
+			{
+				return iterator == it.iterator;
+			}
+
+			bool operator!=(const TSelf& it)const
+			{
+				return iterator != it.iterator;
+			}
+		};
+
+		//////////////////////////////////////////////////////////////////
 		// select :: [T] -> (T -> U) -> [U]
 		//////////////////////////////////////////////////////////////////
 
 		template<typename TIterator, typename TFunction>
 		class select_iterator
 		{
-			typedef select_iterator<TIterator, TFunction>			TSelf;
+			typedef select_iterator<TIterator, TFunction>				TSelf;
 		private:
 			TIterator			iterator;
 			TFunction			f;
@@ -161,7 +207,7 @@ namespace vczh
 		template<typename TIterator, typename TFunction>
 		class where_iterator
 		{
-			typedef where_iterator<TIterator, TFunction>			TSelf;
+			typedef where_iterator<TIterator, TFunction>				TSelf;
 		private:
 			TIterator			iterator;
 			TIterator			end;
@@ -209,57 +255,6 @@ namespace vczh
 			bool operator!=(const TSelf& it)const
 			{
 				return iterator != it.iterator;
-			}
-		};
-
-		//////////////////////////////////////////////////////////////////
-		// single
-		//////////////////////////////////////////////////////////////////
-
-		template<typename T>
-		class single_iterator
-		{
-			typedef single_iterator<T>								TSelf;
-		private:
-			T					value;
-			bool				end;
-
-		public:
-			single_iterator(const T& _value, bool _end)
-				:value(_value), end(_end)
-			{
-			}
-
-			TSelf& operator++()
-			{
-				end = true;
-				return *this;
-			}
-
-			TSelf operator++(int)
-			{
-				TSelf t = *this;
-				end = true;
-				return t;
-			}
-
-			T operator*()const
-			{
-				if (end)
-				{
-					throw linq_exception("Failed to get the value from an iterator which is out of range.");
-				}
-				return value;
-			}
-
-			bool operator==(const TSelf& it)const
-			{
-				return end == it.end;
-			}
-
-			bool operator!=(const TSelf& it)const
-			{
-				return end != it.end;
 			}
 		};
 
@@ -566,14 +561,14 @@ namespace vczh
 
 	namespace types
 	{
+		template<typename T>
+		using storage_it = iterators::storage_iterator<T>;
+
 		template<typename TIterator, typename TFunction>
 		using select_it = iterators::select_iterator<TIterator, TFunction>;
 
 		template<typename TIterator, typename TFunction>
 		using where_it = iterators::where_iterator<TIterator, TFunction>;
-
-		template<typename T>
-		using single_it = iterators::single_iterator<T>;
 
 		template<typename TIterator>
 		using skip_it = iterators::skip_iterator<TIterator>;
@@ -606,8 +601,38 @@ namespace vczh
 		}
 	};
 
+	template<typename TIterator>
+	class linq_enumerable;
+
 	template<typename T>
 	class linq;
+
+	template<typename TElement>
+	linq<TElement> from_values(std::shared_ptr<std::vector<TElement>> xs)
+	{
+		return linq_enumerable<types::storage_it<TElement>>(
+			types::storage_it<TElement>(xs, xs->begin()),
+			types::storage_it<TElement>(xs, xs->end())
+			);
+	}
+
+	template<typename TElement>
+	linq<TElement> from_values(const std::initializer_list<TElement>& ys)
+	{
+		auto xs = std::make_shared<std::vector<TElement>>(ys);
+		return linq_enumerable<types::storage_it<TElement>>(
+			types::storage_it<TElement>(xs, xs->begin()),
+			types::storage_it<TElement>(xs, xs->end())
+			);
+	}
+
+	template<typename TElement>
+	linq<TElement> from_value(const TElement& value)
+	{
+		auto xs = std::make_shared<std::vector<TElement>>();
+		xs->push_back(value);
+		return from_values(xs);
+	}
 
 	template<typename TIterator>
 	class linq_enumerable
@@ -708,6 +733,12 @@ namespace vczh
 			return concat(from(e));
 		}
 
+		template<typename TElement>
+		auto concat(const std::initializer_list<TElement>& e)const->decltype(concat(from(e)))
+		{
+			return concat(from(e));
+		}
+
 		//////////////////////////////////////////////////////////////////
 		// counting
 		//////////////////////////////////////////////////////////////////
@@ -736,10 +767,7 @@ namespace vczh
 		{
 			if (count() == 0)
 			{
-				return linq_enumerable<types::single_it<TElement>>(
-					types::single_it<TElement>(value, false),
-					types::single_it<TElement>(value, true)
-					);
+				return from_value(value);
 			}
 			else
 			{
@@ -805,7 +833,7 @@ namespace vczh
 			if (it == _end) throw linq_exception("Failed to get a value from an empty collection.");
 
 			it++;
-			if (it!=_end) throw linq_exception("The collection should have exactly one value.");
+			if (it != _end) throw linq_exception("The collection should have exactly one value.");
 
 			return *this;
 		}
@@ -813,17 +841,14 @@ namespace vczh
 		linq<TElement> single_or_default(const TElement& value)const
 		{
 			auto it = _begin;
-			if (it == _end) return linq_enumerable<types::single_it<TElement>>(
-				types::single_it<TElement>(value, false),
-				types::single_it<TElement>(value, true)
-				);
+			if (it == _end) return from_value(value);
 
 			it++;
-			if (it!=_end) throw linq_exception("The collection should have exactly one value.");
+			if (it != _end) throw linq_exception("The collection should have exactly one value.");
 
 			return *this;
 		}
-		
+
 		template<typename TIterator2>
 		bool sequence_equal(const linq_enumerable<TIterator2>& e)const
 		{
@@ -838,9 +863,15 @@ namespace vczh
 			}
 			return x == xe && y == ye;
 		}
-		
+
 		template<typename TContainer>
 		auto sequence_equal(const TContainer& e)const->decltype(sequence_equal(from(e)))
+		{
+			return sequence_equal(from(e));
+		}
+
+		template<typename TElement>
+		auto sequence_equal(const std::initializer_list<TElement>& e)const->decltype(sequence_equal(from(e)))
 		{
 			return sequence_equal(from(e));
 		}
@@ -849,10 +880,85 @@ namespace vczh
 		// set
 		//////////////////////////////////////////////////////////////////
 
-		void distinct_with()const;
-		void except_with()const;
-		void intersect_with()const;
-		void union_with()const;
+		linq<TElement> distinct()const
+		{
+			std::set<TElement> set;
+			auto xs = std::make_shared<std::vector<TElement>>();
+			for (auto it = _begin; it != _end; it++)
+			{
+				if (set.insert(*it).second)
+				{
+					xs->push_back(*it);
+				}
+			}
+			return from_values(xs);
+		}
+		
+		template<typename TIterator2>
+		linq<TElement> except_with(const linq_enumerable<TIterator2>& e)const
+		{
+			std::set<TElement> set(e.begin(), e.end());
+			auto xs = std::make_shared<std::vector<TElement>>();
+			for (auto it = _begin; it != _end; it++)
+			{
+				if (set.insert(*it).second)
+				{
+					xs->push_back(*it);
+				}
+			}
+			return from_values(xs);
+		}
+		
+		template<typename TContainer>
+		auto except_with(const TContainer& e)const->decltype(except_with(from(e)))
+		{
+			return except_with(from(e));
+		}
+
+		template<typename TElement>
+		auto except_with(const std::initializer_list<TElement>& e)const->decltype(except_with(from(e)))
+		{
+			return except_with(from(e));
+		}
+		
+		template<typename TIterator2>
+		linq<TElement> intersect_with(const linq_enumerable<TIterator2>& e)const
+		{
+			std::set<TElement> seti, set(e.begin(), e.end());
+			auto xs = std::make_shared<std::vector<TElement>>();
+			for (auto it = _begin; it != _end; it++)
+			{
+				if (seti.insert(*it).second && !set.insert(*it).second)
+				{
+					xs->push_back(*it);
+				}
+			}
+			return from_values(xs);
+		}
+		
+		template<typename TContainer>
+		auto intersect_with(const TContainer& e)const->decltype(intersect_with(from(e)))
+		{
+			return intersect_with(from(e));
+		}
+		
+		template<typename TIterator2>
+		linq<TElement> union_with(const linq_enumerable<TIterator2>& e)const
+		{
+			return concat(e).distinct();
+		}
+		
+		template<typename TContainer>
+		auto union_with(const TContainer& e)const->decltype(union_with(from(e)))
+		{
+			return union_with(from(e));
+		}
+
+		template<typename TElement>
+		auto union_with(const std::initializer_list<TElement>& e)const->decltype(union_with(from(e)))
+		{
+			return union_with(from(e));
+		}
 
 		//////////////////////////////////////////////////////////////////
 		// aggregating
@@ -888,7 +994,7 @@ namespace vczh
 		{
 			return select(f).aggregate(true, [](bool a, bool b){return a&&b; });
 		}
-		
+
 		template<typename TFunction>
 		bool any(const TFunction& f)const
 		{
@@ -1049,11 +1155,11 @@ namespace vczh
 		template<typename TIterator>
 		linq(const linq_enumerable<TIterator>& e)
 			:linq_enumerable<iterators::hide_type_iterator<T>>(
-				iterators::hide_type_iterator<T>(e.begin()),
-				iterators::hide_type_iterator<T>(e.end())
-				)
+			iterators::hide_type_iterator<T>(e.begin()),
+			iterators::hide_type_iterator<T>(e.end())
+			)
 		{
-		}
+			}
 	};
 
 	template<typename TIterator>
