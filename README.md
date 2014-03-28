@@ -8,7 +8,7 @@ This repository contains vczh's toys for black magic codes or experiments
 ```c++
 #include "gc_ptr.h"
 
-using namespace gc_cpp;
+using namespace vczh;
 
 class Node : ENABLE_GC
 {
@@ -30,4 +30,26 @@ int main()
     gc_stop(); // will call gc_force_collect()
 }
 
+```
+
+###./CppMultiDimentionArray
+######// multiple dimentional array for C++
+```c++
+#include "array.h"
+
+using namespace vczh;
+
+int main()
+{
+	// int x[3][4][5]; but the lengths can be non-constant expressions
+	array<int, 3> x((array_sizes(), 3, 4, 5));
+	// first way to do x[1][2][3] = 10;
+	x[1][2][3] = 10;
+	// second way to do x[1][2][3] = 10;
+	array_ref<int, 2> x1 = x[1];
+	array_ref<int, 1> x2 = x1[2];
+	int& x3 = x2[3];
+	x3 = 10;
+    return 0;
+}
 ```

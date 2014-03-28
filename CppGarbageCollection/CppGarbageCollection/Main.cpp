@@ -7,7 +7,7 @@
 #include <string>
 
 using namespace std;
-using namespace gc_cpp;
+using namespace vczh;
 
 class A : ENABLE_GC
 {

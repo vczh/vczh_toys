@@ -1,7 +1,7 @@
 #pragma once
 #include <memory>
 
-namespace gc_cpp
+namespace vczh
 {
 	class enable_gc;
 
@@ -151,5 +151,5 @@ namespace gc_cpp
 		return gc_ptr<T>(dynamic_cast<T*>(ptr.reference));
 	}
 
-#define ENABLE_GC			public virtual ::gc_cpp::enable_gc
+#define ENABLE_GC			public virtual ::vczh::enable_gc
 }
