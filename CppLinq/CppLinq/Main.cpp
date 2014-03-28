@@ -241,6 +241,38 @@ int main()
 			.sequence_equal({ 1, 1, 1, 2, 4, 8, 3, 9, 27 })
 			);
 	}
+	//////////////////////////////////////////////////////////////////
+	// grouping
+	//////////////////////////////////////////////////////////////////
+	{
+		struct person
+		{
+			string		name;
+		};
+
+		struct pet
+		{
+			string		name;
+			person		owner;
+		};
+
+		person magnus = { "Hedlund, Magnus" };
+		person terry = { "Adams, Terry" };
+		person charlotte = { "Weiss, Charlotte" };
+		person persons[] = { magnus, terry, charlotte };
+
+		pet barley = { "Barley", terry };
+		pet boots = { "Boots", terry };
+		pet whiskers = { "Whiskers", charlotte };
+		pet daisy = { "Daisy", magnus };
+		pet pets[] = { barley, boots, whiskers, daisy };
+
+		auto person_name = [](const person& p){return p.name; };
+		auto pet_name = [](const pet& p){return p.name; };
+
+		auto g = from(persons).group_join(from(pets), person_name, pet_name);
+		auto j = from(persons).join(from(pets), person_name, pet_name);
+	}
 	_CrtDumpMemoryLeaks();
 	return 0;
 }

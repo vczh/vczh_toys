@@ -713,7 +713,7 @@ namespace vczh
 	template<typename TElement>
 	linq<TElement> from_values(const std::initializer_list<TElement>& ys)
 	{
-		auto xs = std::make_shared<std::vector<TElement>>(ys);
+		auto xs = std::make_shared<std::vector<TElement>>(ys.begin(), ys.end());
 		return linq_enumerable<types::storage_it<TElement>>(
 			types::storage_it<TElement>(xs, xs->begin()),
 			types::storage_it<TElement>(xs, xs->end())
@@ -1152,12 +1152,17 @@ namespace vczh
 		}
 
 		template<typename TIterator2, typename TFunction1, typename TFunction2>
-		auto group_join(const linq_enumerable<TIterator2>& e, const TFunction1& keySelector1, const TFunction2& keySelector2)const->linq<join_pair<decltype(keySelector1(*(TElement*)0)), iterator_type<TIterator>, linq<iterator_type<TIterator2>>>>
+		auto group_join(const linq_enumerable<TIterator2>& e, const TFunction1& keySelector1, const TFunction2& keySelector2)const
+			->linq<join_pair<
+				typename std::remove_reference<decltype(keySelector1(*(TElement*)0))>::type,
+				typename std::remove_reference<iterator_type<TIterator>>::type,
+				linq<typename std::remove_reference<iterator_type<TIterator2>>::type>
+				>>
 		{
-			typedef decltype(keySelector1(*(TElement*)0))		TKey;
-			typedef iterator_type<TIterator>					TValue1;
-			typedef iterator_type<TIterator2>					TValue2;
-			typedef join_pair<TKey, TValue1, linq<TValue2>>		TGroupJoinPair;
+			typedef typename std::remove_reference<decltype(keySelector1(*(TElement*)0))>::type		TKey;
+			typedef typename std::remove_reference<iterator_type<TIterator>>::type					TValue1;
+			typedef typename std::remove_reference<iterator_type<TIterator2>>::type					TValue2;
+			typedef join_pair<TKey, TValue1, linq<TValue2>>											TGroupJoinPair;
 
 			std::multimap<TKey, TValue1> map1;
 			std::multimap<TKey, TValue2> map2;
@@ -1180,8 +1185,8 @@ namespace vczh
 			auto lower2 = map2.begin();
 			while (lower1 != map1.end() && lower2 != map2.end())
 			{
-				auto key1 = it1->first;
-				auto key2 = it2->first;
+				auto key1 = lower1->first;
+				auto key2 = lower2->first;
 				auto upper1 = map1.upper_bound(key1);
 				auto upper2 = map2.upper_bound(key2);
 				if (key1 < key2)
@@ -1211,6 +1216,8 @@ namespace vczh
 					lower1 = upper1;
 				}
 			}
+
+			return from_values(result);
 		}
 		SUPPORT_STL_CONTAINERS_EX(
 			group_join,
@@ -1220,18 +1227,29 @@ namespace vczh
 			)
 
 		template<typename TIterator2, typename TFunction1, typename TFunction2>
-		auto join(const linq_enumerable<TIterator2>& e, const TFunction1& keySelector1, const TFunction2& keySelector2)const->linq<join_pair<decltype(keySelector1(*(TElement*)0)), iterator_type<TIterator>, iterator_type<TIterator2>>>
+		auto join(const linq_enumerable<TIterator2>& e, const TFunction1& keySelector1, const TFunction2& keySelector2)const
+			->linq<join_pair<
+				typename std::remove_reference<decltype(keySelector1(*(TElement*)0))>::type,
+				typename std::remove_reference<iterator_type<TIterator>>::type,
+				typename std::remove_reference<iterator_type<TIterator2>>::type
+				>>
 		{
-			typedef join_pair<decltype(keySelector1(*(TElement*)0)), iterator_type<TIterator>, linq<iterator_type<TIterator2>>>		TGroupJoinPair;
-			typedef join_pair<decltype(keySelector1(*(TElement*)0)), iterator_type<TIterator>, iterator_type<TIterator2>>			TJoinPair;
-			return group_join(e, keySelector1, keySelector2)
-				.select_many([](const TGroupJoinPair& item)
+			typedef typename std::remove_reference<decltype(keySelector1(*(TElement*)0))>::type		TKey;
+			typedef typename std::remove_reference<iterator_type<TIterator>>::type					TValue1;
+			typedef typename std::remove_reference<iterator_type<TIterator2>>::type					TValue2;
+			typedef join_pair<TKey, TValue1, linq<TValue2>>											TGroupJoinPair;
+			typedef join_pair<TKey, TValue1, TValue2>												TJoinPair;
+
+			auto g = group_join(e, keySelector1, keySelector2);
+			auto j = g.select_many([](const TGroupJoinPair& item)->linq<TJoinPair>
 				{
-					return item.second.second.select([item](const iterator_type<TIterator2>& inner)
+					linq<TValue2> inners = item.second.second;
+					return inners.select([item](const TValue2& inner)->TJoinPair
 						{
 							return TJoinPair({ item.first, {item.second.first, inner} });
 						});
 				});
+			return j;
 		}
 		SUPPORT_STL_CONTAINERS_EX(
 			join,
