@@ -4,6 +4,7 @@
 #include <assert.h>
 #include "linq.h"
 #include <assert.h>
+#include <typeinfo>
 
 using namespace std;
 using namespace vczh;
@@ -23,14 +24,14 @@ int main()
 		assert(sum == 15);
 	}
 	{
-	vector<int> xs = { 1, 2, 3, 4, 5 };
-	int sum = 0;
-	for (auto x : from(xs))
-	{
-		sum += x;
+		vector<int> xs = { 1, 2, 3, 4, 5 };
+		int sum = 0;
+		for (auto x : from(xs))
+		{
+			sum += x;
+		}
+		assert(sum == 15);
 	}
-	assert(sum == 15);
-}
 	{
 		int sum = 0;
 		for (auto x : from_values({ 1, 2, 3, 4, 5 }))
@@ -218,6 +219,15 @@ int main()
 		assert(from(xs).except_with(ys).sequence_equal({ 1 }));
 		assert(from(xs).intersect_with(ys).sequence_equal({ 2, 3 }));
 		assert(from(xs).union_with(ys).sequence_equal({ 1, 2, 3, 4 }));
+	}
+	//////////////////////////////////////////////////////////////////
+	// restructuring
+	//////////////////////////////////////////////////////////////////
+	{
+		int xs[] = { 1, 2, 3, 4, 5 };
+		int ys[] = { 6, 7, 8, 9, 10 };
+		zip_pair<int, int> zs[] = { { 1, 6 }, { 2, 7 }, { 3, 8 }, { 4, 9 }, { 5, 10 } };
+		assert(from(xs).zip_with(ys).sequence_equal(zs));
 	}
 	_CrtDumpMemoryLeaks();
 	return 0;
