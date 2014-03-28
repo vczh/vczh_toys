@@ -46,6 +46,9 @@ namespace vczh
 		bool operator>=(const zip_pair<T, U>& p)const{ return compare(*this, p) >= 0; }
 	};
 
+	template<typename TKey, typename TValue1, typename TValue2>
+	using join_pair = zip_pair<TKey, zip_pair<TValue1, TValue2>>;
+
 	namespace iterators
 	{
 		//////////////////////////////////////////////////////////////////
@@ -754,15 +757,28 @@ namespace vczh
 		}
 
 #define SUPPORT_STL_CONTAINERS(NAME)\
-	template<typename TContainer>\
-	auto NAME(const TContainer& e)const->decltype(NAME(from(e)))\
+		template<typename TContainer>\
+		auto NAME(const TContainer& e)const->decltype(NAME(from(e)))\
 		{\
-		return NAME(from(e)); \
+			return NAME(from(e)); \
 		}\
 		template<typename TElement>\
 		auto NAME(const std::initializer_list<TElement>& e)const->decltype(NAME(from(e)))\
 		{\
-		return NAME(from(e)); \
+			return NAME(from(e)); \
+		}\
+
+#define PROTECT_PARAMETERS(...) __VA_ARGS__
+#define SUPPORT_STL_CONTAINERS_EX(NAME, TYPES, PARAMETERS, ARGUMENTS)\
+		template<typename TContainer, TYPES>\
+		auto NAME(const TContainer& e, PARAMETERS)const->decltype(NAME(from(e), ARGUMENTS))\
+		{\
+			return NAME(from(e), ARGUMENTS); \
+		}\
+		template<typename TElement, TYPES>\
+		auto NAME(const std::initializer_list<TElement>& e, PARAMETERS)const->decltype(NAME(from(e), ARGUMENTS))\
+		{\
+			return NAME(from(e), ARGUMENTS); \
 		}\
 
 		//////////////////////////////////////////////////////////////////
@@ -1033,7 +1049,7 @@ namespace vczh
 		}
 
 		template<typename TResult, typename TFunction>
-		TResult aggregate(const TResult& init, const TFunction& f)
+		TResult aggregate(const TResult& init, const TFunction& f)const
 		{
 			TResult result = init;
 			for (auto it = _begin; it != _end; it++)
@@ -1094,6 +1110,15 @@ namespace vczh
 		//////////////////////////////////////////////////////////////////
 
 		template<typename TFunction>
+		auto select_many(const TFunction& f)const->linq<decltype(*f(*(TElement*)0).begin())>
+		{
+			typedef decltype(f(*(TElement*)0))				TCollection;
+			typedef decltype(*f(*(TElement*)0).begin())		TValue;
+			linq<TValue> init = from_values<TValue>(std::initializer_list<TValue>());
+			return select(f).aggregate(init, [](const linq<TValue>& a, const TCollection& b){return a.concat(b); });
+		}
+
+		template<typename TFunction>
 		auto group_by(const TFunction& keySelector)const->linq<zip_pair<decltype(keySelector(*(TElement*)0)), linq<TElement>>>
 		{
 			typedef decltype(keySelector(*(TElement*)0))	TKey;
@@ -1126,8 +1151,95 @@ namespace vczh
 			return from_values(result);
 		}
 
-		void group_join()const;
-		void join()const;
+		template<typename TIterator2, typename TFunction1, typename TFunction2>
+		auto group_join(const linq_enumerable<TIterator2>& e, const TFunction1& keySelector1, const TFunction2& keySelector2)const->linq<join_pair<decltype(keySelector1(*(TElement*)0)), iterator_type<TIterator>, linq<iterator_type<TIterator2>>>>
+		{
+			typedef decltype(keySelector1(*(TElement*)0))		TKey;
+			typedef iterator_type<TIterator>					TValue1;
+			typedef iterator_type<TIterator2>					TValue2;
+			typedef join_pair<TKey, TValue1, linq<TValue2>>		TGroupJoinPair;
+
+			std::multimap<TKey, TValue1> map1;
+			std::multimap<TKey, TValue2> map2;
+
+			for (auto it = _begin; it != _end; it++)
+			{
+				auto value = *it;
+				auto key = keySelector1(value);
+				map1.insert(std::make_pair(key, value));
+			}
+			for (auto it = e.begin(); it != e.end(); it++)
+			{
+				auto value = *it;
+				auto key = keySelector2(value);
+				map2.insert(std::make_pair(key, value));
+			}
+
+			auto result = std::make_shared<std::vector<TGroupJoinPair>>();
+			auto lower1 = map1.begin();
+			auto lower2 = map2.begin();
+			while (lower1 != map1.end() && lower2 != map2.end())
+			{
+				auto key1 = it1->first;
+				auto key2 = it2->first;
+				auto upper1 = map1.upper_bound(key1);
+				auto upper2 = map2.upper_bound(key2);
+				if (key1 < key2)
+				{
+					for (auto it1 = lower1; it1 != upper1; it1++)
+					{
+						result->push_back(TGroupJoinPair({ key1, { it1->second, from_values(std::initializer_list<TValue2>()) } }));
+					}
+					lower1 = upper1;
+				}
+				else if (key1 > key2)
+				{
+					lower2 = upper2;
+				}
+				else
+				{
+					for (auto it1 = lower1; it1 != upper1; it1++)
+					{
+						auto inners = std::make_shared<std::vector<TValue2>>();
+						for (auto it2 = lower2; it2 != upper2; it2++)
+						{
+							inners->push_back(it2->second);
+						}
+						result->push_back(TGroupJoinPair({ key1, { it1->second, from_values(inners) } }));
+					}
+					lower2 = upper2;
+					lower1 = upper1;
+				}
+			}
+		}
+		SUPPORT_STL_CONTAINERS_EX(
+			group_join,
+			PROTECT_PARAMETERS(typename TFunction1, typename TFunction2),
+			PROTECT_PARAMETERS(const TFunction1& keySelector11, const TFunction2& keySelector12),
+			PROTECT_PARAMETERS(keySelector1, keySelector2)
+			)
+
+		template<typename TIterator2, typename TFunction1, typename TFunction2>
+		auto join(const linq_enumerable<TIterator2>& e, const TFunction1& keySelector1, const TFunction2& keySelector2)const->linq<join_pair<decltype(keySelector1(*(TElement*)0)), iterator_type<TIterator>, iterator_type<TIterator2>>>
+		{
+			typedef join_pair<decltype(keySelector1(*(TElement*)0)), iterator_type<TIterator>, linq<iterator_type<TIterator2>>>		TGroupJoinPair;
+			typedef join_pair<decltype(keySelector1(*(TElement*)0)), iterator_type<TIterator>, iterator_type<TIterator2>>			TJoinPair;
+			return group_join(e, keySelector1, keySelector2)
+				.select_many([](const TGroupJoinPair& item)
+				{
+					return item.second.second.select([item](const iterator_type<TIterator2>& inner)
+						{
+							return TJoinPair({ item.first, {item.second.first, inner} });
+						});
+				});
+		}
+		SUPPORT_STL_CONTAINERS_EX(
+			join,
+			PROTECT_PARAMETERS(typename TFunction1, typename TFunction2),
+			PROTECT_PARAMETERS(const TFunction1& keySelector11, const TFunction2& keySelector12),
+			PROTECT_PARAMETERS(keySelector1, keySelector2)
+			)
+
 		void order_by()const;
 		void then_by()const;
 
@@ -1239,6 +1351,8 @@ namespace vczh
 		}
 
 #undef SUPPORT_STL_CONTAINERS
+#undef PROTECT_PARAMETERS
+#undef SUPPORT_STL_CONTAINERS_EX
 	};
 
 	template<typename T>

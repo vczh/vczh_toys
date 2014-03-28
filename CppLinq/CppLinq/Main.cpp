@@ -234,6 +234,12 @@ int main()
 		assert(g.select([](zip_pair<int, linq<int>> p){return p.first; }).sequence_equal({ 0, 1 }));
 		assert(g.first().second.sequence_equal({ 2, 4 }));
 		assert(g.last().second.sequence_equal({ 1, 3, 5 }));
+
+		assert(
+			from_values({ 1, 2, 3 })
+			.select_many([](int x){return from_values({ x, x*x, x*x*x }); })
+			.sequence_equal({ 1, 1, 1, 2, 4, 8, 3, 9, 27 })
+			);
 	}
 	_CrtDumpMemoryLeaks();
 	return 0;
