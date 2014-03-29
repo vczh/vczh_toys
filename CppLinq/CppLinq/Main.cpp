@@ -250,14 +250,14 @@ int main()
 		int zs[] = { 10, 1, 11, 2, 12, 3, 13, 4, 5, 6, 7, 8, 9 };
 
 		assert(from(xs).order_by([](int x){return x; }).sequence_equal(ys));
-		//assert(
-		//	flatten(
-		//		from(xs)
-		//		.first_order_by([](int x){return x % 10; })
-		//		.then_order_by([](int x){return x / 10; })
-		//		)
-		//	.sequence_equal(zs)
-		//	);
+		assert(
+			flatten(
+				from(xs)
+				.first_order_by([](int x){return x % 10; })
+				.then_order_by([](int x){return x / 10; })
+				)
+			.sequence_equal(zs)
+			);
 	}
 	//////////////////////////////////////////////////////////////////
 	// joining
