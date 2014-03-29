@@ -269,10 +269,46 @@ int main()
 
 		auto person_name = [](const person& p){return p.name; };
 		auto pet_name = [](const pet& p){return p.name; };
+		auto pet_owner_name = [](const pet& p){return p.owner.name; };
 		
-		auto f = from(persons).full_join(from(pets), person_name, pet_name);
-		auto g = from(persons).group_join(from(pets), person_name, pet_name);
-		auto j = from(persons).join(from(pets), person_name, pet_name);
+		auto f = from(persons).full_join(from(pets), person_name, pet_owner_name);
+		{
+			typedef join_pair<string, linq<person>, linq<pet>> TItem;
+			auto xs = f.to_vector();
+			assert(from(xs).select([](const TItem& item){return item.first; }).sequence_equal({ terry.name, magnus.name, charlotte.name }));
+			assert(xs[0].second.first.select(person_name).sequence_equal({ terry.name }));
+			assert(xs[1].second.first.select(person_name).sequence_equal({ magnus.name }));
+			assert(xs[2].second.first.select(person_name).sequence_equal({ charlotte.name }));
+			assert(xs[0].second.second.select(pet_name).sequence_equal({ barley.name, boots.name }));
+			assert(xs[1].second.second.select(pet_name).sequence_equal({ daisy.name }));
+			assert(xs[2].second.second.select(pet_name).sequence_equal({ whiskers.name }));
+		}
+		auto g = from(persons).group_join(from(pets), person_name, pet_owner_name);
+		{
+			typedef join_pair<string, person, linq<pet>> TItem;
+			auto xs = g.to_vector();
+			assert(from(xs).select([](const TItem& item){return item.first; }).sequence_equal({ terry.name, magnus.name, charlotte.name }));
+			assert(xs[0].second.first.name == terry.name);
+			assert(xs[1].second.first.name == magnus.name);
+			assert(xs[2].second.first.name == charlotte.name);
+			assert(xs[0].second.second.select(pet_name).sequence_equal({ barley.name, boots.name }));
+			assert(xs[1].second.second.select(pet_name).sequence_equal({ daisy.name }));
+			assert(xs[2].second.second.select(pet_name).sequence_equal({ whiskers.name }));
+		}
+		auto j = from(persons).join(from(pets), person_name, pet_owner_name);
+		{
+			typedef join_pair<string, person, pet> TItem;
+			auto xs = j.to_vector();
+			assert(from(xs).select([](const TItem& item){return item.first; }).sequence_equal({ terry.name, terry.name, magnus.name, charlotte.name }));
+			assert(xs[0].second.first.name == terry.name);
+			assert(xs[1].second.first.name == terry.name);
+			assert(xs[2].second.first.name == magnus.name);
+			assert(xs[3].second.first.name == charlotte.name);
+			assert(xs[0].second.second.name == barley.name);
+			assert(xs[1].second.second.name == boots.name);
+			assert(xs[2].second.second.name == daisy.name);
+			assert(xs[3].second.second.name == whiskers.name);
+		}
 	}
 	_CrtDumpMemoryLeaks();
 	return 0;
