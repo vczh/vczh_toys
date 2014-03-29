@@ -1,7 +1,10 @@
 vczh_toys
 =========
 
-This repository contains vczh's toys for black magic codes or experiments
+This repository contains vczh's toys for black magic codes or experiments:
+* garbage collection library for C++11
+* multiple dimentional array for C++11
+* linq for C++11 and STL
 
 ###./CppGarbageCollection
 ######// garbage collection library for C++
