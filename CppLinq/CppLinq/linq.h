@@ -187,7 +187,48 @@ namespace vczh
 		};
 
 		//////////////////////////////////////////////////////////////////
-		// select :: [T] -> (T -> U) -> [U]
+		// empty
+		//////////////////////////////////////////////////////////////////
+
+		template<typename T>
+		class empty_iterator
+		{
+			typedef empty_iterator<T>									TSelf;
+		private:
+
+		public:
+			empty_iterator()
+			{
+			}
+
+			TSelf& operator++()
+			{
+				return *this;
+			}
+
+			TSelf operator++(int)
+			{
+				return *this;
+			}
+
+			T operator*()const
+			{
+				throw linq_exception("Failed to get a value from an empty collection.");
+			}
+
+			bool operator==(const TSelf& it)const
+			{
+				return true;
+			}
+
+			bool operator!=(const TSelf& it)const
+			{
+				return false;
+			}
+		};
+
+		//////////////////////////////////////////////////////////////////
+		// select
 		//////////////////////////////////////////////////////////////////
 
 		template<typename TIterator, typename TFunction>
@@ -234,7 +275,7 @@ namespace vczh
 		};
 
 		//////////////////////////////////////////////////////////////////
-		// where :: [T] -> (T -> bool) -> [T]
+		// where
 		//////////////////////////////////////////////////////////////////
 
 		template<typename TIterator, typename TFunction>
@@ -292,7 +333,7 @@ namespace vczh
 		};
 
 		//////////////////////////////////////////////////////////////////
-		// skip :: [T] -> int -> [T]
+		// skip
 		//////////////////////////////////////////////////////////////////
 
 		template<typename TIterator>
@@ -340,7 +381,7 @@ namespace vczh
 		};
 
 		//////////////////////////////////////////////////////////////////
-		// skip_while :: [T] -> (T -> bool) -> [T]
+		// skip_while
 		//////////////////////////////////////////////////////////////////
 
 		template<typename TIterator, typename TFunction>
@@ -392,7 +433,7 @@ namespace vczh
 		};
 
 		//////////////////////////////////////////////////////////////////
-		// take :: [T] -> int -> [T]
+		// take
 		//////////////////////////////////////////////////////////////////
 
 		template<typename TIterator>
@@ -459,7 +500,7 @@ namespace vczh
 		};
 
 		//////////////////////////////////////////////////////////////////
-		// take_while :: [T] -> (T -> bool) -> [T]
+		// take_while
 		//////////////////////////////////////////////////////////////////
 
 		template<typename TIterator, typename TFunction>
@@ -517,7 +558,7 @@ namespace vczh
 		};
 
 		//////////////////////////////////////////////////////////////////
-		// concat :: [T] -> [T] -> [T]
+		// concat
 		//////////////////////////////////////////////////////////////////
 
 		template<typename TIterator1, typename TIterator2>
@@ -589,7 +630,7 @@ namespace vczh
 		};
 
 		//////////////////////////////////////////////////////////////////
-		// zip :: [T] -> [U] -> [(T, U)]
+		// zip
 		//////////////////////////////////////////////////////////////////
 
 		template<typename TIterator1, typename TIterator2>
@@ -654,6 +695,9 @@ namespace vczh
 	{
 		template<typename T>
 		using storage_it = iterators::storage_iterator<T>;
+		
+		template<typename T>
+		using empty_it = iterators::empty_iterator<T>;
 
 		template<typename TIterator, typename TFunction>
 		using select_it = iterators::select_iterator<TIterator, TFunction>;
@@ -726,6 +770,15 @@ namespace vczh
 		auto xs = std::make_shared<std::vector<TElement>>();
 		xs->push_back(value);
 		return from_values(xs);
+	}
+
+	template<typename TElement>
+	linq<TElement> from_empty()
+	{
+		return linq_enumerable<types::empty_it<TElement>>(
+			types::empty_it<TElement>(),
+			types::empty_it<TElement>()
+			);
 	}
 
 	template<typename TIterator>
@@ -1114,8 +1167,7 @@ namespace vczh
 		{
 			typedef decltype(f(*(TElement*)0))				TCollection;
 			typedef decltype(*f(*(TElement*)0).begin())		TValue;
-			linq<TValue> init = from_values<TValue>(std::initializer_list<TValue>());
-			return select(f).aggregate(init, [](const linq<TValue>& a, const TCollection& b){return a.concat(b); });
+			return select(f).aggregate(from_empty<TValue>(), [](const linq<TValue>& a, const TCollection& b){return a.concat(b); });
 		}
 
 		template<typename TFunction>
@@ -1152,17 +1204,17 @@ namespace vczh
 		}
 
 		template<typename TIterator2, typename TFunction1, typename TFunction2>
-		auto group_join(const linq_enumerable<TIterator2>& e, const TFunction1& keySelector1, const TFunction2& keySelector2)const
+		auto full_join(const linq_enumerable<TIterator2>& e, const TFunction1& keySelector1, const TFunction2& keySelector2)const
 			->linq<join_pair<
 				typename std::remove_reference<decltype(keySelector1(*(TElement*)0))>::type,
-				typename std::remove_reference<iterator_type<TIterator>>::type,
+				linq<typename std::remove_reference<iterator_type<TIterator>>::type>,
 				linq<typename std::remove_reference<iterator_type<TIterator2>>::type>
 				>>
 		{
 			typedef typename std::remove_reference<decltype(keySelector1(*(TElement*)0))>::type		TKey;
 			typedef typename std::remove_reference<iterator_type<TIterator>>::type					TValue1;
 			typedef typename std::remove_reference<iterator_type<TIterator2>>::type					TValue2;
-			typedef join_pair<TKey, TValue1, linq<TValue2>>											TGroupJoinPair;
+			typedef join_pair<TKey, linq<TValue1>, linq<TValue2>>									TFullJoinPair;
 
 			std::multimap<TKey, TValue1> map1;
 			std::multimap<TKey, TValue2> map2;
@@ -1180,7 +1232,7 @@ namespace vczh
 				map2.insert(std::make_pair(key, value));
 			}
 
-			auto result = std::make_shared<std::vector<TGroupJoinPair>>();
+			auto result = std::make_shared<std::vector<TFullJoinPair>>();
 			auto lower1 = map1.begin();
 			auto lower2 = map2.begin();
 			while (lower1 != map1.end() && lower2 != map2.end())
@@ -1191,33 +1243,75 @@ namespace vczh
 				auto upper2 = map2.upper_bound(key2);
 				if (key1 < key2)
 				{
-					for (auto it1 = lower1; it1 != upper1; it1++)
+					auto outers = std::make_shared<std::vector<TValue1>>();
+					for (auto it = lower1; it != upper1; it++)
 					{
-						result->push_back(TGroupJoinPair({ key1, { it1->second, from_values(std::initializer_list<TValue2>()) } }));
+						outers->push_back(it->second);
 					}
+					result->push_back(TFullJoinPair({ key1, { from_values(outers), from_empty<TValue2>() } }));
 					lower1 = upper1;
 				}
 				else if (key1 > key2)
 				{
+					auto inners = std::make_shared<std::vector<TValue2>>();
+					for (auto it = lower2; it != upper2; it++)
+					{
+						inners->push_back(it->second);
+					}
+					result->push_back(TFullJoinPair({ key1, { from_empty<TValue1>(), from_values(inners) } }));
 					lower2 = upper2;
 				}
 				else
 				{
-					for (auto it1 = lower1; it1 != upper1; it1++)
+					auto outers = std::make_shared<std::vector<TValue1>>();
+					for (auto it = lower1; it != upper1; it++)
 					{
-						auto inners = std::make_shared<std::vector<TValue2>>();
-						for (auto it2 = lower2; it2 != upper2; it2++)
-						{
-							inners->push_back(it2->second);
-						}
-						result->push_back(TGroupJoinPair({ key1, { it1->second, from_values(inners) } }));
+						outers->push_back(it->second);
 					}
+					auto inners = std::make_shared<std::vector<TValue2>>();
+					for (auto it = lower2; it != upper2; it++)
+					{
+						inners->push_back(it->second);
+					}
+					result->push_back(TFullJoinPair({ key1, { from_values(outers), from_values(inners) } }));
 					lower2 = upper2;
 					lower1 = upper1;
 				}
 			}
 
 			return from_values(result);
+		}
+		SUPPORT_STL_CONTAINERS_EX(
+			full_join,
+			PROTECT_PARAMETERS(typename TFunction1, typename TFunction2),
+			PROTECT_PARAMETERS(const TFunction1& keySelector11, const TFunction2& keySelector12),
+			PROTECT_PARAMETERS(keySelector1, keySelector2)
+			)
+
+		template<typename TIterator2, typename TFunction1, typename TFunction2>
+		auto group_join(const linq_enumerable<TIterator2>& e, const TFunction1& keySelector1, const TFunction2& keySelector2)const
+			->linq<join_pair<
+				typename std::remove_reference<decltype(keySelector1(*(TElement*)0))>::type,
+				typename std::remove_reference<iterator_type<TIterator>>::type,
+				linq<typename std::remove_reference<iterator_type<TIterator2>>::type>
+				>>
+		{
+			typedef typename std::remove_reference<decltype(keySelector1(*(TElement*)0))>::type		TKey;
+			typedef typename std::remove_reference<iterator_type<TIterator>>::type					TValue1;
+			typedef typename std::remove_reference<iterator_type<TIterator2>>::type					TValue2;
+			typedef join_pair<TKey, linq<TValue1>, linq<TValue2>>									TFullJoinPair;
+			typedef join_pair<TKey, TValue1, linq<TValue2>>											TGroupJoinPair;
+
+			auto f = full_join(e, keySelector1, keySelector2);
+			auto g = f.select_many([](const TFullJoinPair& item)->linq<TGroupJoinPair>
+				{
+					linq<TValue1> outers = item.second.first;
+					return outers.select([item](const TValue1& outer)->TGroupJoinPair
+						{
+							return TGroupJoinPair({ item.first, {outer, item.second.second} });
+						});
+				});
+			return g;
 		}
 		SUPPORT_STL_CONTAINERS_EX(
 			group_join,

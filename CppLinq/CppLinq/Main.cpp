@@ -269,7 +269,8 @@ int main()
 
 		auto person_name = [](const person& p){return p.name; };
 		auto pet_name = [](const pet& p){return p.name; };
-
+		
+		auto f = from(persons).full_join(from(pets), person_name, pet_name);
 		auto g = from(persons).group_join(from(pets), person_name, pet_name);
 		auto j = from(persons).join(from(pets), person_name, pet_name);
 	}
