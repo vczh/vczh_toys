@@ -4,12 +4,104 @@
 #include <assert.h>
 #include "linq.h"
 #include <assert.h>
-#include <typeinfo>
+#include <iostream>
 
 using namespace std;
 using namespace vczh;
 
+int test();
+
 int main()
+{
+	test();
+
+	{
+		// calculate sum of squares of odd numbers
+		int xs[] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
+		int sum = from(xs)
+			.where([](int x){return x % 2 == 1; })
+			.select([](int x){return x * x; })
+			.sum();
+		// prints 165
+		cout << sum << endl;
+	}
+	{
+		// iterate of squares of odd numbers ordered by the last digit
+		vector<int> xs = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
+		for (auto x : from(xs)
+			.where([](int x){return x % 2 == 1; })
+			.select([](int x){return x * x; })
+			.order_by([](int x){return x % 10; })
+			)
+		{
+			cout << x << " ";
+		}
+		// prints 1 81 25 9 49
+		cout << endl;
+	}
+	{
+		struct person
+		{
+			string		name;
+		};
+
+		struct pet
+		{
+			string		name;
+			person		owner;
+		};
+
+		person magnus = { "Hedlund, Magnus" };
+		person terry = { "Adams, Terry" };
+		person charlotte = { "Weiss, Charlotte" };
+		person persons[] = { magnus, terry, charlotte };
+
+		pet barley = { "Barley", terry };
+		pet boots = { "Boots", terry };
+		pet whiskers = { "Whiskers", charlotte };
+		pet daisy = { "Daisy", magnus };
+		pet pets[] = { barley, boots, whiskers, daisy };
+
+		auto person_name = [](const person& p){return p.name; };
+		auto pet_name = [](const pet& p){return p.name; };
+		auto pet_owner_name = [](const pet& p){return p.owner.name; };
+
+		// print people and their animals in to levels
+		/* prints
+			Adams, Terry
+				Barley
+				Boots
+			Hedlund, Magnus
+				Daisy
+			Weiss, Charlotte
+				Whiskers
+		*/
+		for (auto x : from(persons).group_join(from(pets), person_name, pet_owner_name))
+		{
+			// x :: zip_pair<string, zip_pair<person, linq<pet>>>
+			cout << x.second.first.name << endl;
+			for (auto y : x.second.second)
+			{
+				cout << "    " << y.name << endl;
+			}
+		}
+
+		// print people and their animals
+		/* prints
+			Adams, Terry: Barley
+			Adams, Terry: Boots
+			Hedlund, Magnus: Daisy
+			Weiss, Charlotte: Whiskers
+		*/
+		for (auto x : from(persons).join(from(pets), person_name, pet_owner_name))
+		{
+			// x :: zip_pair<string, zip_pair<person, pet>>
+			cout << x.second.first.name << ": " << x.second.second.name << endl;
+		}
+	}
+}
+
+int test()
 {
 	//////////////////////////////////////////////////////////////////
 	// from

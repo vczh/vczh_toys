@@ -1355,12 +1355,11 @@ namespace vczh
 			
 		template<typename TFunction>
 		auto first_order_by(const TFunction& keySelector)const
-			->linq<linq<typename std::remove_reference<iterator_type<TIterator>>::type>>
+			->linq<linq<TElement>>
 		{
 			typedef typename std::remove_reference<decltype(keySelector(*(TElement*)0))>::type		TKey;
-			typedef typename std::remove_reference<iterator_type<TIterator>>::type					TValue;
 
-			return group_by(keySelector).select([](const zip_pair<TKey, linq<TValue>>& p){return p.second; });
+			return group_by(keySelector).select([](const zip_pair<TKey, linq<TElement>>& p){return p.second; });
 		}
 
 		template<typename TFunction>
@@ -1374,11 +1373,9 @@ namespace vczh
 		auto order_by(const TFunction& keySelector)const
 			->linq<TElement>
 		{
-			auto result = make_shared<std::vector<TElement>>(begin(), end());
-			std::sort(result->begin(), result->end(), [keySelector](const TElement& a, const TElement& b){return keySelector(a) < keySelector(b); });
-			return from_values(result);
+			return first_order_by(keySelector).select_many([](const linq<TElement>& values){return values; });
 		}
-
+		
 		template<typename TIterator2>
 		linq_enumerable<types::zip_it<TIterator, TIterator2>> zip_with(const linq_enumerable<TIterator2>& e)const
 		{
