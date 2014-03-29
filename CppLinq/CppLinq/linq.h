@@ -11,6 +11,7 @@
 #include <unordered_map>
 #include <set>
 #include <unordered_set>
+#include <algorithm>
 
 namespace vczh
 {
@@ -1351,9 +1352,25 @@ namespace vczh
 			PROTECT_PARAMETERS(const TFunction1& keySelector11, const TFunction2& keySelector12),
 			PROTECT_PARAMETERS(keySelector1, keySelector2)
 			)
+			
+		//template<typename TFunction>
+		//auto first_order_by(const TFunction& keySelector)const
+		//	->linq<linq<typename std::remove_reference<iterator_type<TIterator>>::type>>
+		//{
+		//	typedef typename std::remove_reference<decltype(keySelector(*(TElement*)0))>::type		TKey;
+		//	typedef typename std::remove_reference<iterator_type<TIterator>>::type					TValue;
 
-		void order_by()const;
-		void then_by()const;
+		//	return group_by(keySelector).select([](const zip_pair<TKey, linq<TValue>>& p){return p.second; });
+		//}
+
+		template<typename TFunction>
+		auto order_by(const TFunction& keySelector)const
+			->linq<TElement>
+		{
+			auto result = make_shared<std::vector<TElement>>(begin(), end());
+			std::sort(result->begin(), result->end(), [keySelector](const TElement& a, const TElement& b){return keySelector(a) < keySelector(b); });
+			return from_values(result);
+		}
 
 		template<typename TIterator2>
 		linq_enumerable<types::zip_it<TIterator, TIterator2>> zip_with(const linq_enumerable<TIterator2>& e)const
@@ -1467,9 +1484,13 @@ namespace vczh
 #undef SUPPORT_STL_CONTAINERS_EX
 	};
 
+	//template<typename T, typename TFunction>
+	//static linq<linq<T>> then_order_by(const linq<linq<T>>& xs, const TFunction& keySelector);
+
 	template<typename T>
 	class linq : public linq_enumerable<iterators::hide_type_iterator<T>>
 	{
+		typedef iterators::hide_type_iterator<T>		TIterator;
 	public:
 		linq()
 		{
@@ -1483,7 +1504,26 @@ namespace vczh
 			)
 		{
 		}
+
+		//template<typename TFunction>
+		//auto then_order_by(const TFunction& keySelector)const
+		//	->linq<iterator_type<TIterator>>
+		//{
+		//	return vczh::then_order_by(*this, keySelector);
+		//}
 	};
+
+	//template<typename T, typename TFunction>
+	//static linq<linq<T>> then_order_by(const linq<linq<T>>& xs, const TFunction& keySelector)
+	//{
+	//	return xs.select_many([keySelector](const linq<T>& values){return values.first_ordery_by(keySelector); });
+	//}
+
+	template<typename T>
+	static linq<T> flatten(const linq<linq<T>>& xs)
+	{
+		return xs.select_many([](const linq<T>& ys)->linq<T>{return ys; });
+	}
 
 	template<typename TIterator>
 	linq_enumerable<TIterator> from(const TIterator& begin, const TIterator& end)
