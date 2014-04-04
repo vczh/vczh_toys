@@ -1,7 +1,9 @@
 #pragma once
 
 #include <utility>
+#ifdef _MSC_VER
 #include <xutility>
+#endif
 #include <algorithm>
 #include <memory>
 #include <string>
@@ -17,6 +19,17 @@ namespace vczh
 {
 	template<typename TIterator>
 	using iterator_type = decltype(**(TIterator*)0);
+
+	class linq_exception
+	{
+	public:
+		std::string				message;
+
+		linq_exception(const std::string& _message)
+			:message(_message)
+		{
+		}
+	};
 
 	template<typename T, typename U>
 	struct zip_pair
@@ -689,9 +702,6 @@ namespace vczh
 		};
 	}
 
-	template<typename TIterator>
-	class linq_enumerable;
-
 	namespace types
 	{
 		template<typename T>
@@ -728,17 +738,6 @@ namespace vczh
 	//////////////////////////////////////////////////////////////////
 	// linq
 	//////////////////////////////////////////////////////////////////
-
-	class linq_exception
-	{
-	public:
-		std::string				message;
-
-		linq_exception(const std::string& _message)
-			:message(_message)
-		{
-		}
-	};
 
 	template<typename TIterator>
 	class linq_enumerable;
@@ -783,6 +782,12 @@ namespace vczh
 	}
 
 	template<typename TIterator>
+	linq_enumerable<TIterator> from(const TIterator& begin, const TIterator& end);
+
+	template<typename TContainer>
+	auto from(const TContainer& container)->linq_enumerable<decltype(std::begin(container))>;
+
+	template<typename TIterator>
 	class linq_enumerable
 	{
 		typedef typename std::remove_cv<typename std::remove_reference<iterator_type<TIterator>>::type>::type	TElement;
@@ -811,28 +816,38 @@ namespace vczh
 		}
 
 #define SUPPORT_STL_CONTAINERS(NAME)\
-		template<typename TContainer>\
-		auto NAME(const TContainer& e)const->decltype(NAME(from(e)))\
+		template<typename TIterator2>\
+		auto NAME(const linq_enumerable<TIterator2>& e)const->decltype(this->NAME ## _(e))\
 		{\
-			return NAME(from(e)); \
+			return NAME ## _(e); \
+		}\
+		template<typename TContainer>\
+		auto NAME(const TContainer& e)const->decltype(this->NAME ## _(from(e)))\
+		{\
+			return NAME ## _(from(e)); \
 		}\
 		template<typename TElement>\
-		auto NAME(const std::initializer_list<TElement>& e)const->decltype(NAME(from(e)))\
+		auto NAME(const std::initializer_list<TElement>& e)const->decltype(this->NAME ## _(from(e)))\
 		{\
-			return NAME(from(e)); \
+			return NAME ## _(from(e)); \
 		}\
 
 #define PROTECT_PARAMETERS(...) __VA_ARGS__
 #define SUPPORT_STL_CONTAINERS_EX(NAME, TYPES, PARAMETERS, ARGUMENTS)\
-		template<typename TContainer, TYPES>\
-		auto NAME(const TContainer& e, PARAMETERS)const->decltype(NAME(from(e), ARGUMENTS))\
+		template<typename TIterator2, TYPES>\
+		auto NAME(const linq_enumerable<TIterator2>& e, PARAMETERS)const->decltype(this->NAME ## _(e, ARGUMENTS))\
 		{\
-			return NAME(from(e), ARGUMENTS); \
+			return NAME ## _(e, ARGUMENTS); \
+		}\
+		template<typename TContainer, TYPES>\
+		auto NAME(const TContainer& e, PARAMETERS)const->decltype(this->NAME ## _(from(e), ARGUMENTS))\
+		{\
+			return NAME ## _(from(e), ARGUMENTS); \
 		}\
 		template<typename TElement, TYPES>\
-		auto NAME(const std::initializer_list<TElement>& e, PARAMETERS)const->decltype(NAME(from(e), ARGUMENTS))\
+		auto NAME(const std::initializer_list<TElement>& e, PARAMETERS)const->decltype(this->NAME ## _(from(e), ARGUMENTS))\
 		{\
-			return NAME(from(e), ARGUMENTS); \
+			return NAME ## _(from(e), ARGUMENTS); \
 		}\
 
 		//////////////////////////////////////////////////////////////////
@@ -892,7 +907,7 @@ namespace vczh
 		}
 
 		template<typename TIterator2>
-		linq_enumerable<types::concat_it<TIterator, TIterator2>> concat(const linq_enumerable<TIterator2>& e)const
+		linq_enumerable<types::concat_it<TIterator, TIterator2>> concat_(const linq_enumerable<TIterator2>& e)const
 		{
 			return linq_enumerable<types::concat_it<TIterator, TIterator2>>(
 				types::concat_it<TIterator, TIterator2>(_begin, _end, e.begin(), e.end()),
@@ -1012,7 +1027,7 @@ namespace vczh
 		}
 
 		template<typename TIterator2>
-		bool sequence_equal(const linq_enumerable<TIterator2>& e)const
+		bool sequence_equal_(const linq_enumerable<TIterator2>& e)const
 		{
 			auto x = _begin;
 			auto xe = _end;
@@ -1046,7 +1061,7 @@ namespace vczh
 		}
 
 		template<typename TIterator2>
-		linq<TElement> except_with(const linq_enumerable<TIterator2>& e)const
+		linq<TElement> except_with_(const linq_enumerable<TIterator2>& e)const
 		{
 			std::set<TElement> set(e.begin(), e.end());
 			auto xs = std::make_shared<std::vector<TElement>>();
@@ -1062,7 +1077,7 @@ namespace vczh
 		SUPPORT_STL_CONTAINERS(except_with)
 
 		template<typename TIterator2>
-		linq<TElement> intersect_with(const linq_enumerable<TIterator2>& e)const
+		linq<TElement> intersect_with_(const linq_enumerable<TIterator2>& e)const
 		{
 			std::set<TElement> seti, set(e.begin(), e.end());
 			auto xs = std::make_shared<std::vector<TElement>>();
@@ -1078,7 +1093,7 @@ namespace vczh
 		SUPPORT_STL_CONTAINERS(intersect_with)
 
 		template<typename TIterator2>
-		linq<TElement> union_with(const linq_enumerable<TIterator2>& e)const
+		linq<TElement> union_with_(const linq_enumerable<TIterator2>& e)const
 		{
 			return concat(e).distinct();
 		}
@@ -1205,7 +1220,7 @@ namespace vczh
 		}
 
 		template<typename TIterator2, typename TFunction1, typename TFunction2>
-		auto full_join(const linq_enumerable<TIterator2>& e, const TFunction1& keySelector1, const TFunction2& keySelector2)const
+		auto full_join_(const linq_enumerable<TIterator2>& e, const TFunction1& keySelector1, const TFunction2& keySelector2)const
 			->linq<join_pair<
 				typename std::remove_reference<decltype(keySelector1(*(TElement*)0))>::type,
 				linq<typename std::remove_reference<iterator_type<TIterator>>::type>,
@@ -1285,12 +1300,12 @@ namespace vczh
 		SUPPORT_STL_CONTAINERS_EX(
 			full_join,
 			PROTECT_PARAMETERS(typename TFunction1, typename TFunction2),
-			PROTECT_PARAMETERS(const TFunction1& keySelector11, const TFunction2& keySelector12),
+			PROTECT_PARAMETERS(const TFunction1& keySelector1, const TFunction2& keySelector2),
 			PROTECT_PARAMETERS(keySelector1, keySelector2)
 			)
 
 		template<typename TIterator2, typename TFunction1, typename TFunction2>
-		auto group_join(const linq_enumerable<TIterator2>& e, const TFunction1& keySelector1, const TFunction2& keySelector2)const
+		auto group_join_(const linq_enumerable<TIterator2>& e, const TFunction1& keySelector1, const TFunction2& keySelector2)const
 			->linq<join_pair<
 				typename std::remove_reference<decltype(keySelector1(*(TElement*)0))>::type,
 				typename std::remove_reference<iterator_type<TIterator>>::type,
@@ -1317,12 +1332,12 @@ namespace vczh
 		SUPPORT_STL_CONTAINERS_EX(
 			group_join,
 			PROTECT_PARAMETERS(typename TFunction1, typename TFunction2),
-			PROTECT_PARAMETERS(const TFunction1& keySelector11, const TFunction2& keySelector12),
+			PROTECT_PARAMETERS(const TFunction1& keySelector1, const TFunction2& keySelector2),
 			PROTECT_PARAMETERS(keySelector1, keySelector2)
 			)
 
 		template<typename TIterator2, typename TFunction1, typename TFunction2>
-		auto join(const linq_enumerable<TIterator2>& e, const TFunction1& keySelector1, const TFunction2& keySelector2)const
+		auto join_(const linq_enumerable<TIterator2>& e, const TFunction1& keySelector1, const TFunction2& keySelector2)const
 			->linq<join_pair<
 				typename std::remove_reference<decltype(keySelector1(*(TElement*)0))>::type,
 				typename std::remove_reference<iterator_type<TIterator>>::type,
@@ -1349,7 +1364,7 @@ namespace vczh
 		SUPPORT_STL_CONTAINERS_EX(
 			join,
 			PROTECT_PARAMETERS(typename TFunction1, typename TFunction2),
-			PROTECT_PARAMETERS(const TFunction1& keySelector11, const TFunction2& keySelector12),
+			PROTECT_PARAMETERS(const TFunction1& keySelector1, const TFunction2& keySelector2),
 			PROTECT_PARAMETERS(keySelector1, keySelector2)
 			)
 			
@@ -1377,7 +1392,7 @@ namespace vczh
 		}
 		
 		template<typename TIterator2>
-		linq_enumerable<types::zip_it<TIterator, TIterator2>> zip_with(const linq_enumerable<TIterator2>& e)const
+		linq_enumerable<types::zip_it<TIterator, TIterator2>> zip_with_(const linq_enumerable<TIterator2>& e)const
 		{
 			return linq_enumerable<types::zip_it<TIterator, TIterator2>>(
 				types::zip_it<TIterator, TIterator2>(_begin, _end, e.begin(), e.end()),

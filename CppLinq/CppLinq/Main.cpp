@@ -1,9 +1,10 @@
+#ifdef _MSC_VER
 #define _CRTDBG_MAP_ALLOC
 #include <stdlib.h>
 #include <crtdbg.h>
+#endif
 #include <assert.h>
 #include "linq.h"
-#include <assert.h>
 #include <iostream>
 
 using namespace std;
@@ -14,7 +15,7 @@ int test();
 int main()
 {
 	test();
-
+#if 0
 	{
 		// calculate sum of squares of odd numbers
 		int xs[] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
@@ -99,6 +100,7 @@ int main()
 			cout << x.second.first.name << ": " << x.second.second.name << endl;
 		}
 	}
+#endif
 }
 
 int test()
@@ -351,6 +353,7 @@ int test()
 			.sequence_equal(zs)
 			);
 	}
+#if 0
 	//////////////////////////////////////////////////////////////////
 	// joining
 	//////////////////////////////////////////////////////////////////
@@ -420,7 +423,10 @@ int test()
 			assert(xs[3].second.second.name == whiskers.name);
 		}
 	}
+#endif
+#ifdef _MSC_VER
 	_CrtDumpMemoryLeaks();
+#endif
 	return 0;
 }
 
