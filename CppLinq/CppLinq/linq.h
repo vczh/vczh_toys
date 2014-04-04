@@ -835,6 +835,46 @@ namespace vczh
 			return _end;
 		}
 
+#ifdef _MSC_VER
+
+#define SUPPORT_STL_CONTAINERS(NAME)\
+		template<typename TIterator2>\
+		auto NAME(const linq_enumerable<TIterator2>& e)const->decltype(NAME ## _(e))\
+		{\
+			return NAME ## _(e); \
+		}\
+		template<typename TContainer>\
+		auto NAME(const TContainer& e)const->decltype(NAME ## _(from(e)))\
+		{\
+			return NAME ## _(from(e)); \
+		}\
+		template<typename TElement>\
+		auto NAME(const std::initializer_list<TElement>& e)const->decltype(NAME ## _(from(e)))\
+		{\
+			return NAME ## _(from(e)); \
+		}\
+
+#define PROTECT_PARAMETERS(...) __VA_ARGS__
+
+#define SUPPORT_STL_CONTAINERS_EX(NAME, TYPES, PARAMETERS, ARGUMENTS)\
+		template<typename TIterator2, TYPES>\
+		auto NAME(const linq_enumerable<TIterator2>& e, PARAMETERS)const->decltype(NAME ## _(e, ARGUMENTS))\
+		{\
+			return NAME ## _(e, ARGUMENTS); \
+		}\
+		template<typename TContainer, TYPES>\
+		auto NAME(const TContainer& e, PARAMETERS)const->decltype(NAME ## _(from(e), ARGUMENTS))\
+		{\
+			return NAME ## _(from(e), ARGUMENTS); \
+		}\
+		template<typename TElement, TYPES>\
+		auto NAME(const std::initializer_list<TElement>& e, PARAMETERS)const->decltype(NAME ## _(from(e), ARGUMENTS))\
+		{\
+			return NAME ## _(from(e), ARGUMENTS); \
+		}\
+
+#else
+
 #define SUPPORT_STL_CONTAINERS(NAME)\
 		template<typename TIterator2>\
 		auto NAME(const linq_enumerable<TIterator2>& e)const->decltype(this->NAME ## _(e))\
@@ -853,6 +893,7 @@ namespace vczh
 		}\
 
 #define PROTECT_PARAMETERS(...) __VA_ARGS__
+
 #define SUPPORT_STL_CONTAINERS_EX(NAME, TYPES, PARAMETERS, ARGUMENTS)\
 		template<typename TIterator2, TYPES>\
 		auto NAME(const linq_enumerable<TIterator2>& e, PARAMETERS)const->decltype(this->NAME ## _(e, ARGUMENTS))\
@@ -869,6 +910,8 @@ namespace vczh
 		{\
 			return NAME ## _(from(e), ARGUMENTS); \
 		}\
+
+#endif
 
 		//////////////////////////////////////////////////////////////////
 		// iterating (lazy evaluation)
