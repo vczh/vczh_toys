@@ -353,7 +353,6 @@ int test()
 			.sequence_equal(zs)
 			);
 	}
-#if 0
 	//////////////////////////////////////////////////////////////////
 	// joining
 	//////////////////////////////////////////////////////////////////
@@ -385,6 +384,7 @@ int test()
 		auto pet_owner_name = [](const pet& p){return p.owner.name; };
 		
 		auto f = from(persons).full_join(from(pets), person_name, pet_owner_name);
+#if 0
 		{
 			typedef join_pair<string, linq<person>, linq<pet>> TItem;
 			auto xs = f.to_vector();
@@ -422,8 +422,8 @@ int test()
 			assert(xs[2].second.second.name == daisy.name);
 			assert(xs[3].second.second.name == whiskers.name);
 		}
-	}
 #endif
+	}
 #ifdef _MSC_VER
 	_CrtDumpMemoryLeaks();
 #endif

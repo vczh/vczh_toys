@@ -3,6 +3,8 @@
 #include <utility>
 #ifdef _MSC_VER
 #include <xutility>
+#else
+#define __thiscall
 #endif
 #include <algorithm>
 #include <memory>
@@ -29,6 +31,24 @@ namespace vczh
 			:message(_message)
 		{
 		}
+	};
+
+	template<typename TMethod>
+	struct linq_lambda_retriver
+	{
+		typedef void ResultType;
+	};
+
+	template<typename TClass, typename TResult, typename ...TArgs>
+	struct linq_lambda_retriver<TResult(__thiscall TClass::*)(TArgs...)>
+	{
+		typedef TResult ResultType;
+	};
+
+	template<typename TClass, typename TResult, typename ...TArgs>
+	struct linq_lambda_retriver<TResult(__thiscall TClass::*)(TArgs...)const>
+	{
+		typedef TResult ResultType;
 	};
 
 	template<typename T, typename U>
@@ -1179,7 +1199,12 @@ namespace vczh
 		//////////////////////////////////////////////////////////////////
 
 		template<typename TFunction>
-		auto select_many(const TFunction& f)const->linq<decltype(*f(*(TElement*)0).begin())>
+		auto select_many(const TFunction& f)const
+#ifdef _MSC_VER
+			->linq<decltype(*f(*(TElement*)0).begin())>
+#else
+			->linq<decltype(*((typename linq_lambda_retriver<decltype(&TFunction::operator())>::ResultType*)0)->begin())>
+#endif
 		{
 			typedef decltype(f(*(TElement*)0))				TCollection;
 			typedef decltype(*f(*(TElement*)0).begin())		TValue;
