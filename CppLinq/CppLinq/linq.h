@@ -1248,13 +1248,13 @@ namespace vczh
 		auto full_join_(const linq_enumerable<TIterator2>& e, const TFunction1& keySelector1, const TFunction2& keySelector2)const
 			->linq<join_pair<
 				typename std::remove_reference<decltype(keySelector1(*(TElement*)0))>::type,
-				linq<typename std::remove_reference<iterator_type<TIterator>>::type>,
-				linq<typename std::remove_reference<iterator_type<TIterator2>>::type>
+				linq<typename std::remove_cv<typename std::remove_reference<iterator_type<TIterator>>::type>::type>,
+				linq<typename std::remove_cv<typename std::remove_reference<iterator_type<TIterator2>>::type>::type>
 				>>
 		{
 			typedef typename std::remove_reference<decltype(keySelector1(*(TElement*)0))>::type		TKey;
-			typedef typename std::remove_reference<iterator_type<TIterator>>::type					TValue1;
-			typedef typename std::remove_reference<iterator_type<TIterator2>>::type					TValue2;
+			typedef typename std::remove_cv<typename std::remove_reference<iterator_type<TIterator>>::type>::type					TValue1;
+			typedef typename std::remove_cv<typename std::remove_reference<iterator_type<TIterator2>>::type>::type					TValue2;
 			typedef join_pair<TKey, linq<TValue1>, linq<TValue2>>									TFullJoinPair;
 
 			std::multimap<TKey, TValue1> map1;
@@ -1319,7 +1319,6 @@ namespace vczh
 					lower1 = upper1;
 				}
 			}
-
 			return from_values(result);
 		}
 		SUPPORT_STL_CONTAINERS_EX(
@@ -1333,13 +1332,13 @@ namespace vczh
 		auto group_join_(const linq_enumerable<TIterator2>& e, const TFunction1& keySelector1, const TFunction2& keySelector2)const
 			->linq<join_pair<
 				typename std::remove_reference<decltype(keySelector1(*(TElement*)0))>::type,
-				typename std::remove_reference<iterator_type<TIterator>>::type,
-				linq<typename std::remove_reference<iterator_type<TIterator2>>::type>
+				typename std::remove_cv<typename std::remove_reference<iterator_type<TIterator>>::type>::type,
+				linq<typename std::remove_cv<typename std::remove_reference<iterator_type<TIterator2>>::type>::type>
 				>>
 		{
 			typedef typename std::remove_reference<decltype(keySelector1(*(TElement*)0))>::type		TKey;
-			typedef typename std::remove_reference<iterator_type<TIterator>>::type					TValue1;
-			typedef typename std::remove_reference<iterator_type<TIterator2>>::type					TValue2;
+			typedef typename std::remove_cv<typename std::remove_reference<iterator_type<TIterator>>::type>::type					TValue1;
+			typedef typename std::remove_cv<typename std::remove_reference<iterator_type<TIterator2>>::type>::type					TValue2;
 			typedef join_pair<TKey, linq<TValue1>, linq<TValue2>>									TFullJoinPair;
 			typedef join_pair<TKey, TValue1, linq<TValue2>>											TGroupJoinPair;
 
@@ -1365,13 +1364,13 @@ namespace vczh
 		auto join_(const linq_enumerable<TIterator2>& e, const TFunction1& keySelector1, const TFunction2& keySelector2)const
 			->linq<join_pair<
 				typename std::remove_reference<decltype(keySelector1(*(TElement*)0))>::type,
-				typename std::remove_reference<iterator_type<TIterator>>::type,
-				typename std::remove_reference<iterator_type<TIterator2>>::type
+				typename std::remove_cv<typename std::remove_reference<iterator_type<TIterator>>::type>::type,
+				typename std::remove_cv<typename std::remove_reference<iterator_type<TIterator2>>::type>::type
 				>>
 		{
 			typedef typename std::remove_reference<decltype(keySelector1(*(TElement*)0))>::type		TKey;
-			typedef typename std::remove_reference<iterator_type<TIterator>>::type					TValue1;
-			typedef typename std::remove_reference<iterator_type<TIterator2>>::type					TValue2;
+			typedef typename std::remove_cv<typename std::remove_reference<iterator_type<TIterator>>::type>::type					TValue1;
+			typedef typename std::remove_cv<typename std::remove_reference<iterator_type<TIterator2>>::type>::type					TValue2;
 			typedef join_pair<TKey, TValue1, linq<TValue2>>											TGroupJoinPair;
 			typedef join_pair<TKey, TValue1, TValue2>												TJoinPair;
 

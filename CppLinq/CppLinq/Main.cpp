@@ -12,10 +12,20 @@ using namespace vczh;
 
 int test();
 
+struct person
+{
+	string		name;
+};
+
+struct pet
+{
+	string		name;
+	person		owner;
+};
+
 int main()
 {
 	test();
-#if 0
 	{
 		// calculate sum of squares of odd numbers
 		int xs[] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
@@ -41,17 +51,6 @@ int main()
 		cout << endl;
 	}
 	{
-		struct person
-		{
-			string		name;
-		};
-
-		struct pet
-		{
-			string		name;
-			person		owner;
-		};
-
 		person magnus = { "Hedlund, Magnus" };
 		person terry = { "Adams, Terry" };
 		person charlotte = { "Weiss, Charlotte" };
@@ -86,7 +85,6 @@ int main()
 				cout << "    " << y.name << endl;
 			}
 		}
-
 		// print people and their animals
 		/* prints
 			Adams, Terry: Barley
@@ -100,7 +98,6 @@ int main()
 			cout << x.second.first.name << ": " << x.second.second.name << endl;
 		}
 	}
-#endif
 }
 
 int test()
@@ -262,16 +259,12 @@ int test()
 		assert(from(xs).sequence_equal(from(xs).to_deque()));
 		assert(from(xs).sequence_equal(from(xs).to_list()));
 		assert(from(xs).sequence_equal(from(xs).to_set()));
-		assert(from(xs).sequence_equal(from(xs).to_multiset()));
-		assert(from(xs).sequence_equal(from(xs).to_unordered_set()));
 
 		auto f = [](int x){return x; };
 		assert(from(xs).sequence_equal(from(from(xs).to_map(f)).select([](pair<int, int> p){return p.first; })));
 		assert(from(xs).sequence_equal(from(from(xs).to_map(f)).select([](pair<int, int> p){return p.second; })));
 		assert(from(xs).sequence_equal(from(from(xs).to_multimap(f)).select([](pair<int, int> p){return p.first; })));
 		assert(from(xs).sequence_equal(from(from(xs).to_multimap(f)).select([](pair<int, int> p){return p.second; })));
-		assert(from(xs).sequence_equal(from(from(xs).to_unordered_map(f)).select([](pair<int, int> p){return p.first; })));
-		assert(from(xs).sequence_equal(from(from(xs).to_unordered_map(f)).select([](pair<int, int> p){return p.second; })));
 	}
 	//////////////////////////////////////////////////////////////////
 	// aggregating
@@ -357,17 +350,6 @@ int test()
 	// joining
 	//////////////////////////////////////////////////////////////////
 	{
-		struct person
-		{
-			string		name;
-		};
-
-		struct pet
-		{
-			string		name;
-			person		owner;
-		};
-
 		person magnus = { "Hedlund, Magnus" };
 		person terry = { "Adams, Terry" };
 		person charlotte = { "Weiss, Charlotte" };
@@ -384,7 +366,6 @@ int test()
 		auto pet_owner_name = [](const pet& p){return p.owner.name; };
 		
 		auto f = from(persons).full_join(from(pets), person_name, pet_owner_name);
-#if 0
 		{
 			typedef join_pair<string, linq<person>, linq<pet>> TItem;
 			auto xs = f.to_vector();
@@ -422,7 +403,6 @@ int test()
 			assert(xs[2].second.second.name == daisy.name);
 			assert(xs[3].second.second.name == whiskers.name);
 		}
-#endif
 	}
 #ifdef _MSC_VER
 	_CrtDumpMemoryLeaks();
