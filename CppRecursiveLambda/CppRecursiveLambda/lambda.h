@@ -2,6 +2,10 @@
 
 #include <functional>
 
+#ifndef _MSC_VER
+#define __thiscall
+#endif
+
 namespace vczh
 {
 	template<typename TResult, typename ...TArgs>
