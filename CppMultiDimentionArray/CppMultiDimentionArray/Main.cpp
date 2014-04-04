@@ -2,8 +2,8 @@
 #define _CRTDBG_MAP_ALLOC
 #include <stdlib.h>
 #include <crtdbg.h>
-#include <assert.h>
 #endif
+#include <assert.h>
 #include "array.h"
 #include <assert.h>
 

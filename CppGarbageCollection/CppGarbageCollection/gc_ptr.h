@@ -3,7 +3,10 @@
 
 namespace vczh
 {
+	struct gc_record;
 	class enable_gc;
+	template<typename T>
+	class gc_ptr;
 
 	struct gc_record
 	{
@@ -18,7 +21,7 @@ namespace vczh
 		friend class gc_ptr;
 
 		template<typename T, typename ...TArgs>
-		friend gc_ptr<T> make_gc(typename TArgs&& ...args);
+		friend gc_ptr<T> make_gc(TArgs&& ...args);
 	private:
 		gc_record			record;
 
@@ -43,17 +46,17 @@ namespace vczh
 	template<typename T>
 	class gc_ptr
 	{
-		template<typename T>
+		template<typename T2>
 		friend class gc_ptr;
 
-		template<typename T, typename ...TArgs>
-		friend gc_ptr<T> make_gc(typename TArgs&& ...args);
+		template<typename T2, typename ...TArgs>
+		friend gc_ptr<T2> make_gc(TArgs&& ...args);
 
-		template<typename T, typename U>
-		friend gc_ptr<T> static_gc_cast(const gc_ptr<U>& ptr);
+		template<typename T2, typename U>
+		friend gc_ptr<T2> static_gc_cast(const gc_ptr<U>& ptr);
 
-		template<typename T, typename U>
-		friend gc_ptr<T> dynamic_gc_cast(const gc_ptr<U>& ptr);
+		template<typename T2, typename U>
+		friend gc_ptr<T2> dynamic_gc_cast(const gc_ptr<U>& ptr);
 	private:
 		T*					reference = nullptr;
 
@@ -120,7 +123,7 @@ namespace vczh
 	};
 
 	template<typename T, typename ...TArgs>
-	gc_ptr<T> make_gc(typename TArgs&& ...args)
+	gc_ptr<T> make_gc(TArgs&& ...args)
 	{
 		void* memory = malloc(sizeof(T));
 		gc_record record;
