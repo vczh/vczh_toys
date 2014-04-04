@@ -157,7 +157,7 @@ namespace vczh
 			return sizes.total;
 		}
 
-		auto operator[](int index)->decltype(ref()[index])
+		auto operator[](int index)->decltype(this->ref()[index])
 		{
 			return ref()[index];
 		}
