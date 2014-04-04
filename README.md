@@ -1,6 +1,8 @@
 vczh_toys
 =========
 
+Supporting g++ makes me feel like eating a piece of shit. And I finally made it.
+
 This repository contains vczh's toys for black magic codes or experiments:
 * garbage collection library for C++11
 * multiple dimentional array for C++11
