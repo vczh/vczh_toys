@@ -157,7 +157,12 @@ namespace vczh
 			return sizes.total;
 		}
 
-		auto operator[](int index)->decltype(this->ref()[index])
+		auto operator[](int index)
+#ifdef _MSC_VER
+			->decltype(ref()[index])
+#else
+			->decltype(this->ref()[index])
+#endif
 		{
 			return ref()[index];
 		}
