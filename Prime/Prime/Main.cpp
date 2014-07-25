@@ -111,13 +111,24 @@ struct Parameter<Last, Last>
 
 struct Primes
 {
-	typedef Sieve<Parameter<2, 80000000>::Result>::Result Result;
+	// typedef Sieve<Parameter<2, 80000000>::Result>::Result Result;
+	typedef Sieve<Parameter<2, 100>::Result>::Result Result;
 };
 
 ////////////////////////////////////
 
 int main()
 {
-	cout << Count<Primes::Result, 4263116>::Result << endl;
+	// cout << Count<Primes::Result, 4263116>::Result << endl;
+	cout << Count<Primes::Result, 1>::Result << endl;
+	cout << Count<Primes::Result, 2>::Result << endl;
+	cout << Count<Primes::Result, 3>::Result << endl;
+	cout << Count<Primes::Result, 4>::Result << endl;
+	cout << Count<Primes::Result, 5>::Result << endl;
+	cout << Count<Primes::Result, 6>::Result << endl;
+	cout << Count<Primes::Result, 7>::Result << endl;
+	cout << Count<Primes::Result, 8>::Result << endl;
+	cout << Count<Primes::Result, 9>::Result << endl;
+	cout << Count<Primes::Result, 10>::Result << endl;
 	return 0;
 }
