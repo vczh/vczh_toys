@@ -1,0 +1,32 @@
+sudo apt-get install apt-file/clang/libclang-dev
+cd /usr/lib/llvm-3.4/lib
+ln -s libclang.so.1 libclang.so
+git clone https://github.com/gmarik/Vundle.vim.git ~/.vim/bundle/Vundle.vim
+
+======================
+.vimrc
+
+set nocompatible
+filetype off
+
+set rtp+=~/.vim/bundle/Vundle.vim
+call vundle#begin()
+
+Plugin 'gmarik/Vundle.vim'
+Plugin 'Rip-Rip/clang_complete'
+
+call vundle#end()
+filetype plugin indent on
+
+let g:clang_complete_open=1
+let g:clang_periodic_quickfix=1
+let g:clang_snippets=1
+let g:clang_close_preview=1
+let g:clang_library_path='/usr/lib/llvm-3.4/lib/'
+let g:clang_use_library=1
+let g:clang_user_options='-stdlib=libc++ -std=c++11 -IIncludePath'
+let g:neocomplcache_enable_at_startup=1
+======================
+
+vim
+:PluginInstall
