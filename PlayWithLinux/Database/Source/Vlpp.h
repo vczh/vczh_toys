@@ -23,7 +23,7 @@ Macros:
 #ifndef VCZH_BASIC
 #define VCZH_BASIC
 
-#if defined _WIN64 || __x86_64_
+#if defined _WIN64 || __x86_64 || __LP64__
 #define VCZH_64
 #endif
 
@@ -3725,325 +3725,6 @@ namespace vl
 			virtual	void					Close()=0;
 			virtual vint					Read(void* _buffer, vint _size)=0;
 		};
-
-		namespace internal
-		{
-			struct Reader
-			{
-				stream::IStream& input;
-
-				Reader(stream::IStream& _input)
-					:input(_input)
-				{
-				}
-			};
-				
-			struct Writer
-			{
-				stream::IStream& output;
-
-				Writer(stream::IStream& _output)
-					:output(_output)
-				{
-				}
-			};
-
-			template<typename T>
-			struct Serialization
-			{
-				template<typename TIO>
-				static void IO(TIO& io, T& value);
-			};
-
-			template<typename T>
-			Reader& operator<<(Reader& reader, T& value)
-			{
-				Serialization<T>::IO(reader, value);
-				return reader;
-			}
-
-			template<typename T>
-			Writer& operator<<(Writer& writer, T& value)
-			{
-				Serialization<T>::IO(writer, value);
-				return writer;
-			}
-
-			//---------------------------------------------
-
-			template<>
-			struct Serialization<vint32_t>
-			{
-				static void IO(Reader& reader, vint32_t& value)
-				{
-					if (reader.input.Read(&value, sizeof(value)) != sizeof(value))
-					{
-						CHECK_FAIL(L"Deserialization failed.");
-					}
-				}
-					
-				static void IO(Writer& writer, vint32_t& value)
-				{
-					if (writer.output.Write(&value, sizeof(value)) != sizeof(value))
-					{
-						CHECK_FAIL(L"Serialization failed.");
-					}
-				}
-			};
-
-			template<>
-			struct Serialization<vint64_t>
-			{
-				static void IO(Reader& reader, vint64_t& value)
-				{
-					vint32_t v = 0;
-					Serialization<vint32_t>::IO(reader, v);;
-					value = (vint64_t)v;
-				}
-					
-				static void IO(Writer& writer, vint64_t& value)
-				{
-					vint32_t v = (vint32_t)value;
-					Serialization<vint32_t>::IO(writer, v);
-				}
-			};
-
-			template<>
-			struct Serialization<bool>
-			{
-				static void IO(Reader& reader, bool& value)
-				{
-					vint8_t v = 0;
-					if (reader.input.Read(&v, sizeof(v)) != sizeof(v))
-					{
-						CHECK_FAIL(L"Deserialization failed.");
-					}
-					else
-					{
-						value = v == -1;
-					}
-				}
-					
-				static void IO(Writer& writer, bool& value)
-				{
-					vint8_t v = value ? -1 : 0;
-					if (writer.output.Write(&v, sizeof(v)) != sizeof(v))
-					{
-						CHECK_FAIL(L"Serialization failed.");
-					}
-				}
-			};
-
-			template<typename T>
-			struct Serialization<Ptr<T>>
-			{
-				static void IO(Reader& reader, Ptr<T>& value)
-				{
-					bool notNull = false;
-					reader << notNull;
-					if (notNull)
-					{
-						value = new T;
-						Serialization<T>::IO(reader, *value.Obj());
-					}
-					else
-					{
-						value = 0;
-					}
-				}
-					
-				static void IO(Writer& writer, Ptr<T>& value)
-				{
-					bool notNull = value;
-					writer << notNull;
-					if (notNull)
-					{
-						Serialization<T>::IO(writer, *value.Obj());
-					}
-				}
-			};
-
-			template<>
-			struct Serialization<WString>
-			{
-				static void IO(Reader& reader, WString& value)
-				{
-					vint32_t count = -1;
-					reader << count;
-
-					collections::Array<wchar_t> buffer(count + 1);
-					if (reader.input.Read((void*)&buffer[0], count*sizeof(wchar_t)) != count*sizeof(wchar_t))
-					{
-						CHECK_FAIL(L"Deserialization failed.");
-					}
-					buffer[count] = 0;
-
-					value = &buffer[0];
-				}
-					
-				static void IO(Writer& writer, WString& value)
-				{
-					vint32_t count = (vint32_t)value.Length();
-					writer << count;
-					if (writer.output.Write((void*)value.Buffer(), count*sizeof(wchar_t)) != count*sizeof(wchar_t))
-					{
-						CHECK_FAIL(L"Serialization failed.");
-					}
-				}
-			};
-
-			template<typename T>
-			struct Serialization<collections::List<T>>
-			{
-				static void IO(Reader& reader, collections::List<T>& value)
-				{
-					vint32_t count = -1;
-					reader << count;
-					value.Clear();
-					for (vint i = 0; i < count; i++)
-					{
-						T t;
-						reader << t;
-						value.Add(t);
-					}
-				}
-					
-				static void IO(Writer& writer, collections::List<T>& value)
-				{
-					vint32_t count = (vint32_t)value.Count();
-					writer << count;
-					for (vint i = 0; i < count; i++)
-					{
-						writer << value[i];
-					}
-				}
-			};
-
-			template<typename T>
-			struct Serialization<collections::Array<T>>
-			{
-				static void IO(Reader& reader, collections::Array<T>& value)
-				{
-					vint32_t count = -1;
-					reader << count;
-					value.Resize(count);
-					for (vint i = 0; i < count; i++)
-					{
-						reader << value[i];
-					}
-				}
-					
-				static void IO(Writer& writer, collections::Array<T>& value)
-				{
-					vint32_t count = (vint32_t)value.Count();
-					writer << count;
-					for (vint i = 0; i < count; i++)
-					{
-						writer << value[i];
-					}
-				}
-			};
-
-			template<typename K, typename V>
-			struct Serialization<collections::Dictionary<K, V>>
-			{
-				static void IO(Reader& reader, collections::Dictionary<K, V>& value)
-				{
-					vint32_t count = -1;
-					reader << count;
-					value.Clear();
-					for (vint i = 0; i < count; i++)
-					{
-						K k;
-						V v;
-						reader << k << ;
-						value.Add(k, v);
-					}
-				}
-					
-				static void IO(Writer& writer, collections::Dictionary<K, V>& value)
-				{
-					vint32_t count = (vint32_t)value.Count();
-					writer << count;
-					for (vint i = 0; i < count; i++)
-					{
-						K k = value.Keys()[i];
-						V v = value.Values()[i];
-						writer << k << v;
-					}
-				}
-			};
-
-			template<typename K, typename V>
-			struct Serialization<collections::Group<K, V>>
-			{
-				static void IO(Reader& reader, collections::Group<K, V>& value)
-				{
-					vint32_t count = -1;
-					reader << count;
-					value.Clear();
-					for (vint i = 0; i < count; i++)
-					{
-						K k;
-						collections::List<V> v;
-						reader << k << v;
-						for (vint j = 0; j < v.Count(); j++)
-						{
-							value.Add(k, v[j]);
-						}
-					}
-				}
-					
-				static void IO(Writer& writer, collections::Group<K, V>& value)
-				{
-					vint32_t count = (vint32_t)value.Count();
-					writer << count;
-					for (vint i = 0; i < count; i++)
-					{
-						K k = value.Keys()[i];
-						collections::List<V>& v = const_cast<collections::List<V>&>(value.GetByIndex(i));
-						writer << k << v;
-					}
-				}
-			};
-
-			//---------------------------------------------
-
-#define BEGIN_SERIALIZATION(TYPE)\
-				template<>\
-				struct Serialization<TYPE>\
-				{\
-					template<typename TIO>\
-					static void IO(TIO& op, TYPE& value)\
-					{\
-						op\
-
-#define SERIALIZE(FIELD)\
-						<< value.FIELD\
-
-#define END_SERIALIZATION\
-						;\
-					}\
-				};\
-
-#define SERIALIZE_ENUM(TYPE)\
-			template<>\
-			struct Serialization<TYPE>\
-			{\
-				static void IO(Reader& reader, TYPE& value)\
-				{\
-					vint32_t v = 0;\
-					Serialization<vint32_t>::IO(reader, v);\
-					value = (TYPE)v;\
-				}\
-				static void IO(Writer& writer, TYPE& value)\
-				{\
-					vint32_t v = (vint32_t)value;\
-					Serialization<vint32_t>::IO(writer, v);\
-				}\
-			};\
-
-		}
 	}
 }
 
@@ -4372,6 +4053,744 @@ namespace vl
 			vint					Peek(void* _buffer, vint _size);
 			void*					GetInternalBuffer();
 		};
+	}
+}
+
+#endif
+
+/***********************************************************************
+STREAM\MEMORYWRAPPERSTREAM.H
+***********************************************************************/
+/***********************************************************************
+Vczh Library++ 3.0
+Developer: Zihan Chen(vczh)
+Stream::MemoryWrapperStream
+
+Interfaces:
+	MemoryWrapperStream				：内存代理流
+***********************************************************************/
+
+#ifndef VCZH_STREAM_MEMORYWRAPPERSTREAM
+#define VCZH_STREAM_MEMORYWRAPPERSTREAM
+
+
+namespace vl
+{
+	namespace stream
+	{
+		class MemoryWrapperStream : public Object, public virtual IStream
+		{
+		protected:
+			char*					buffer;
+			vint						size;
+			vint						position;
+		public:
+			MemoryWrapperStream(void* _buffer, vint _size);
+			~MemoryWrapperStream();
+
+			bool					CanRead()const;
+			bool					CanWrite()const;
+			bool					CanSeek()const;
+			bool					CanPeek()const;
+			bool					IsLimited()const;
+			bool					IsAvailable()const;
+			void					Close();
+			pos_t					Position()const;
+			pos_t					Size()const;
+			void					Seek(pos_t _size);
+			void					SeekFromBegin(pos_t _size);
+			void					SeekFromEnd(pos_t _size);
+			vint						Read(void* _buffer, vint _size);
+			vint						Write(void* _buffer, vint _size);
+			vint						Peek(void* _buffer, vint _size);
+		};
+	}
+}
+
+#endif
+
+/***********************************************************************
+STREAM\CHARFORMAT.H
+***********************************************************************/
+/***********************************************************************
+Vczh Library++ 3.0
+Developer: Zihan Chen(vczh)
+Stream::CharFormat
+
+Classes:
+	CharEncoder									：字符串编码器基类
+	CharDecoder									：字符串解码器基类
+	MbcsEncoder									：Mbcs编码器
+	MbcsDecoder									：Mbcs解码器
+	Utf16Encoder								：Utf16编码器
+	Utf16Decoder								：Utf16解码器
+	Utf16BEEncoder								：Utf16 Big Endian编码器
+	Utf16BEDecoder								：Utf16 Big Endian解码器
+	Utf8Encoder									：Utf8编码器
+	Utf8Decoder									：Utf8解码器
+	BomEncoder									：BOM相关编码器
+	BomDecoder									：BOM相关解码器
+***********************************************************************/
+
+#ifndef VCZH_STREAM_CHARFORMAT
+#define VCZH_STREAM_CHARFORMAT
+
+
+namespace vl
+{
+	namespace stream
+	{
+
+		/*编码资料
+		UCS-4和UTF-8的对应关系:
+		U-00000000 - U-0000007F:  0xxxxxxx
+		U-00000080 - U-000007FF:  110xxxxx 10xxxxxx
+		U-00000800 - U-0000FFFF:  1110xxxx 10xxxxxx 10xxxxxx
+		U-00010000 - U-001FFFFF:  11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
+		U-00200000 - U-03FFFFFF:  111110xx 10xxxxxx 10xxxxxx 10xxxxxx 10xxxxxx
+		U-04000000 - U-7FFFFFFF:  1111110x 10xxxxxx 10xxxxxx 10xxxxxx 10xxxxxx 10xxxxxx
+		BOM:
+		FFFE	=Unicode			(vceUtf16)
+		FEFF	=Unicode Big Endian	(vceUtf16_be)
+		EFBBBF	=UTF-8				(vceUtf8)
+		other	=MBCS(GBK)			(vceMbcs)
+		*/
+
+/***********************************************************************
+字符串编码解码基类
+***********************************************************************/
+
+		class CharEncoder : public Object, public IEncoder
+		{
+		protected:
+			IStream*						stream;
+			vuint8_t						cacheBuffer[sizeof(wchar_t)];
+			vint							cacheSize;
+
+			virtual vint					WriteString(wchar_t* _buffer, vint chars)=0;
+		public:
+			CharEncoder();
+
+			void							Setup(IStream* _stream);
+			void							Close();
+			vint							Write(void* _buffer, vint _size);
+		};
+
+		class CharDecoder : public Object, public IDecoder
+		{
+		protected:
+			IStream*						stream;
+			vuint8_t						cacheBuffer[sizeof(wchar_t)];
+			vint							cacheSize;
+
+			virtual vint					ReadString(wchar_t* _buffer, vint chars)=0;
+		public:
+			CharDecoder();
+
+			void							Setup(IStream* _stream);
+			void							Close();
+			vint							Read(void* _buffer, vint _size);
+		};
+
+/***********************************************************************
+Mbcs
+***********************************************************************/
+
+		class MbcsEncoder : public CharEncoder
+		{
+		protected:
+			vint							WriteString(wchar_t* _buffer, vint chars);
+		};
+
+		class MbcsDecoder : public CharDecoder
+		{
+		protected:
+			vint							ReadString(wchar_t* _buffer, vint chars);
+		};
+
+/***********************************************************************
+Utf-16
+***********************************************************************/
+
+		class Utf16Encoder : public CharEncoder
+		{
+		protected:
+			vint							WriteString(wchar_t* _buffer, vint chars);
+		};
+
+		class Utf16Decoder : public CharDecoder
+		{
+		protected:
+			vint							ReadString(wchar_t* _buffer, vint chars);
+		};
+
+/***********************************************************************
+Utf-16-be
+***********************************************************************/
+
+		class Utf16BEEncoder : public CharEncoder
+		{
+		protected:
+			vint							WriteString(wchar_t* _buffer, vint chars);
+		};
+
+		class Utf16BEDecoder : public CharDecoder
+		{
+		protected:
+			vint							ReadString(wchar_t* _buffer, vint chars);
+		};
+
+/***********************************************************************
+Utf-8
+***********************************************************************/
+
+		class Utf8Encoder : public CharEncoder
+		{
+		protected:
+			vint							WriteString(wchar_t* _buffer, vint chars);
+		};
+
+		class Utf8Decoder : public CharDecoder
+		{
+		protected:
+#if defined VCZH_MSVC
+			wchar_t							cache;
+			bool							cacheAvailable;
+#endif
+			vint							ReadString(wchar_t* _buffer, vint chars);
+		public:
+			Utf8Decoder();
+		};
+
+/***********************************************************************
+Bom
+***********************************************************************/
+
+		class BomEncoder : public Object, public IEncoder
+		{
+		public:
+			enum Encoding
+			{
+				Mbcs,
+				Utf8,
+				Utf16,
+				Utf16BE
+			};
+		protected:
+			Encoding						encoding;
+			IEncoder*						encoder;
+		public:
+			BomEncoder(Encoding _encoding);
+			~BomEncoder();
+
+			void							Setup(IStream* _stream);
+			void							Close();
+			vint								Write(void* _buffer, vint _size);
+		};
+
+		class BomDecoder : public Object, public IDecoder
+		{
+		private:
+			class BomStream : public Object, public IStream
+			{
+			protected:
+				IStream*					stream;
+				char						bom[3];
+				vint						bomLength;
+				vint						bomPosition;
+			public:
+				BomStream(IStream* _stream, char* _bom, vint _bomLength);
+
+				bool						CanRead()const;
+				bool						CanWrite()const;
+				bool						CanSeek()const;
+				bool						CanPeek()const;
+				bool						IsLimited()const;
+				bool						IsAvailable()const;
+				void						Close();
+				pos_t						Position()const;
+				pos_t						Size()const;
+				void						Seek(pos_t _size);
+				void						SeekFromBegin(pos_t _size);
+				void						SeekFromEnd(pos_t _size);
+				vint						Read(void* _buffer, vint _size);
+				vint						Write(void* _buffer, vint _size);
+				vint						Peek(void* _buffer, vint _size);
+			};
+		protected:
+			IDecoder*						decoder;
+			IStream*						stream;
+
+		public:
+			BomDecoder();
+			~BomDecoder();
+
+			void							Setup(IStream* _stream);
+			void							Close();
+			vint							Read(void* _buffer, vint _size);
+		};
+
+/***********************************************************************
+Encoding Test
+***********************************************************************/
+
+		extern void							TestEncoding(unsigned char* buffer, vint size, BomEncoder::Encoding& encoding, bool& containsBom);
+
+/***********************************************************************
+Serialization
+***********************************************************************/
+
+		namespace internal
+		{
+			struct Reader
+			{
+				stream::IStream& input;
+
+				Reader(stream::IStream& _input)
+					:input(_input)
+				{
+				}
+			};
+				
+			struct Writer
+			{
+				stream::IStream& output;
+
+				Writer(stream::IStream& _output)
+					:output(_output)
+				{
+				}
+			};
+
+			template<typename T>
+			struct Serialization
+			{
+				template<typename TIO>
+				static void IO(TIO& io, T& value);
+			};
+
+			template<typename T>
+			Reader& operator<<(Reader& reader, T& value)
+			{
+				Serialization<T>::IO(reader, value);
+				return reader;
+			}
+
+			template<typename T>
+			Writer& operator<<(Writer& writer, T& value)
+			{
+				Serialization<T>::IO(writer, value);
+				return writer;
+			}
+
+			//---------------------------------------------
+
+			template<>
+			struct Serialization<vint32_t>
+			{
+				static void IO(Reader& reader, vint32_t& value)
+				{
+					if (reader.input.Read(&value, sizeof(value)) != sizeof(value))
+					{
+						CHECK_FAIL(L"Deserialization failed.");
+					}
+				}
+					
+				static void IO(Writer& writer, vint32_t& value)
+				{
+					if (writer.output.Write(&value, sizeof(value)) != sizeof(value))
+					{
+						CHECK_FAIL(L"Serialization failed.");
+					}
+				}
+			};
+
+			template<>
+			struct Serialization<vint64_t>
+			{
+				static void IO(Reader& reader, vint64_t& value)
+				{
+					vint32_t v = 0;
+					Serialization<vint32_t>::IO(reader, v);
+					value = (vint64_t)v;
+				}
+					
+				static void IO(Writer& writer, vint64_t& value)
+				{
+					vint32_t v = (vint32_t)value;
+					Serialization<vint32_t>::IO(writer, v);
+				}
+			};
+
+			template<>
+			struct Serialization<bool>
+			{
+				static void IO(Reader& reader, bool& value)
+				{
+					vint8_t v = 0;
+					if (reader.input.Read(&v, sizeof(v)) != sizeof(v))
+					{
+						CHECK_FAIL(L"Deserialization failed.");
+					}
+					else
+					{
+						value = v == -1;
+					}
+				}
+					
+				static void IO(Writer& writer, bool& value)
+				{
+					vint8_t v = value ? -1 : 0;
+					if (writer.output.Write(&v, sizeof(v)) != sizeof(v))
+					{
+						CHECK_FAIL(L"Serialization failed.");
+					}
+				}
+			};
+
+			template<typename T>
+			struct Serialization<Ptr<T>>
+			{
+				static void IO(Reader& reader, Ptr<T>& value)
+				{
+					bool notNull = false;
+					reader << notNull;
+					if (notNull)
+					{
+						value = new T;
+						Serialization<T>::IO(reader, *value.Obj());
+					}
+					else
+					{
+						value = 0;
+					}
+				}
+					
+				static void IO(Writer& writer, Ptr<T>& value)
+				{
+					bool notNull = value;
+					writer << notNull;
+					if (notNull)
+					{
+						Serialization<T>::IO(writer, *value.Obj());
+					}
+				}
+			};
+
+			template<typename T>
+			struct Serialization<Nullable<T>>
+			{
+				static void IO(Reader& reader, Nullable<T>& value)
+				{
+					bool notNull = false;
+					reader << notNull;
+					if (notNull)
+					{
+						T data;
+						Serialization<T>::IO(reader, data);
+						value = Nullable<T>(data);
+					}
+					else
+					{
+						value = Nullable<T>();
+					}
+				}
+					
+				static void IO(Writer& writer, Nullable<T>& value)
+				{
+					bool notNull = value;
+					writer << notNull;
+					if (notNull)
+					{
+						T data = value.Value();
+						Serialization<T>::IO(writer, data);
+					}
+				}
+			};
+
+			template<>
+			struct Serialization<WString>
+			{
+				static void IO(Reader& reader, WString& value)
+				{
+#if defined VCZH_MSVC
+					vint32_t count = -1;
+					reader << count;
+					collections::Array<wchar_t> buffer(count + 1);
+					if (reader.input.Read((void*)&buffer[0], count*sizeof(wchar_t)) != count*sizeof(wchar_t))
+					{
+						CHECK_FAIL(L"Deserialization failed.");
+					}
+					buffer[count] = 0;
+
+					value = &buffer[0];
+#elif defined VCZH_GCC
+					vint32_t count = -1;
+					reader << count;
+					if (count == 0)
+					{
+						value = L"";
+						return;
+					}
+
+					vint size = count * 2;
+					collections::Array<char> buffer(size);
+					if (reader.input.Read((void*)&buffer[0],size) != size)
+					{
+						CHECK_FAIL(L"Deserialization failed.");
+					}
+
+					MemoryWrapperStream stream(&buffer[0], size + 1);
+					Utf16Decoder decoder;
+					decoder.Setup(&stream);
+
+					collections::Array<wchar_t> stringBuffer(count + 1);
+					vint stringSize = decoder.Read(&stringBuffer[0], count*sizeof(wchar_t));
+					stringBuffer[stringSize/sizeof(wchar_t)] = 0;
+
+					value = &stringBuffer[0];
+#endif
+				}
+					
+				static void IO(Writer& writer, WString& value)
+				{
+#if defined VCZH_MSVC
+					vint32_t count = (vint32_t)value.Length();
+					writer << count;
+					if (writer.output.Write((void*)value.Buffer(), count*sizeof(wchar_t)) != count*sizeof(wchar_t))
+					{
+						CHECK_FAIL(L"Serialization failed.");
+					}
+#elif defined VCZH_GCC
+					if (value == L"")
+					{
+						vint32_t count = 0;
+						writer << count;
+						return;
+					}
+
+					MemoryStream stream;
+					{
+						Utf16Encoder encoder;
+						encoder.Setup(&stream);
+						encoder.Write((void*)value.Buffer(), value.Length() * sizeof(wchar_t));
+					}
+					
+					vint size = (vint)stream.Size();
+					vint32_t count = (vint32_t)size / 2;
+					writer << count;
+					if (writer.output.Write(stream.GetInternalBuffer(), size) != size)
+					{
+						CHECK_FAIL(L"Serialization failed.");
+					}
+#endif
+				}
+			};
+
+			template<typename T>
+			struct Serialization<collections::List<T>>
+			{
+				static void IO(Reader& reader, collections::List<T>& value)
+				{
+					vint32_t count = -1;
+					reader << count;
+					value.Clear();
+					for (vint i = 0; i < count; i++)
+					{
+						T t;
+						reader << t;
+						value.Add(t);
+					}
+				}
+					
+				static void IO(Writer& writer, collections::List<T>& value)
+				{
+					vint32_t count = (vint32_t)value.Count();
+					writer << count;
+					for (vint i = 0; i < count; i++)
+					{
+						writer << value[i];
+					}
+				}
+			};
+
+			template<typename T>
+			struct Serialization<collections::Array<T>>
+			{
+				static void IO(Reader& reader, collections::Array<T>& value)
+				{
+					vint32_t count = -1;
+					reader << count;
+					value.Resize(count);
+					for (vint i = 0; i < count; i++)
+					{
+						reader << value[i];
+					}
+				}
+					
+				static void IO(Writer& writer, collections::Array<T>& value)
+				{
+					vint32_t count = (vint32_t)value.Count();
+					writer << count;
+					for (vint i = 0; i < count; i++)
+					{
+						writer << value[i];
+					}
+				}
+			};
+
+			template<typename K, typename V>
+			struct Serialization<collections::Dictionary<K, V>>
+			{
+				static void IO(Reader& reader, collections::Dictionary<K, V>& value)
+				{
+					vint32_t count = -1;
+					reader << count;
+					value.Clear();
+					for (vint i = 0; i < count; i++)
+					{
+						K k;
+						V v;
+						reader << k << v;
+						value.Add(k, v);
+					}
+				}
+					
+				static void IO(Writer& writer, collections::Dictionary<K, V>& value)
+				{
+					vint32_t count = (vint32_t)value.Count();
+					writer << count;
+					for (vint i = 0; i < count; i++)
+					{
+						K k = value.Keys()[i];
+						V v = value.Values()[i];
+						writer << k << v;
+					}
+				}
+			};
+
+			template<typename K, typename V>
+			struct Serialization<collections::Group<K, V>>
+			{
+				static void IO(Reader& reader, collections::Group<K, V>& value)
+				{
+					vint32_t count = -1;
+					reader << count;
+					value.Clear();
+					for (vint i = 0; i < count; i++)
+					{
+						K k;
+						collections::List<V> v;
+						reader << k << v;
+						for (vint j = 0; j < v.Count(); j++)
+						{
+							value.Add(k, v[j]);
+						}
+					}
+				}
+					
+				static void IO(Writer& writer, collections::Group<K, V>& value)
+				{
+					vint32_t count = (vint32_t)value.Count();
+					writer << count;
+					for (vint i = 0; i < count; i++)
+					{
+						K k = value.Keys()[i];
+						collections::List<V>& v = const_cast<collections::List<V>&>(value.GetByIndex(i));
+						writer << k << v;
+					}
+				}
+			};
+
+			template<>
+			struct Serialization<stream::IStream>
+			{
+				static void IO(Reader& reader, stream::IStream& value)
+				{
+					vint32_t count = 0;
+					reader.input.Read(&count, sizeof(count));
+
+					if (count > 0)
+					{
+						vint length = 0;
+						collections::Array<vuint8_t> buffer(count);
+						value.SeekFromBegin(0);
+						length = reader.input.Read(&buffer[0], count);
+						if (length != count)
+						{
+							CHECK_FAIL(L"Deserialization failed.");
+						}
+						length = value.Write(&buffer[0], count);
+						if (length != count)
+						{
+							CHECK_FAIL(L"Deserialization failed.");
+						}
+						value.SeekFromBegin(0);
+					}
+				}
+					
+				static void IO(Writer& writer, stream::IStream& value)
+				{
+					vint32_t count = (vint32_t)value.Size();
+					writer.output.Write(&count, sizeof(count));
+
+					if (count > 0)
+					{
+						vint length = 0;
+						collections::Array<vuint8_t> buffer(count);
+						value.SeekFromBegin(0);
+						length = value.Read(&buffer[0], count);
+						if (length != count)
+						{
+							CHECK_FAIL(L"Serialization failed.");
+						}
+						length = writer.output.Write(&buffer[0], count);
+						if (length != count)
+						{
+							CHECK_FAIL(L"Serialization failed.");
+						}
+						value.SeekFromBegin(0);
+					}
+				}
+			};
+
+			//---------------------------------------------
+
+#define BEGIN_SERIALIZATION(TYPE)\
+				template<>\
+				struct Serialization<TYPE>\
+				{\
+					template<typename TIO>\
+					static void IO(TIO& op, TYPE& value)\
+					{\
+						op\
+
+#define SERIALIZE(FIELD)\
+						<< value.FIELD\
+
+#define END_SERIALIZATION\
+						;\
+					}\
+				};\
+
+#define SERIALIZE_ENUM(TYPE)\
+			template<>\
+			struct Serialization<TYPE>\
+			{\
+				static void IO(Reader& reader, TYPE& value)\
+				{\
+					vint32_t v = 0;\
+					Serialization<vint32_t>::IO(reader, v);\
+					value = (TYPE)v;\
+				}\
+				static void IO(Writer& writer, TYPE& value)\
+				{\
+					vint32_t v = (vint32_t)value;\
+					Serialization<vint32_t>::IO(writer, v);\
+				}\
+			};\
+
+		}
 	}
 }
 
@@ -14264,237 +14683,6 @@ namespace vl
 #endif
 
 /***********************************************************************
-STREAM\CHARFORMAT.H
-***********************************************************************/
-/***********************************************************************
-Vczh Library++ 3.0
-Developer: Zihan Chen(vczh)
-Stream::CharFormat
-
-Classes:
-	CharEncoder									：字符串编码器基类
-	CharDecoder									：字符串解码器基类
-	MbcsEncoder									：Mbcs编码器
-	MbcsDecoder									：Mbcs解码器
-	Utf16Encoder								：Utf16编码器
-	Utf16Decoder								：Utf16解码器
-	Utf16BEEncoder								：Utf16 Big Endian编码器
-	Utf16BEDecoder								：Utf16 Big Endian解码器
-	Utf8Encoder									：Utf8编码器
-	Utf8Decoder									：Utf8解码器
-	BomEncoder									：BOM相关编码器
-	BomDecoder									：BOM相关解码器
-***********************************************************************/
-
-#ifndef VCZH_STREAM_CHARFORMAT
-#define VCZH_STREAM_CHARFORMAT
-
-
-namespace vl
-{
-	namespace stream
-	{
-
-		/*编码资料
-		UCS-4和UTF-8的对应关系:
-		U-00000000 - U-0000007F:  0xxxxxxx
-		U-00000080 - U-000007FF:  110xxxxx 10xxxxxx
-		U-00000800 - U-0000FFFF:  1110xxxx 10xxxxxx 10xxxxxx
-		U-00010000 - U-001FFFFF:  11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
-		U-00200000 - U-03FFFFFF:  111110xx 10xxxxxx 10xxxxxx 10xxxxxx 10xxxxxx
-		U-04000000 - U-7FFFFFFF:  1111110x 10xxxxxx 10xxxxxx 10xxxxxx 10xxxxxx 10xxxxxx
-		BOM:
-		FFFE	=Unicode			(vceUtf16)
-		FEFF	=Unicode Big Endian	(vceUtf16_be)
-		EFBBBF	=UTF-8				(vceUtf8)
-		other	=MBCS(GBK)			(vceMbcs)
-		*/
-
-/***********************************************************************
-字符串编码解码基类
-***********************************************************************/
-
-		class CharEncoder : public Object, public IEncoder
-		{
-		protected:
-			IStream*						stream;
-			vuint8_t						cacheBuffer[sizeof(wchar_t)];
-			vint							cacheSize;
-
-			virtual vint					WriteString(wchar_t* _buffer, vint chars)=0;
-		public:
-			CharEncoder();
-
-			void							Setup(IStream* _stream);
-			void							Close();
-			vint							Write(void* _buffer, vint _size);
-		};
-
-		class CharDecoder : public Object, public IDecoder
-		{
-		protected:
-			IStream*						stream;
-			vuint8_t						cacheBuffer[sizeof(wchar_t)];
-			vint							cacheSize;
-
-			virtual vint					ReadString(wchar_t* _buffer, vint chars)=0;
-		public:
-			CharDecoder();
-
-			void							Setup(IStream* _stream);
-			void							Close();
-			vint							Read(void* _buffer, vint _size);
-		};
-
-/***********************************************************************
-Mbcs
-***********************************************************************/
-
-		class MbcsEncoder : public CharEncoder
-		{
-		protected:
-			vint							WriteString(wchar_t* _buffer, vint chars);
-		};
-
-		class MbcsDecoder : public CharDecoder
-		{
-		protected:
-			vint							ReadString(wchar_t* _buffer, vint chars);
-		};
-
-/***********************************************************************
-Utf-16
-***********************************************************************/
-
-		class Utf16Encoder : public CharEncoder
-		{
-		protected:
-			vint							WriteString(wchar_t* _buffer, vint chars);
-		};
-
-		class Utf16Decoder : public CharDecoder
-		{
-		protected:
-			vint							ReadString(wchar_t* _buffer, vint chars);
-		};
-
-/***********************************************************************
-Utf-16-be
-***********************************************************************/
-
-		class Utf16BEEncoder : public CharEncoder
-		{
-		protected:
-			vint							WriteString(wchar_t* _buffer, vint chars);
-		};
-
-		class Utf16BEDecoder : public CharDecoder
-		{
-		protected:
-			vint							ReadString(wchar_t* _buffer, vint chars);
-		};
-
-/***********************************************************************
-Utf-8
-***********************************************************************/
-
-		class Utf8Encoder : public CharEncoder
-		{
-		protected:
-			vint							WriteString(wchar_t* _buffer, vint chars);
-		};
-
-		class Utf8Decoder : public CharDecoder
-		{
-		protected:
-#if defined VCZH_MSVC
-			wchar_t							cache;
-			bool							cacheAvailable;
-#endif
-			vint							ReadString(wchar_t* _buffer, vint chars);
-		public:
-			Utf8Decoder();
-		};
-
-/***********************************************************************
-Bom
-***********************************************************************/
-
-		class BomEncoder : public Object, public IEncoder
-		{
-		public:
-			enum Encoding
-			{
-				Mbcs,
-				Utf8,
-				Utf16,
-				Utf16BE
-			};
-		protected:
-			Encoding						encoding;
-			IEncoder*						encoder;
-		public:
-			BomEncoder(Encoding _encoding);
-			~BomEncoder();
-
-			void							Setup(IStream* _stream);
-			void							Close();
-			vint								Write(void* _buffer, vint _size);
-		};
-
-		class BomDecoder : public Object, public IDecoder
-		{
-		private:
-			class BomStream : public Object, public IStream
-			{
-			protected:
-				IStream*					stream;
-				char						bom[3];
-				vint						bomLength;
-				vint						bomPosition;
-			public:
-				BomStream(IStream* _stream, char* _bom, vint _bomLength);
-
-				bool						CanRead()const;
-				bool						CanWrite()const;
-				bool						CanSeek()const;
-				bool						CanPeek()const;
-				bool						IsLimited()const;
-				bool						IsAvailable()const;
-				void						Close();
-				pos_t						Position()const;
-				pos_t						Size()const;
-				void						Seek(pos_t _size);
-				void						SeekFromBegin(pos_t _size);
-				void						SeekFromEnd(pos_t _size);
-				vint						Read(void* _buffer, vint _size);
-				vint						Write(void* _buffer, vint _size);
-				vint						Peek(void* _buffer, vint _size);
-			};
-		protected:
-			IDecoder*						decoder;
-			IStream*						stream;
-
-		public:
-			BomDecoder();
-			~BomDecoder();
-
-			void							Setup(IStream* _stream);
-			void							Close();
-			vint							Read(void* _buffer, vint _size);
-		};
-
-/***********************************************************************
-Encoding Test
-***********************************************************************/
-
-		extern void							TestEncoding(unsigned char* buffer, vint size, BomEncoder::Encoding& encoding, bool& containsBom);
-	}
-}
-
-#endif
-
-/***********************************************************************
 STREAM\FILESTREAM.H
 ***********************************************************************/
 /***********************************************************************
@@ -14546,57 +14734,6 @@ namespace vl
 			vint					Read(void* _buffer, vint _size);
 			vint					Write(void* _buffer, vint _size);
 			vint					Peek(void* _buffer, vint _size);
-		};
-	}
-}
-
-#endif
-
-/***********************************************************************
-STREAM\MEMORYWRAPPERSTREAM.H
-***********************************************************************/
-/***********************************************************************
-Vczh Library++ 3.0
-Developer: Zihan Chen(vczh)
-Stream::MemoryWrapperStream
-
-Interfaces:
-	MemoryWrapperStream				：内存代理流
-***********************************************************************/
-
-#ifndef VCZH_STREAM_MEMORYWRAPPERSTREAM
-#define VCZH_STREAM_MEMORYWRAPPERSTREAM
-
-
-namespace vl
-{
-	namespace stream
-	{
-		class MemoryWrapperStream : public Object, public virtual IStream
-		{
-		protected:
-			char*					buffer;
-			vint						size;
-			vint						position;
-		public:
-			MemoryWrapperStream(void* _buffer, vint _size);
-			~MemoryWrapperStream();
-
-			bool					CanRead()const;
-			bool					CanWrite()const;
-			bool					CanSeek()const;
-			bool					CanPeek()const;
-			bool					IsLimited()const;
-			bool					IsAvailable()const;
-			void					Close();
-			pos_t					Position()const;
-			pos_t					Size()const;
-			void					Seek(pos_t _size);
-			void					SeekFromBegin(pos_t _size);
-			void					SeekFromEnd(pos_t _size);
-			vint						Read(void* _buffer, vint _size);
-			vint						Write(void* _buffer, vint _size);
-			vint						Peek(void* _buffer, vint _size);
 		};
 	}
 }
@@ -15058,15 +15195,18 @@ vl::Tuple<T0>
 		{
 		}
  
-		bool operator==(const Tuple<T0>& value)
+		static int Compare(const Tuple<T0>& a, const Tuple<T0>& b)
 		{
-			return f0==value.f0;
+			if (a.f0 < b.f0) return -1; else if (a.f0 > b.f0) return 1;
+			return 0;
 		}
  
-		bool operator!=(const Tuple<T0>& value)
-		{
-			return !(f0==value.f0);
-		}
+		bool operator==(const Tuple<T0>& value)const{ return Compare(*this, value) == 0; }
+		bool operator!=(const Tuple<T0>& value)const{ return Compare(*this, value) != 0; }
+		bool operator< (const Tuple<T0>& value)const{ return Compare(*this, value) < 0; }
+		bool operator<=(const Tuple<T0>& value)const{ return Compare(*this, value) <= 0; }
+		bool operator> (const Tuple<T0>& value)const{ return Compare(*this, value) > 0; }
+		bool operator>=(const Tuple<T0>& value)const{ return Compare(*this, value) >= 0; }
 	};
   
 /***********************************************************************
@@ -15087,15 +15227,18 @@ vl::Tuple<T0,T1>
 		{
 		}
  
-		bool operator==(const Tuple<T0,T1>& value)
+		static int Compare(const Tuple<T0,T1>& a, const Tuple<T0,T1>& b)
 		{
-			return f0==value.f0 && f1==value.f1;
+			if (a.f0 < b.f0) return -1; else if (a.f0 > b.f0) return 1;if (a.f1 < b.f1) return -1; else if (a.f1 > b.f1) return 1;
+			return 0;
 		}
  
-		bool operator!=(const Tuple<T0,T1>& value)
-		{
-			return !(f0==value.f0 && f1==value.f1);
-		}
+		bool operator==(const Tuple<T0,T1>& value)const{ return Compare(*this, value) == 0; }
+		bool operator!=(const Tuple<T0,T1>& value)const{ return Compare(*this, value) != 0; }
+		bool operator< (const Tuple<T0,T1>& value)const{ return Compare(*this, value) < 0; }
+		bool operator<=(const Tuple<T0,T1>& value)const{ return Compare(*this, value) <= 0; }
+		bool operator> (const Tuple<T0,T1>& value)const{ return Compare(*this, value) > 0; }
+		bool operator>=(const Tuple<T0,T1>& value)const{ return Compare(*this, value) >= 0; }
 	};
   
 /***********************************************************************
@@ -15116,15 +15259,18 @@ vl::Tuple<T0,T1,T2>
 		{
 		}
  
-		bool operator==(const Tuple<T0,T1,T2>& value)
+		static int Compare(const Tuple<T0,T1,T2>& a, const Tuple<T0,T1,T2>& b)
 		{
-			return f0==value.f0 && f1==value.f1 && f2==value.f2;
+			if (a.f0 < b.f0) return -1; else if (a.f0 > b.f0) return 1;if (a.f1 < b.f1) return -1; else if (a.f1 > b.f1) return 1;if (a.f2 < b.f2) return -1; else if (a.f2 > b.f2) return 1;
+			return 0;
 		}
  
-		bool operator!=(const Tuple<T0,T1,T2>& value)
-		{
-			return !(f0==value.f0 && f1==value.f1 && f2==value.f2);
-		}
+		bool operator==(const Tuple<T0,T1,T2>& value)const{ return Compare(*this, value) == 0; }
+		bool operator!=(const Tuple<T0,T1,T2>& value)const{ return Compare(*this, value) != 0; }
+		bool operator< (const Tuple<T0,T1,T2>& value)const{ return Compare(*this, value) < 0; }
+		bool operator<=(const Tuple<T0,T1,T2>& value)const{ return Compare(*this, value) <= 0; }
+		bool operator> (const Tuple<T0,T1,T2>& value)const{ return Compare(*this, value) > 0; }
+		bool operator>=(const Tuple<T0,T1,T2>& value)const{ return Compare(*this, value) >= 0; }
 	};
   
 /***********************************************************************
@@ -15145,15 +15291,18 @@ vl::Tuple<T0,T1,T2,T3>
 		{
 		}
  
-		bool operator==(const Tuple<T0,T1,T2,T3>& value)
+		static int Compare(const Tuple<T0,T1,T2,T3>& a, const Tuple<T0,T1,T2,T3>& b)
 		{
-			return f0==value.f0 && f1==value.f1 && f2==value.f2 && f3==value.f3;
+			if (a.f0 < b.f0) return -1; else if (a.f0 > b.f0) return 1;if (a.f1 < b.f1) return -1; else if (a.f1 > b.f1) return 1;if (a.f2 < b.f2) return -1; else if (a.f2 > b.f2) return 1;if (a.f3 < b.f3) return -1; else if (a.f3 > b.f3) return 1;
+			return 0;
 		}
  
-		bool operator!=(const Tuple<T0,T1,T2,T3>& value)
-		{
-			return !(f0==value.f0 && f1==value.f1 && f2==value.f2 && f3==value.f3);
-		}
+		bool operator==(const Tuple<T0,T1,T2,T3>& value)const{ return Compare(*this, value) == 0; }
+		bool operator!=(const Tuple<T0,T1,T2,T3>& value)const{ return Compare(*this, value) != 0; }
+		bool operator< (const Tuple<T0,T1,T2,T3>& value)const{ return Compare(*this, value) < 0; }
+		bool operator<=(const Tuple<T0,T1,T2,T3>& value)const{ return Compare(*this, value) <= 0; }
+		bool operator> (const Tuple<T0,T1,T2,T3>& value)const{ return Compare(*this, value) > 0; }
+		bool operator>=(const Tuple<T0,T1,T2,T3>& value)const{ return Compare(*this, value) >= 0; }
 	};
   
 /***********************************************************************
@@ -15174,15 +15323,18 @@ vl::Tuple<T0,T1,T2,T3,T4>
 		{
 		}
  
-		bool operator==(const Tuple<T0,T1,T2,T3,T4>& value)
+		static int Compare(const Tuple<T0,T1,T2,T3,T4>& a, const Tuple<T0,T1,T2,T3,T4>& b)
 		{
-			return f0==value.f0 && f1==value.f1 && f2==value.f2 && f3==value.f3 && f4==value.f4;
+			if (a.f0 < b.f0) return -1; else if (a.f0 > b.f0) return 1;if (a.f1 < b.f1) return -1; else if (a.f1 > b.f1) return 1;if (a.f2 < b.f2) return -1; else if (a.f2 > b.f2) return 1;if (a.f3 < b.f3) return -1; else if (a.f3 > b.f3) return 1;if (a.f4 < b.f4) return -1; else if (a.f4 > b.f4) return 1;
+			return 0;
 		}
  
-		bool operator!=(const Tuple<T0,T1,T2,T3,T4>& value)
-		{
-			return !(f0==value.f0 && f1==value.f1 && f2==value.f2 && f3==value.f3 && f4==value.f4);
-		}
+		bool operator==(const Tuple<T0,T1,T2,T3,T4>& value)const{ return Compare(*this, value) == 0; }
+		bool operator!=(const Tuple<T0,T1,T2,T3,T4>& value)const{ return Compare(*this, value) != 0; }
+		bool operator< (const Tuple<T0,T1,T2,T3,T4>& value)const{ return Compare(*this, value) < 0; }
+		bool operator<=(const Tuple<T0,T1,T2,T3,T4>& value)const{ return Compare(*this, value) <= 0; }
+		bool operator> (const Tuple<T0,T1,T2,T3,T4>& value)const{ return Compare(*this, value) > 0; }
+		bool operator>=(const Tuple<T0,T1,T2,T3,T4>& value)const{ return Compare(*this, value) >= 0; }
 	};
   
 /***********************************************************************
@@ -15203,15 +15355,18 @@ vl::Tuple<T0,T1,T2,T3,T4,T5>
 		{
 		}
  
-		bool operator==(const Tuple<T0,T1,T2,T3,T4,T5>& value)
+		static int Compare(const Tuple<T0,T1,T2,T3,T4,T5>& a, const Tuple<T0,T1,T2,T3,T4,T5>& b)
 		{
-			return f0==value.f0 && f1==value.f1 && f2==value.f2 && f3==value.f3 && f4==value.f4 && f5==value.f5;
+			if (a.f0 < b.f0) return -1; else if (a.f0 > b.f0) return 1;if (a.f1 < b.f1) return -1; else if (a.f1 > b.f1) return 1;if (a.f2 < b.f2) return -1; else if (a.f2 > b.f2) return 1;if (a.f3 < b.f3) return -1; else if (a.f3 > b.f3) return 1;if (a.f4 < b.f4) return -1; else if (a.f4 > b.f4) return 1;if (a.f5 < b.f5) return -1; else if (a.f5 > b.f5) return 1;
+			return 0;
 		}
  
-		bool operator!=(const Tuple<T0,T1,T2,T3,T4,T5>& value)
-		{
-			return !(f0==value.f0 && f1==value.f1 && f2==value.f2 && f3==value.f3 && f4==value.f4 && f5==value.f5);
-		}
+		bool operator==(const Tuple<T0,T1,T2,T3,T4,T5>& value)const{ return Compare(*this, value) == 0; }
+		bool operator!=(const Tuple<T0,T1,T2,T3,T4,T5>& value)const{ return Compare(*this, value) != 0; }
+		bool operator< (const Tuple<T0,T1,T2,T3,T4,T5>& value)const{ return Compare(*this, value) < 0; }
+		bool operator<=(const Tuple<T0,T1,T2,T3,T4,T5>& value)const{ return Compare(*this, value) <= 0; }
+		bool operator> (const Tuple<T0,T1,T2,T3,T4,T5>& value)const{ return Compare(*this, value) > 0; }
+		bool operator>=(const Tuple<T0,T1,T2,T3,T4,T5>& value)const{ return Compare(*this, value) >= 0; }
 	};
   
 /***********************************************************************
@@ -15232,15 +15387,18 @@ vl::Tuple<T0,T1,T2,T3,T4,T5,T6>
 		{
 		}
  
-		bool operator==(const Tuple<T0,T1,T2,T3,T4,T5,T6>& value)
+		static int Compare(const Tuple<T0,T1,T2,T3,T4,T5,T6>& a, const Tuple<T0,T1,T2,T3,T4,T5,T6>& b)
 		{
-			return f0==value.f0 && f1==value.f1 && f2==value.f2 && f3==value.f3 && f4==value.f4 && f5==value.f5 && f6==value.f6;
+			if (a.f0 < b.f0) return -1; else if (a.f0 > b.f0) return 1;if (a.f1 < b.f1) return -1; else if (a.f1 > b.f1) return 1;if (a.f2 < b.f2) return -1; else if (a.f2 > b.f2) return 1;if (a.f3 < b.f3) return -1; else if (a.f3 > b.f3) return 1;if (a.f4 < b.f4) return -1; else if (a.f4 > b.f4) return 1;if (a.f5 < b.f5) return -1; else if (a.f5 > b.f5) return 1;if (a.f6 < b.f6) return -1; else if (a.f6 > b.f6) return 1;
+			return 0;
 		}
  
-		bool operator!=(const Tuple<T0,T1,T2,T3,T4,T5,T6>& value)
-		{
-			return !(f0==value.f0 && f1==value.f1 && f2==value.f2 && f3==value.f3 && f4==value.f4 && f5==value.f5 && f6==value.f6);
-		}
+		bool operator==(const Tuple<T0,T1,T2,T3,T4,T5,T6>& value)const{ return Compare(*this, value) == 0; }
+		bool operator!=(const Tuple<T0,T1,T2,T3,T4,T5,T6>& value)const{ return Compare(*this, value) != 0; }
+		bool operator< (const Tuple<T0,T1,T2,T3,T4,T5,T6>& value)const{ return Compare(*this, value) < 0; }
+		bool operator<=(const Tuple<T0,T1,T2,T3,T4,T5,T6>& value)const{ return Compare(*this, value) <= 0; }
+		bool operator> (const Tuple<T0,T1,T2,T3,T4,T5,T6>& value)const{ return Compare(*this, value) > 0; }
+		bool operator>=(const Tuple<T0,T1,T2,T3,T4,T5,T6>& value)const{ return Compare(*this, value) >= 0; }
 	};
   
 /***********************************************************************
@@ -15261,15 +15419,18 @@ vl::Tuple<T0,T1,T2,T3,T4,T5,T6,T7>
 		{
 		}
  
-		bool operator==(const Tuple<T0,T1,T2,T3,T4,T5,T6,T7>& value)
+		static int Compare(const Tuple<T0,T1,T2,T3,T4,T5,T6,T7>& a, const Tuple<T0,T1,T2,T3,T4,T5,T6,T7>& b)
 		{
-			return f0==value.f0 && f1==value.f1 && f2==value.f2 && f3==value.f3 && f4==value.f4 && f5==value.f5 && f6==value.f6 && f7==value.f7;
+			if (a.f0 < b.f0) return -1; else if (a.f0 > b.f0) return 1;if (a.f1 < b.f1) return -1; else if (a.f1 > b.f1) return 1;if (a.f2 < b.f2) return -1; else if (a.f2 > b.f2) return 1;if (a.f3 < b.f3) return -1; else if (a.f3 > b.f3) return 1;if (a.f4 < b.f4) return -1; else if (a.f4 > b.f4) return 1;if (a.f5 < b.f5) return -1; else if (a.f5 > b.f5) return 1;if (a.f6 < b.f6) return -1; else if (a.f6 > b.f6) return 1;if (a.f7 < b.f7) return -1; else if (a.f7 > b.f7) return 1;
+			return 0;
 		}
  
-		bool operator!=(const Tuple<T0,T1,T2,T3,T4,T5,T6,T7>& value)
-		{
-			return !(f0==value.f0 && f1==value.f1 && f2==value.f2 && f3==value.f3 && f4==value.f4 && f5==value.f5 && f6==value.f6 && f7==value.f7);
-		}
+		bool operator==(const Tuple<T0,T1,T2,T3,T4,T5,T6,T7>& value)const{ return Compare(*this, value) == 0; }
+		bool operator!=(const Tuple<T0,T1,T2,T3,T4,T5,T6,T7>& value)const{ return Compare(*this, value) != 0; }
+		bool operator< (const Tuple<T0,T1,T2,T3,T4,T5,T6,T7>& value)const{ return Compare(*this, value) < 0; }
+		bool operator<=(const Tuple<T0,T1,T2,T3,T4,T5,T6,T7>& value)const{ return Compare(*this, value) <= 0; }
+		bool operator> (const Tuple<T0,T1,T2,T3,T4,T5,T6,T7>& value)const{ return Compare(*this, value) > 0; }
+		bool operator>=(const Tuple<T0,T1,T2,T3,T4,T5,T6,T7>& value)const{ return Compare(*this, value) >= 0; }
 	};
   
 /***********************************************************************
@@ -15290,15 +15451,18 @@ vl::Tuple<T0,T1,T2,T3,T4,T5,T6,T7,T8>
 		{
 		}
  
-		bool operator==(const Tuple<T0,T1,T2,T3,T4,T5,T6,T7,T8>& value)
+		static int Compare(const Tuple<T0,T1,T2,T3,T4,T5,T6,T7,T8>& a, const Tuple<T0,T1,T2,T3,T4,T5,T6,T7,T8>& b)
 		{
-			return f0==value.f0 && f1==value.f1 && f2==value.f2 && f3==value.f3 && f4==value.f4 && f5==value.f5 && f6==value.f6 && f7==value.f7 && f8==value.f8;
+			if (a.f0 < b.f0) return -1; else if (a.f0 > b.f0) return 1;if (a.f1 < b.f1) return -1; else if (a.f1 > b.f1) return 1;if (a.f2 < b.f2) return -1; else if (a.f2 > b.f2) return 1;if (a.f3 < b.f3) return -1; else if (a.f3 > b.f3) return 1;if (a.f4 < b.f4) return -1; else if (a.f4 > b.f4) return 1;if (a.f5 < b.f5) return -1; else if (a.f5 > b.f5) return 1;if (a.f6 < b.f6) return -1; else if (a.f6 > b.f6) return 1;if (a.f7 < b.f7) return -1; else if (a.f7 > b.f7) return 1;if (a.f8 < b.f8) return -1; else if (a.f8 > b.f8) return 1;
+			return 0;
 		}
  
-		bool operator!=(const Tuple<T0,T1,T2,T3,T4,T5,T6,T7,T8>& value)
-		{
-			return !(f0==value.f0 && f1==value.f1 && f2==value.f2 && f3==value.f3 && f4==value.f4 && f5==value.f5 && f6==value.f6 && f7==value.f7 && f8==value.f8);
-		}
+		bool operator==(const Tuple<T0,T1,T2,T3,T4,T5,T6,T7,T8>& value)const{ return Compare(*this, value) == 0; }
+		bool operator!=(const Tuple<T0,T1,T2,T3,T4,T5,T6,T7,T8>& value)const{ return Compare(*this, value) != 0; }
+		bool operator< (const Tuple<T0,T1,T2,T3,T4,T5,T6,T7,T8>& value)const{ return Compare(*this, value) < 0; }
+		bool operator<=(const Tuple<T0,T1,T2,T3,T4,T5,T6,T7,T8>& value)const{ return Compare(*this, value) <= 0; }
+		bool operator> (const Tuple<T0,T1,T2,T3,T4,T5,T6,T7,T8>& value)const{ return Compare(*this, value) > 0; }
+		bool operator>=(const Tuple<T0,T1,T2,T3,T4,T5,T6,T7,T8>& value)const{ return Compare(*this, value) >= 0; }
 	};
   
 /***********************************************************************
@@ -15319,15 +15483,18 @@ vl::Tuple<T0,T1,T2,T3,T4,T5,T6,T7,T8,T9>
 		{
 		}
  
-		bool operator==(const Tuple<T0,T1,T2,T3,T4,T5,T6,T7,T8,T9>& value)
+		static int Compare(const Tuple<T0,T1,T2,T3,T4,T5,T6,T7,T8,T9>& a, const Tuple<T0,T1,T2,T3,T4,T5,T6,T7,T8,T9>& b)
 		{
-			return f0==value.f0 && f1==value.f1 && f2==value.f2 && f3==value.f3 && f4==value.f4 && f5==value.f5 && f6==value.f6 && f7==value.f7 && f8==value.f8 && f9==value.f9;
+			if (a.f0 < b.f0) return -1; else if (a.f0 > b.f0) return 1;if (a.f1 < b.f1) return -1; else if (a.f1 > b.f1) return 1;if (a.f2 < b.f2) return -1; else if (a.f2 > b.f2) return 1;if (a.f3 < b.f3) return -1; else if (a.f3 > b.f3) return 1;if (a.f4 < b.f4) return -1; else if (a.f4 > b.f4) return 1;if (a.f5 < b.f5) return -1; else if (a.f5 > b.f5) return 1;if (a.f6 < b.f6) return -1; else if (a.f6 > b.f6) return 1;if (a.f7 < b.f7) return -1; else if (a.f7 > b.f7) return 1;if (a.f8 < b.f8) return -1; else if (a.f8 > b.f8) return 1;if (a.f9 < b.f9) return -1; else if (a.f9 > b.f9) return 1;
+			return 0;
 		}
  
-		bool operator!=(const Tuple<T0,T1,T2,T3,T4,T5,T6,T7,T8,T9>& value)
-		{
-			return !(f0==value.f0 && f1==value.f1 && f2==value.f2 && f3==value.f3 && f4==value.f4 && f5==value.f5 && f6==value.f6 && f7==value.f7 && f8==value.f8 && f9==value.f9);
-		}
+		bool operator==(const Tuple<T0,T1,T2,T3,T4,T5,T6,T7,T8,T9>& value)const{ return Compare(*this, value) == 0; }
+		bool operator!=(const Tuple<T0,T1,T2,T3,T4,T5,T6,T7,T8,T9>& value)const{ return Compare(*this, value) != 0; }
+		bool operator< (const Tuple<T0,T1,T2,T3,T4,T5,T6,T7,T8,T9>& value)const{ return Compare(*this, value) < 0; }
+		bool operator<=(const Tuple<T0,T1,T2,T3,T4,T5,T6,T7,T8,T9>& value)const{ return Compare(*this, value) <= 0; }
+		bool operator> (const Tuple<T0,T1,T2,T3,T4,T5,T6,T7,T8,T9>& value)const{ return Compare(*this, value) > 0; }
+		bool operator>=(const Tuple<T0,T1,T2,T3,T4,T5,T6,T7,T8,T9>& value)const{ return Compare(*this, value) >= 0; }
 	};
  
 }

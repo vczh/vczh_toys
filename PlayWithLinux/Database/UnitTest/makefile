@@ -8,11 +8,11 @@ UNITTEST_OBJ = $(patsubst %.cpp, $(OBJ)%.o, $(UNITTEST_CPP))
 DATABASE_DIR = ../Source/
 DATABASE_CPP = $(wildcard $(DATABASE_DIR)*.cpp)
 DATABASE_H   = $(wildcard $(DATABASE_DIR)*.h)
-DATABASE_OBJ = $(patsubst $(DATABASE_DIR)%.cpp, $(OBJ)$.o, $(DATABASE_CPP))
+DATABASE_OBJ = $(patsubst $(DATABASE_DIR)%.cpp, $(OBJ)%.o, $(DATABASE_CPP))
 
 ALL_OBJ      = $(UNITTEST_OBJ) $(DATABASE_OBJ)
 
-.PHONY : all clean
+.PHONY : all clean print
 
 all : $(ALL_OBJ)
 	$(CPP) -o $(BIN)UnitTest $(ALL_OBJ)
@@ -28,3 +28,9 @@ $(UNITTEST_OBJ) : $(OBJ)%.o : $(UNITTEST_DIR)%.cpp
 clean:
 	rm $(OBJ)* -rf
 	rm $(BIN)* -rf
+
+print:
+	echo UNITTEST_CPP : $(UNITTEST_CPP) > /dev/null
+	echo UNITTEST_OBJ : $(UNITTEST_OBJ) > /dev/null
+	echo DATABASE_CPP : $(DATABASE_CPP) > /dev/null
+	echo DATABASE_OBJ : $(DATABASE_OBJ) > /dev/null
