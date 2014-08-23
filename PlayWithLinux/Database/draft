@@ -58,8 +58,8 @@ data Parents(child : Person, parent : Person);
 data Spouses(husband : Person, wife : Person); 
 Spouses(husband, wife) :-
 	Person(child),
-	Parents(child, husband) and husband.Gender == Gender.Male,
-	Parents(child, wife) and wife.Gender == Gender.Female
+	Parents(child, husband), husband.Gender == Gender.Male,
+	Parents(child, wife), wife.Gender == Gender.Female
 	;
 
 set Parents(Bob, Jeff);
@@ -76,12 +76,47 @@ data Spouses(husband : Person, wife : Person)
 =================================================
 FUNCTION
 
+func Name(arg1, in arg2, out arg3 ...); 
+	// "in" cannot be used with pattern
+	// "out" cannot be used in the function, except to be assigned
+
+func Fib(in i, out o);
+case Fib(1, 1);
+case Fib(2, 1);
+case Fib(a, b) :- Fib(a-1, x), Fib(a-2, y), b = x + y;
+
+func Fib_(int a, int b, in index, int max, out o);
+case Fib_(a, b, index, index, b);
+case Fib_(a, b, index, max b, o) :- Fib_(b, a + b, index + 1, max, o);
+func Fib(in i, out o) :- Fib_(0, 1, i, 1, o);
+
+=================================================
+EXPRESSION
+
+<BOOLEAN>		::= <OR> {"," <OR>}
+<OR>			::= <AND> {or <AND>}
+<AND>			::= <FUNCTION-CALL>
+				::= <COMPARISON>
+				::= "(" <BOOLEAN> ")"
+<FUNCTION-CALL>	::= <NAME> "(" {<PATTERN>, ...} ")"
+<COMPARISON>	::= <EXPRESSION> (== | != | < | <= | > | >=) <EXPRESSION>
+
+<EXPRESSION>	::= ...
 =================================================
 PATTERN MATCHING
 
+_								: any, not referenced in the code
+Union{pattern1, pattern2 ,...}	: union
+id								: any, referenced in the code
+<constant-value>				: the specified constant value
 =================================================
 TABLE OPERATION STATEMENTS
 
+set Table(value1, value2, value3 ...);
+remove Table(value1, value2, value3 ...);
+remove Table(a, b, _) :- a == b;
+uncache Table;
+uncache Table(a, b, _) :- a == b;
 =================================================
 GRAPH STORAGE
 
