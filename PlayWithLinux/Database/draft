@@ -1,0 +1,91 @@
+=================================================
+TYPE
+
+char, bool, int, float, string
+
+struct Point
+{
+	x : int;
+	y : int;
+}
+
+enum Operator
+{
+	Add, Sub, Mul, Div
+}
+
+class BinaryExpression : Expression
+{
+	left	: Expression;
+	right	: Expression;
+	op		: Operator;
+}
+
+struct Head{head : int; next : List;}
+struct End{}
+union List = Head | End;
+
+=================================================
+TABLE
+
+enum Gender
+{
+	Male, Female
+}
+
+class Person
+{
+	name	: string;
+	gender	: Gender;
+}
+
+# Simple data table
+data Spouses(husband : Person, wife : Person);
+
+# Data table with index
+data Spouses(husband : Person, wife : Person)
+	index	Ordered(husband.name),	// members after "." should not be field of a class
+			Hash(wife.name)
+	where	husband != wife
+	;
+
+# Computation data table
+data class Person(p : Person)	// means that all instances of Person are automatically indexed in this table
+	index	p.Name
+	;	
+data Parents(child : Person, parent : Person);
+
+data Spouses(husband : Person, wife : Person); 
+Spouses(husband, wife) :-
+	Person(child),
+	Parents(child, husband) and husband.Gender == Gender.Male,
+	Parents(child, wife) and wife.Gender == Gender.Female
+	;
+
+set Parents(Bob, Jeff);
+set Parents(Bob, Kate);
+
+# Cached computation data table
+data Spouses(husband : Person, wife : Person)
+	index	Ordered, Unique, Cache(husband.name),
+			Hash, Unique, Cache(wife.name)
+	where	husband != wife
+	;
+
+
+=================================================
+FUNCTION
+
+=================================================
+PATTERN MATCHING
+
+=================================================
+TABLE OPERATION STATEMENTS
+
+=================================================
+GRAPH STORAGE
+
+=================================================
+MODULE / NAMESPACE / DATABASE
+
+=================================================
