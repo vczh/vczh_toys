@@ -33,10 +33,15 @@ enum Gender
 	Male, Female
 }
 
-class Person
+data class Person // means that all instances of Person are automatically indexed in this table
 {
-	name	: string;
+	name	: string, Ordered;
+	id		: string, Hash, Unique;
 	gender	: Gender;
+
+	spouse, spouse		: Person, 1..1; // a.spouse == b ==> b.spouse == a
+	parents, children	: Person, n..n; // a.parents(b) ==> b.children(a)
+	manages, manager	: Person, n..1;	// a.manages(b) ==> b.manager == a
 }
 
 # Simple data table
@@ -50,7 +55,7 @@ data Spouses(husband : Person, wife : Person)
 	;
 
 # Computation data table
-data class Person(p : Person)	// means that all instances of Person are automatically indexed in this table
+data class Person(p : Person)	
 	index	p.Name
 	;	
 data Parents(child : Person, parent : Person);
@@ -91,6 +96,17 @@ case Fib_(a, b, index, max b, o) :- Fib_(b, a + b, index + 1, max, o);
 func Fib(in i, out o) :- Fib_(0, 1, i, 1, o);
 
 =================================================
+QUERY
+
+query (arg1, arg2, ...)
+equivalents to
+func <Anonymous>(out arg1, arg2, ...)
+
+When a query is submitted,
+the database will execute this function and send all results back,
+the type of each argument cannot be class or data class
+
+=================================================
 EXPRESSION
 
 <BOOLEAN>		::= <OR> {"," <OR>}
@@ -120,7 +136,38 @@ uncache Table(a, b, _) :- a == b;
 =================================================
 GRAPH STORAGE
 
+see "data class"
 =================================================
-MODULE / NAMESPACE / DATABASE
+NAMESPACE / DATABASE / MODULE
+
+namespace Nodes // namespace can be nested
+{
+	class Node // class cannot be nested
+	{
+	}
+}
+
+using namespace Nodes;
+
+namespace Program
+{
+	class TestCase
+	{
+		a : Node;
+		b : Nodes::Node;
+	}
+}
+
+A database is a group of files.
+A database instance is an installed database with data.
+If a database references another database, all public symbol is usable.
+
+A module is a group of databases.
+A module instance hosts a group of database instances.
+Each database can has at most one instance in an module instance.
+Modules cannot exchange data between each other.
+
+Comparing to .NET, database likes assembly, module likes appdomain.
+
 
 =================================================
