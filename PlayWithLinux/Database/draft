@@ -110,12 +110,16 @@ the type of each argument cannot be class or data class
 EXPRESSION
 
 <BOOLEAN>		::= <OR> {"," <OR>}
-<OR>			::= <AND> {or <AND>}
-<AND>			::= <FUNCTION-CALL>
+<OR>			::= <AND> {"or" <AND>}
+<AND>			::= <BOOLEAN-PRIM> {"and" <BOOLEAN-PRIM>}
+<BOOLEAN-PRIM>	::= <FUNCTION-CALL>
 				::= <COMPARISON>
+				::= ("not" | "exists") <BOOLEAN-PRIM>
 				::= "(" <BOOLEAN> ")"
-<FUNCTION-CALL>	::= <NAME> "(" {<PATTERN>, ...} ")"
-<COMPARISON>	::= <EXPRESSION> (== | != | < | <= | > | >=) <EXPRESSION>
+<FUNCTION-CALL>	::= <FUNCTION-NAME> "(" {<PATTERN>, ...} ")"
+<FUNCTION-NAME>	::= <ID>
+				::= <FUNCTION-NAME> "." <ID>
+<COMPARISON>	::= <EXPRESSION> ("==" | "!=" | "<" | "<=" | ">" | ">=") <EXPRESSION>
 
 <EXPRESSION>	::= ...
 =================================================
@@ -131,8 +135,15 @@ TABLE OPERATION STATEMENTS
 set Table(value1, value2, value3 ...);
 remove Table(value1, value2, value3 ...);
 remove Table(a, b, _) :- a == b;
-uncache Table;
+remove Table;
 uncache Table(a, b, _) :- a == b;
+uncache Table;
+
+for query(person) :-
+	Person(person), exists person.Children(_)
+{
+	set person.Abilities(FeedingChild);
+}
 =================================================
 GRAPH STORAGE
 
