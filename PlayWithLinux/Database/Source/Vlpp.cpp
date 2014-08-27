@@ -20510,7 +20510,7 @@ CharDecoder
 				{
 					cacheSize=sizeof(wchar_t)-_size;
 					memcpy(unicode, &c, _size);
-					memcpy(cacheBuffer, (vuint8_t*)c+_size, cacheSize);
+					memcpy(cacheBuffer, (vuint8_t*)&c+_size, cacheSize);
 					result+=_size;
 				}
 			}
@@ -22522,12 +22522,12 @@ namespace vl
 
 	void _i64toa_s(vint64_t value, char* buffer, size_t size, vint radix)
 	{
-		sprintf(buffer, "%lld", value);
+		sprintf(buffer, "%ld", value);
 	}
 
 	void _i64tow_s(vint64_t value, wchar_t* buffer, size_t size, vint radix)
 	{
-		swprintf(buffer, size - 1, L"%lld", value);
+		swprintf(buffer, size - 1, L"%ld", value);
 	}
 
 	void _uitoa_s(vuint32_t value, char* buffer, size_t size, vint radix)
@@ -22542,12 +22542,12 @@ namespace vl
 
 	void _ui64toa_s(vuint64_t value, char* buffer, size_t size, vint radix)
 	{
-		sprintf(buffer, "%llu", value);
+		sprintf(buffer, "%lu", value);
 	}
 
 	void _ui64tow_s(vuint64_t value, wchar_t* buffer, size_t size, vint radix)
 	{
-		swprintf(buffer, size - 1, L"%llu", value);
+		swprintf(buffer, size - 1, L"%lu", value);
 	}
 
 	void _gcvt_s(char* buffer, size_t size, double value, vint numberOfDigits)

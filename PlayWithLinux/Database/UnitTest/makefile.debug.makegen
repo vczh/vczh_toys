@@ -1,0 +1,20 @@
+include
+	../Source/makefile.database.makegen
+
+folder UNITTEST = .
+	cpp = *.cpp
+
+dependency
+	UNITTEST:cpp < DATABASE:h
+
+targets
+	obj = ./Obj/
+	bin = ./Bin/
+
+map cpp : %.cpp
+	> o : obj %.o
+	g++ -std=c++11 -g -o $(OUT) -c $(IN)
+
+link o :
+	> exe : bin UnitTest 
+	g++ -std=c++11 -g -o $(OUT) $(IN)

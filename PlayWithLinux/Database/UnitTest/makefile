@@ -1,36 +1,34 @@
-CPP = g++ -std=c++11 -g
-OBJ = ./Obj/
-BIN = ./Bin/
+# This file is generated from "./makefile.debug.makegen" by Vczh Makefile Generator
 
-UNITTEST_CPP = $(wildcard *.cpp)
-UNITTEST_OBJ = $(patsubst %.cpp, $(OBJ)%.o, $(UNITTEST_CPP))
+.PHONY : all clean
 
-DATABASE_DIR = ../Source/
-DATABASE_CPP = $(wildcard $(DATABASE_DIR)*.cpp)
-DATABASE_H   = $(wildcard $(DATABASE_DIR)*.h)
-DATABASE_OBJ = $(patsubst $(DATABASE_DIR)%.cpp, $(OBJ)%.o, $(DATABASE_CPP))
+bin_TARGET = ././Bin/
+obj_TARGET = ././Obj/
 
-ALL_OBJ      = $(UNITTEST_OBJ) $(DATABASE_OBJ)
+DATABASE_BASIC_DIR = ./../Source/./
+DATABASE_BASIC_h = $(DATABASE_BASIC_DIR)DatabaseVlppReference.h
+UNITTEST_DIR = ././
+UNITTEST_cpp = $(wildcard $(UNITTEST_DIR)*.cpp)
+VLPP_DIR = ./../Source/./
+VLPP_cpp = $(VLPP_DIR)Vlpp.cpp
+VLPP_h = $(VLPP_DIR)Vlpp.h
 
-.PHONY : all clean print
+UNITTEST_o = $(patsubst $(UNITTEST_DIR)%.cpp, $(obj_TARGET)%.o, $(UNITTEST_cpp))
+VLPP_o = $(patsubst $(VLPP_DIR)%.cpp, $(obj_TARGET)%.o, $(VLPP_cpp))
 
-all : $(ALL_OBJ)
-	$(CPP) -o $(BIN)UnitTest $(ALL_OBJ)
+ALL_o = $(VLPP_o) $(UNITTEST_o)
+all : $(ALL_o)
+	g++ -std=c++11 -g -o $(bin_TARGET)UnitTest  $(ALL_o)
 
-$(DATABASE_CPP) : $(DATABASE_H)
-$(DATABASE_OBJ) : $(OBJ)%.o : $(DATABASE_DIR)%.cpp
-	$(CPP) -o $@ -c $<
+$(DATABASE_BASIC_h) : $(VLPP_h)
+$(VLPP_cpp) : $(VLPP_h)
+$(UNITTEST_cpp) : $(DATABASE_BASIC_h)
 
-$(UNITTEST_CPP) : $(DATABASE_OBJ)
-$(UNITTEST_OBJ) : $(OBJ)%.o : $(UNITTEST_DIR)%.cpp
-	$(CPP) -o $@ -c $<
+$(VLPP_o) : $(obj_TARGET)%.o : $(VLPP_DIR)%.cpp
+	g++ -std=c++11 -g -o $@ -c $<
+$(UNITTEST_o) : $(obj_TARGET)%.o : $(UNITTEST_DIR)%.cpp
+	g++ -std=c++11 -g -o $@ -c $<
 
 clean:
-	rm $(OBJ)* -rf
-	rm $(BIN)* -rf
-
-print:
-	echo UNITTEST_CPP : $(UNITTEST_CPP) > /dev/null
-	echo UNITTEST_OBJ : $(UNITTEST_OBJ) > /dev/null
-	echo DATABASE_CPP : $(DATABASE_CPP) > /dev/null
-	echo DATABASE_OBJ : $(DATABASE_OBJ) > /dev/null
+	rm $(bin_TARGET)* -rf
+	rm $(obj_TARGET)* -rf
