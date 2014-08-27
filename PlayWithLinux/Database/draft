@@ -144,6 +144,12 @@ for query(person) :-
 {
 	set person.Abilities(FeedingChild);
 }
+
+let <name> = query ...
+=================================================
+TABLE AGGREGATION STATEMENTS
+
+group by/order by/join (A(t), B(u), t==u)/reduce
 =================================================
 GRAPH STORAGE
 
