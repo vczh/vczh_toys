@@ -19,7 +19,11 @@ func concat a b = reverse_ (reverse a) b
 
 namespace ast
 {
-	class Type
+	class Node
+	(
+	);
+
+	class Type : NOde
 	(
 	);
 	
@@ -34,8 +38,13 @@ namespace ast
 		argument : Type
 	);
 	
-	class Expression
+	class Expression : Node
 	(
+	);
+
+	class NumExpr : Expression
+	(
+		number : int
 	);
 	
 	class RefExpr : Expression
@@ -49,7 +58,7 @@ namespace ast
 		argument : Expression
 	);
 	
-	class MatchItem
+	class MatchItem : Node
 	(
 		pattern : Type,
 		result : Expression
@@ -61,19 +70,19 @@ namespace ast
 		items : MatchItem[]
 	);
 	
-	class Declaration
+	class Declaration : Node
 	(
 	);
 	
-	class DataItem
+	class Argument : Node
+	(
+		name : string
+	);
+
+	class DataItem : Node
 	(
 		name : string,
 		arguments : Type[]
-	);
-	
-	class Argument
-	(
-		name : string
 	);
 	
 	class DataDecl : Declaration
@@ -90,9 +99,60 @@ namespace ast
 		result : Expression
 	);
 	
-	class Program
+	class Program : Node
 	(
 		declarations : Declaration[]
 	);
 }
 ####################################
+
+namespace symbol
+{
+	class Type
+	(
+	);
+
+	class IntType : Type
+	(
+	);
+
+	class FuncType : Type
+	(
+		argument : Type,
+		result : Type
+	);
+
+	class ApplyType : Type
+	(
+		function : Type,
+		argument : Type
+	);
+
+	class LambdaArgumentType : Type
+	(
+		belongTo : LambdaType
+	);
+
+	class LambdaType : Type
+	(
+		type : Type
+	);
+
+	data Types(name : string, type : Type)
+		index	Hash(name),
+				Unique(name);
+
+	data class Scope
+	(
+		parent : Scope,
+		children : Scope[],
+	);
+	data index Scope.parent * Scope.children : 1..n;
+	data Symbols(scope : Scope, name : string, type : Type, createdBy : Node)
+		index	Hash(scope),
+				Hash(name),
+				Unique(scope, name);
+	data AstScopes(scope : Scope, node : ast.Node)
+		index	Hash(node),
+				Unique(scope, node);
+}
