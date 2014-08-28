@@ -107,7 +107,8 @@ EXPRESSION
 <AND>			::= <BOOLEAN-PRIM> {"and" <BOOLEAN-PRIM>}
 <BOOLEAN-PRIM>	::= <FUNCTION-CALL>
 				::= <COMPARISON>
-				::= ("not" | "exists") <BOOLEAN-PRIM>
+				::= "if" <BOOLEAN> "then" <BOOLEAN> ["else" <BOOLEAN>] # returns true
+				::= ("not" | "exists" | "ensure") <BOOLEAN-PRIM> # ensure X throws if not X
 				::= "(" <BOOLEAN> ")"
 <FUNCTION-CALL>	::= <FUNCTION-NAME> "(" {<PATTERN>, ...} ")"
 <FUNCTION-NAME>	::= <ID>
@@ -121,6 +122,7 @@ PATTERN MATCHING
 _								: any, not referenced in the code
 Type{pattern1, pattern2 ,...}	: struct, class, union, ...
 id								: any, referenced in the code
+id : Type						: any, of that type
 <constant-value>				: the specified constant value
 =================================================
 TABLE OPERATION STATEMENTS
@@ -134,9 +136,9 @@ uncache Table;
 
 for query(person) :-
 	Person(person), exists person.Children(_)
-{
-	set person.Abilities(FeedingChild);
-}
+(
+	set person.Abilities(FeedingChild)
+)
 
 let <name> = query ...
 =================================================

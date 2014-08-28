@@ -51,6 +51,12 @@ namespace ast
 	(
 		name : string
 	);
+
+	class LambdaExpr : Expression
+	(
+		argument : string,
+		result : Expression
+	);
 	
 	class ApplyExpr : Expression
 	(
@@ -116,6 +122,12 @@ namespace symbol
 	(
 	);
 
+	# two UnknownType equals iif they are the same instance
+	data class UnknownType : Type
+	(
+		id : int # for printing
+	) index AutoIncresed(id);
+
 	class FuncType : Type
 	(
 		argument : Type,
@@ -128,15 +140,17 @@ namespace symbol
 		argument : Type
 	);
 
+	# two LambdaArgumentType equals iif they have the same "belongTo"
 	class LambdaArgumentType : Type
 	(
 		belongTo : LambdaType
 	);
 
-	class LambdaType : Type
+	data class LambdaType : Type
 	(
+		id : int, # for printing
 		type : Type
-	);
+	) index AutoIncresed(id);
 
 	data Types(name : string, type : Type)
 		index	Hash(name),
@@ -155,4 +169,112 @@ namespace symbol
 	data AstScopes(scope : Scope, node : ast.Node)
 		index	Hash(node),
 				Unique(scope, node);
+	data ExprTypes(expr : Expression, type : Type)
+		index	Hash(expr),
+				Unique(expr);
+	data Errors(message : string);
 }
+
+####################################
+# Install a program
+
+using namespace symbol
+
+public func InstallProgram(in program : Program) :-
+	Install(program, null);
+
+func install(in node : Node, in parentScope : Scope);
+
+func Install(in program : Program) :-
+	let scope = Scope{ parent = parentScope },
+	ensure set AstScopes(scope, program)
+	for program.declarations(decl)
+	(
+		Install(decl, scope)
+	);
+
+func Install(in decl : DataDecl, in parentScope : Scope) :-
+	if not set Types(decl.name, UnknownType{})
+		then set Errors($"Duplicated type $(decl.type) found."),
+	let scope = Scope{ parent = parentScope },
+	ensure set AstScopes(scope, decl),
+	for decl.arguments(arg)
+	(
+		if not set Symbols(scope, arg.name, UnknownType{}, arg)
+			then set Errors($"Duplicated function argument $(arg.name) in $(decl.name) found.")
+	),
+	for decl.items(item)
+	(
+		Install(item, scope)
+	);
+
+func Install(in decl : DeclItem, in parentScope : Scope) :-
+	ensure set AstScopes(parentScope, decl),
+	if not set Symbols(parentScope.parent, decl.name, UnknownType{}, decl)
+		then set Errors($"Duplicated function $(decl.name) found.")
+	;
+
+func Install(in decl : FuncDecl, in parentScope : Scope) :-
+	let scope = Scope{ parent = parentScope },
+	ensure set AstScopes(scope, decl),
+	if not set Symbols(scope, decl.name, UnknownType{}, decl)
+		then set Errors($"Duplicated function $(decl.name) found."),
+	for decl.arguments(arg)
+	(
+		if not set Symbols(scope, arg.name, UnknownType{}, arg)
+			then set Errors($"Duplicated function argument $(arg.name) in $(decl.name) found.")
+	),
+	Install(decl.result, scope);
+
+func Install(in expr : NumExpr, in parentScope : Scope) :-
+	ensure set AstScopes(parentScope, expr),
+	ensure set ExprTypes(expr, IntType{});
+
+func Install(in expr : RefExpr, in parentScope : Scope) :-
+	ensure set AstScopes(parentScope, expr),
+	ensure set ExprTypes(expr, UnknownType{});
+
+func Install(in expr : LambdaExpr, in parentScope : Scope) :-
+	let scope = Scope{ parent = parentScope },
+	ensure set AstScopes(scope, expr),
+	ensure set Symbols(scope, expr.argument, UnknownType{}, decl),
+	Install(expr.argument, scope),
+	ensure set ExprTypes(expr, UnknownType{});
+
+func Install(in expr : ApplyExpr, in parentScope : Scope) :-
+	ensure set AstScopes(parentScope, expr),
+	Install(expr.function, parentScope),
+	Install(expr.argument, parentScope),
+	ensure set ExprTypes(expr, UnknownType{});
+
+func Install(in expr : MatchExpr, in parentScope : Scope) :-
+	ensure set AstScopes(parentScope, expr),
+	Install(parentScope, expr.pattern)
+	for expr.items(item)
+	(
+		Install(item, parentScope)
+	),
+	ensure set ExprTypes(expr, UnknownType{});
+
+func Install(in expr : MatchItem, in parentScope : Scope) :-
+	let scope = Scope{ parent = parentScope },
+	ensure set AstScopes(scope, expr),
+	InstallPattern(expr.pattern, scope),
+	Install(expr.result, scope);
+
+func InstallPattern(in pattern : Type, in parentScope : Scope);
+
+func InstallPattern(in pattern : RefType, in parentScope : Scope) :-
+	if not set Symbols(parentScope, pattern.name, UnknownType{}, pattern)
+		then set Errors($"Duplicated pattern $(pattern.name) found."),
+	;
+
+func InstallPattern(in pattern : ApplyType, in parentScope : Scope) :-
+	InstallPattern(pattern.function, parentScope),
+	InstallPattern(pattern.function, parentScope);
+
+####################################
+# Build the unification graph
+
+####################################
+# Type inference
