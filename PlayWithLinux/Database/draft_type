@@ -1,0 +1,86 @@
+database Types;
+
+class Type
+(
+);
+
+class IntType : Type
+(
+);
+
+class ArrayType : Type
+(
+	element : Type
+);
+
+class FunctionType : Type
+(
+	return : Type,
+	arguments : Type[]
+);
+
+class Expression
+(
+);
+
+class PrimitiveExpr : Expression
+(
+	number : int
+);
+
+class ReferenceExpr : Expression
+(
+	name : string
+);
+
+class AddExpr : Expression
+(
+	left : Expression,
+	right : Expression
+);
+
+class IndexExpr : Expression
+(
+	array : Expression,
+	index : Expression
+);
+
+class CallExpr : Expression
+(
+	function : Expression,
+	arguments : Expression[]
+);
+
+class Statement
+(
+);
+
+class ExpressionStat : Statement
+(
+	expression : Expression
+);
+
+class VariableStat : Statement
+(
+	name : string,
+	type : Type,
+	expression : Expression
+);
+
+class Argument
+(
+	name : string,
+	type : Type
+);
+
+class Function
+(
+	name : string,
+	return : Type,
+	arguments : Argument[]
+);
+
+class Program
+(
+	functions : Function[]
+);
