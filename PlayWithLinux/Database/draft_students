@@ -1,0 +1,53 @@
+database Students;
+
+data class Grade
+(
+	startYear	: int,
+	classes:	: Class[]
+) index Ordered(startYear);
+
+data class Class
+(
+	number		: int,
+	grade		: Grade
+	students	: Student[]
+) index Ordered(grade, number);
+
+data class Student
+(
+	name		: string,
+	id			: string,
+	ownedClass	: Class
+) index Hash(name), Unique, Hash(id);
+
+data index Grade.classes * Class.grade : n..1;
+data index Class.students * Student.ownedClass : n..1;
+
+data class Exam
+(
+	name		: string,
+	id			: string
+) index Hash(name), Unique, Hash(id);
+
+data AttendExam(student : Student, exam : Exam, score : int)
+	index	Hash(student),
+			Hash(exam, Ordered(score))
+
+# top 3 by exam
+collection_query(student, exam, score):-
+	AttendExam(student, exam, score)
+partition_by exam(student, exam, OrderByDesc(score, 3))
+;
+
+# number of 100 score by student
+collection_query(student, _, score):-
+	where score == 100
+group_by student(student, count = Count(score))
+;
+
+# find a class whose get the highest average score in a specified exam
+collection_query(student, exam, score):-
+	AttendExam(student, exam, score)
+group_by student.class(`class` = student.class, Average(score))
+order_by_desc score
+range_by 1..1;

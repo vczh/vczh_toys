@@ -29,7 +29,7 @@ enum Gender = Male | Female;
 
 data class Person // means that all instances of Person are automatically indexed in this table
 (
-	name	: strin,
+	name	: string,
 	id		: string,
 	gender	: Gender,
 
@@ -70,7 +70,6 @@ data Spouses(husband : Person, wife : Person)
 			Hash, Unique, Cache(wife.name)
 	where	husband != wife
 	;
-
 
 =================================================
 FUNCTION
@@ -146,9 +145,11 @@ TABLE AGGREGATION STATEMENTS
 // collection_query returns an collection, can be used as expression
 collection_query(person, score) :-
 	Exam(person, exam), score = exam.score
-group_by(person, sample_score = Average(OrderBy(score, 3)))
-	[:- sample_score > 5]
-group_by(people = Collect(person), OrderByDesc(sample_score))
+partition_by person(person, sample_score = OrderByDesc(score, 3))
+group_by person(person, average_score = Average(sample_score))
+	:- average_score > 5
+order_by average_score
+range_by <first>..<last>;
 
 collection_query(person, OrderByDesc(score, 3)) :- 
 	Exam(person, exam), score = exam.score;
