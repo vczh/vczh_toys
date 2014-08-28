@@ -23,7 +23,7 @@ namespace ast
 	(
 	);
 
-	class Type : NOde
+	class Type : Node
 	(
 	);
 	
