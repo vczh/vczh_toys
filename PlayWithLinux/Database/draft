@@ -29,13 +29,13 @@ enum Gender = Male | Female;
 
 data class Person // means that all instances of Person are automatically indexed in this table
 (
-	name	: strin;
-	id		: string;
-	gender	: Gender;
+	name	: strin,
+	id		: string,
+	gender	: Gender,
 
-	spouse, spouse		: Person, 1..1; // a.spouse == b ==> b.spouse == a
-	parents, children	: Person, n..n; // a.parents(b) ==> b.children(a)
-	manages, manager	: Person, n..1;	// a.manages(b) ==> b.manager == a
+	spouse * spouse		: Person, 1..1, // a.spouse == b ==> b.spouse == a
+	parents * children	: Person, n..n, // a.parents(b) ==> b.children(a)
+	manages * manager	: Person, n..1,	// a.manages(b) ==> b.manager == a
 )
 index	Ordered(name),
 		Hash(id), Unique(id)
@@ -143,8 +143,6 @@ let <name> = query ...
 =================================================
 TABLE AGGREGATION STATEMENTS
 
-group by/order by/join (A(t), B(u), t==u)/reduce
-
 // collection_query returns an collection, can be used as expression
 collection_query(person, score) :-
 	Exam(person, exam), score = exam.score
@@ -193,6 +191,4 @@ Each database can has at most one instance in an module instance.
 Modules cannot exchange data between each other.
 
 Comparing to .NET, database likes assembly, module likes appdomain.
-
-
 =================================================
