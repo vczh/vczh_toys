@@ -1,86 +1,98 @@
 database Types;
 
-class Type
-(
-);
+####################################
 
-class IntType : Type
-(
-);
+data List a = List a | Empty
 
-class ArrayType : Type
-(
-	element : Type
-);
+func reverse_ a b =
+	switch a (
+		Empty : b
+		List c d : reverse_ d (List c b)
+	)
 
-class FunctionType : Type
-(
-	return : Type,
-	arguments : Type[]
-);
+func reverse a b = reverse_ a Empty
 
-class Expression
-(
-);
+func concat a b = reverse_ (reverse a) b
 
-class PrimitiveExpr : Expression
-(
-	number : int
-);
+####################################
+# the following code should be imported from Vczh Parser Generator
 
-class ReferenceExpr : Expression
-(
-	name : string
-);
-
-class AddExpr : Expression
-(
-	left : Expression,
-	right : Expression
-);
-
-class IndexExpr : Expression
-(
-	array : Expression,
-	index : Expression
-);
-
-class CallExpr : Expression
-(
-	function : Expression,
-	arguments : Expression[]
-);
-
-class Statement
-(
-);
-
-class ExpressionStat : Statement
-(
-	expression : Expression
-);
-
-class VariableStat : Statement
-(
-	name : string,
-	type : Type,
-	expression : Expression
-);
-
-class Argument
-(
-	name : string,
-	type : Type
-);
-
-class Function
-(
-	name : string,
-	return : Type,
-	arguments : Argument[]
-);
-
-class Program
-(
-	functions : Function[]
-);
+namespace ast
+{
+	class Type
+	(
+	);
+	
+	class RefType : Type
+	(
+		name : string
+	);
+	
+	class ApplyType : Type
+	(
+		function : Type,
+		argument : Type
+	);
+	
+	class Expression
+	(
+	);
+	
+	class RefExpr : Expression
+	(
+		name : string
+	);
+	
+	class ApplyExpr : Expression
+	(
+		function : Expression,
+		argument : Expression
+	);
+	
+	class MatchItem
+	(
+		pattern : Type,
+		result : Expression
+	);
+	
+	class MatchExpr : Expression
+	(
+		expression : Expression,
+		items : MatchItem[]
+	);
+	
+	class Declaration
+	(
+	);
+	
+	class DataItem
+	(
+		name : string,
+		arguments : Type[]
+	);
+	
+	class Argument
+	(
+		name : string
+	);
+	
+	class DataDecl : Declaration
+	(
+		name : string,
+		arguments : Argument[],
+		items : DataItem[]
+	);
+	
+	class FuncDecl : Declaration
+	(
+		name : string,
+		arguments : Argument[]
+		result : Expression
+	);
+	
+	class Program
+	(
+		declarations : Declaration[]
+	);
+}
+####################################
