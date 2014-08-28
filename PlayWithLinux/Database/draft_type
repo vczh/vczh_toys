@@ -271,7 +271,7 @@ func InstallPattern(in pattern : RefType, in parentScope : Scope) :-
 
 func InstallPattern(in pattern : ApplyType, in parentScope : Scope) :-
 	InstallPattern(pattern.function, parentScope),
-	InstallPattern(pattern.function, parentScope);
+	InstallPattern(pattern.argument, parentScope);
 
 ####################################
 # Build the unification graph
