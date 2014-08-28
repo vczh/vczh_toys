@@ -4,45 +4,42 @@ TYPE
 char, bool, int, float, string
 
 struct Point
-{
-	x : int;
-	y : int;
-}
+(
+	x : int,
+	y : int
+);
 
-enum Operator
-{
-	Add, Sub, Mul, Div
-}
+enum Operator = Add | Sub | Mul | Div;
 
 class BinaryExpression : Expression
-{
-	left	: Expression;
-	right	: Expression;
-	op		: Operator;
-}
+(
+	left	: Expression,
+	right	: Expression,
+	op		: Operator,
+);
 
-struct Head{head : int; next : List;}
-struct End{}
+struct Head(head : int, next : List);
+struct End();
 union List = Head | End;
 
 =================================================
 TABLE
 
-enum Gender
-{
-	Male, Female
-}
+enum Gender = Male | Female;
 
 data class Person // means that all instances of Person are automatically indexed in this table
-{
-	name	: string, Ordered;
-	id		: string, Hash, Unique;
+(
+	name	: strin;
+	id		: string;
 	gender	: Gender;
 
 	spouse, spouse		: Person, 1..1; // a.spouse == b ==> b.spouse == a
 	parents, children	: Person, n..n; // a.parents(b) ==> b.children(a)
 	manages, manager	: Person, n..1;	// a.manages(b) ==> b.manager == a
-}
+)
+index	Ordered(name),
+		Hash(id), Unique(id)
+;
 
 # Simple data table
 data Spouses(husband : Person, wife : Person);
@@ -55,9 +52,6 @@ data Spouses(husband : Person, wife : Person)
 	;
 
 # Computation data table
-data class Person(p : Person)	
-	index	p.Name
-	;	
 data Parents(child : Person, parent : Person);
 
 data Spouses(husband : Person, wife : Person); 
@@ -126,7 +120,7 @@ EXPRESSION
 PATTERN MATCHING
 
 _								: any, not referenced in the code
-Union{pattern1, pattern2 ,...}	: union
+Type{pattern1, pattern2 ,...}	: struct, class, union, ...
 id								: any, referenced in the code
 <constant-value>				: the specified constant value
 =================================================
@@ -150,6 +144,20 @@ let <name> = query ...
 TABLE AGGREGATION STATEMENTS
 
 group by/order by/join (A(t), B(u), t==u)/reduce
+
+// collection_query returns an collection, can be used as expression
+collection_query(person, score) :-
+	Exam(person, exam), score = exam.score
+group_by(person, sample_score = Average(OrderBy(score, 3)))
+	[:- sample_score > 5]
+group_by(people = Collect(person), OrderByDesc(sample_score))
+
+collection_query(person, OrderByDesc(score, 3)) :- 
+	Exam(person, exam), score = exam.score;
+
+Collect : aggregation function
+Average : aggregation function
+OrderBy : sequence function
 =================================================
 GRAPH STORAGE
 
