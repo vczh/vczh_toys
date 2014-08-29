@@ -128,6 +128,11 @@ namespace symbol
 		id : int # for printing
 	) index AutoIncresed(id);
 
+	data class DistinguishedType : Type
+	(
+		name : string # for distinguishing and printing
+	) index Hash(name);
+
 	class FuncType : Type
 	(
 		argument : Type,
@@ -181,40 +186,134 @@ namespace symbol
 using namespace symbol
 
 public func InstallProgram(in program : Program) :-
-	Install(program, null);
+	Install_1(program, null),
+	not exists Errors(_),
+	Install_2(program);
 
-func install(in node : Node, in parentScope : Scope);
+func Install_1(in node : Node, in parentScope : Scope);
+func Install_2(in node : Node);
 
-func Install(in program : Program) :-
+func Install_1(in program : Program) :-
+	let scope = Scope{ parent = parentScope },
+	ensure set AstScopes(scope, program),
+	ensure set Symbols(scope, "int", IntType{}, program),
+	for program.declarations(decl)
+	(
+		Install_1(decl, scope)
+	);
+
+func Install_2(in program : Program) :-
 	let scope = Scope{ parent = parentScope },
 	ensure set AstScopes(scope, program)
 	for program.declarations(decl)
 	(
-		Install(decl, scope)
+		Install_2(decl, scope)
 	);
 
-func Install(in decl : DataDecl, in parentScope : Scope) :-
-	if not set Types(decl.name, UnknownType{})
-		then set Errors($"Duplicated type $(decl.type) found."),
+####################################
+# Install DataDecl
+
+func CreateDataDeclType(in decl : DateDecl, in scope : Scope, in arguments : Argument[], out type : Type);
+
+func CreateDataDeclType(in decl, in scope, {}, out type) :-
+	type = DisgintuishedType{ name = decl.name };
+
+func CreateDataDeclType(in decl, in scope, {x:xs}, out type) :-
+	let lambdaType = LambdaType{},
+	CreateDataDeclType(decl, scope, xs, out lambdaType.type),
+	if not set Symbols(scope, x.name, LambdaArgumentType{ belongTo = lambdaType}, x)
+		then set Errors($"Duplicated type argument $(x.name) in $(decl.name) found."),
+	type = lambdaType;
+
+func Install_1(in decl : DataDecl, in parentScope : Scope) :-
+	Install_CreateDataDeclSymbol(decl, parentScope);
+
+func Install_2(in decl : DateDecl):-
+	Install_CreateDateItemSymbol(decl);
+
+func Install_CreateDataDeclSymbol(in decl : DateDecl, in parentScope : Scope):-
 	let scope = Scope{ parent = parentScope },
+	CreateDataDeclType(decl, scope, decl.arguments, out type),
+	if not set Types(decl.name, type)
+		then set Errors($"Duplicated type $(decl.type) found."),
 	ensure set AstScopes(scope, decl),
-	for decl.arguments(arg)
-	(
-		if not set Symbols(scope, arg.name, UnknownType{}, arg)
-			then set Errors($"Duplicated function argument $(arg.name) in $(decl.name) found.")
-	),
+
+func Install_CreateDataItemSymbol(decl) :-
+	AstScopes(scope, decl);
 	for decl.items(item)
 	(
-		Install(item, scope)
+		Install_DeclItem(decl, item, scope)
 	);
 
-func Install(in decl : DeclItem, in parentScope : Scope) :-
+func ApplyTypeInternal(in lambda : LambdaType, in target : Type, in argument : Type, out result : Type) :-
+	result = target;
+
+func ApplyTypeInternal(in lambda, in target : FuncType, in argument, out result):- 
+	ApplyTypeInternal(lambda, target.argument, argument, x),
+	ApplyTypeInternal(lambda, target.result, argument, y),
+	result = FuncType{ argument = x, result = y };
+
+func ApplyTypeInternal(in lambda, in target : ApplyType, in argument, out result):- 
+	ApplyTypeInternal(lambda, target.function, argument, x),
+	ApplyTypeInternal(lambda, target.argument, argument, y),
+	result = ApplyType{ function = x, argument = y };
+
+func ApplyTypeInternal(in lambda, in target : LambdaArgumentTypeType, in argument, out result):- 
+	if target.belongTo == lambda
+		then result = argument
+		else result = target;
+
+func ApplyTypeInternal(in lambda, in target : LambdaType, in argument, out result):- 
+	let newLambda = LambdaType{},
+	let newArg = LambdaArgumentType{ belongTo = newLambda },
+	ApplyTypeInternal(target, target.type, newLambda, out newLambda.type),
+	ApplyTypeInternal(lambda, newLambda.type, argument, out newLambda.type),
+	result = newLambda;
+
+func ApplyType(in lambda : LambdaType, in argument : Type, out result : Type):-
+	ApplyTypeInternal(lambda, lambda.type, argument, out result);
+
+func TranslateType(in scope : Scope, in ast : ast.Type, out result : symbol.Type);
+
+func TranslateType(in scope, in ast : RefType, out result) :-
+	if not Symbols(scope, ast.name, out result, _)
+	then (
+		set Errors($"Type $(ast.name) not found."),
+		result = UnknownType{}
+	);
+
+func TranslateType(in scope, in ast : ApplyType, out result) :-
+	TranslateType(scope, ast.function, out functionType),
+	TranslateType(scope, ast.function, out argumentType),
+	if l : LambdaType = functionType
+		then ApplyType(l, argumentType, out result)
+		else
+		(
+			set Errors($"Cannot apply arguments on non-lambda type."),
+			result = UnknownType{}
+		);
+
+func CreateFuncType(in scope : Scope, in result : Type, in arguments : ast.Type[], out type : Type);
+
+func CreateFuncType(in scope, in result, {}, out type):-
+	TranslateType(scope, result, out type);
+
+func CreateFuncType(in scope, in result, {x:xs}, out type):-
+	TranslateType(scope, result, xs, out returnType),
+	TranslateType(scope, result, x, out argumentType),
+	type = FuncType{ argument = argumentType, result = returnType};
+
+func Install_DeclItem(in declType : Type, in decl : DeclItem, in parentScope : Scope) :-
 	ensure set AstScopes(parentScope, decl),
-	if not set Symbols(parentScope.parent, decl.name, UnknownType{}, decl)
+	CreateFuncType(parentScope, declType, decl.arguments, out itemType),
+	if not set Symbols(parentScope.parent, decl.name, itemType, decl)
 		then set Errors($"Duplicated function $(decl.name) found.")
 	;
 
-func Install(in decl : FuncDecl, in parentScope : Scope) :-
+####################################
+# Install FuncDecl
+
+func Install_1(in decl : FuncDecl, in parentScope : Scope) :-
 	let scope = Scope{ parent = parentScope },
 	ensure set AstScopes(scope, decl),
 	if not set Symbols(scope, decl.name, UnknownType{}, decl)
@@ -223,44 +322,46 @@ func Install(in decl : FuncDecl, in parentScope : Scope) :-
 	(
 		if not set Symbols(scope, arg.name, UnknownType{}, arg)
 			then set Errors($"Duplicated function argument $(arg.name) in $(decl.name) found.")
-	),
-	Install(decl.result, scope);
+	);
 
-func Install(in expr : NumExpr, in parentScope : Scope) :-
+func Install_2(in decl : FuncDecl, in parentScope : Scope) :-
+	Install_Expr(decl.result, scope);
+
+func Install_Expr(in expr : NumExpr, in parentScope : Scope) :-
 	ensure set AstScopes(parentScope, expr),
 	ensure set ExprTypes(expr, IntType{});
 
-func Install(in expr : RefExpr, in parentScope : Scope) :-
+func Install_Expr(in expr : RefExpr, in parentScope : Scope) :-
 	ensure set AstScopes(parentScope, expr),
 	ensure set ExprTypes(expr, UnknownType{});
 
-func Install(in expr : LambdaExpr, in parentScope : Scope) :-
+func Install_Expr(in expr : LambdaExpr, in parentScope : Scope) :-
 	let scope = Scope{ parent = parentScope },
 	ensure set AstScopes(scope, expr),
 	ensure set Symbols(scope, expr.argument, UnknownType{}, decl),
-	Install(expr.argument, scope),
+	Install_Expr(expr.argument, scope),
 	ensure set ExprTypes(expr, UnknownType{});
 
-func Install(in expr : ApplyExpr, in parentScope : Scope) :-
+func Install_Expr(in expr : ApplyExpr, in parentScope : Scope) :-
 	ensure set AstScopes(parentScope, expr),
-	Install(expr.function, parentScope),
-	Install(expr.argument, parentScope),
+	Install_Expr(expr.function, parentScope),
+	Install_Expr(expr.argument, parentScope),
 	ensure set ExprTypes(expr, UnknownType{});
 
-func Install(in expr : MatchExpr, in parentScope : Scope) :-
+func Install_Expr(in expr : MatchExpr, in parentScope : Scope) :-
 	ensure set AstScopes(parentScope, expr),
-	Install(parentScope, expr.pattern)
+	Install_Expr(parentScope, expr.pattern)
 	for expr.items(item)
 	(
-		Install(item, parentScope)
+		Install_Expr(item, parentScope)
 	),
 	ensure set ExprTypes(expr, UnknownType{});
 
-func Install(in expr : MatchItem, in parentScope : Scope) :-
+func Install_Expr(in expr : MatchItem, in parentScope : Scope) :-
 	let scope = Scope{ parent = parentScope },
 	ensure set AstScopes(scope, expr),
 	InstallPattern(expr.pattern, scope),
-	Install(expr.result, scope);
+	Install_Expr(expr.result, scope);
 
 func InstallPattern(in pattern : Type, in parentScope : Scope);
 

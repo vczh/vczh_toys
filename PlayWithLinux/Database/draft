@@ -128,6 +128,7 @@ id : Type						: any, of that type
 TABLE OPERATION STATEMENTS
 
 set Table(value1, value2, value3 ...);
+update Table(a, b, c) :- a == b, c = a + b;
 remove Table(value1, value2, value3 ...);
 remove Table(a, b, _) :- a == b;
 remove Table;
