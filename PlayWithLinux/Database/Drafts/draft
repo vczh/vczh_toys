@@ -1,0 +1,198 @@
+=================================================
+TYPE
+
+char, bool, int, float, string
+
+struct Point
+(
+	x : int,
+	y : int
+);
+
+enum Operator = Add | Sub | Mul | Div;
+
+class BinaryExpression : Expression
+(
+	left	: Expression,
+	right	: Expression,
+	op		: Operator,
+);
+
+struct Head(head : int, next : List);
+struct End();
+union List = Head | End;
+
+=================================================
+TABLE
+
+enum Gender = Male | Female;
+
+data class Person // means that all instances of Person are automatically indexed in this table
+(
+	name	: string,
+	id		: string,
+	gender	: Gender,
+
+	spouse * spouse		: Person, 1..1, // a.spouse == b ==> b.spouse == a
+	parents * children	: Person, n..n, // a.parents(b) ==> b.children(a)
+	manages * manager	: Person, n..1,	// a.manages(b) ==> b.manager == a
+)
+index	Ordered(name),
+		Hash(id), Unique(id)
+;
+
+# Simple data table
+data Spouses(husband : Person, wife : Person);
+
+# Data table with index
+data Spouses(husband : Person, wife : Person)
+	index	Ordered(husband.name),	// members after "." should not be field of a class
+			Hash(wife.name)
+	where	husband != wife
+	;
+
+# Computation data table
+data Parents(child : Person, parent : Person);
+
+data Spouses(husband : Person, wife : Person); 
+Spouses(husband, wife) :-
+	Person(child),
+	Parents(child, husband), husband.Gender == Gender.Male,
+	Parents(child, wife), wife.Gender == Gender.Female
+	;
+
+set Parents(Bob, Jeff);
+set Parents(Bob, Kate);
+
+# Cached computation data table
+data Spouses(husband : Person, wife : Person)
+	index	Ordered, Unique, Cache(husband.name),
+			Hash, Unique, Cache(wife.name)
+	where	husband != wife
+	;
+
+=================================================
+FUNCTION
+
+func Name(arg1, in arg2, out arg3 ...); 
+	// "in" cannot be used with pattern
+	// "out" cannot be used in the function, except to be assigned
+
+func Fib(in i, out o);
+case Fib(1, 1);
+case Fib(2, 1);
+case Fib(a, b) :- Fib(a-1, x), Fib(a-2, y), b = x + y;
+
+func Fib_(int a, int b, in index, int max, out o);
+case Fib_(a, b, index, index, b);
+case Fib_(a, b, index, max b, o) :- Fib_(b, a + b, index + 1, max, o);
+func Fib(in i, out o) :- Fib_(0, 1, i, 1, o);
+
+=================================================
+QUERY
+
+query (arg1, arg2, ...)
+equivalents to
+func <Anonymous>(out arg1, arg2, ...)
+
+When a query is submitted,
+the database will execute this function and send all results back,
+the type of each argument cannot be class or data class
+
+=================================================
+EXPRESSION
+
+<BOOLEAN>		::= <OR> {"," <OR>}
+<OR>			::= <AND> {"or" <AND>}
+<AND>			::= <BOOLEAN-PRIM> {"and" <BOOLEAN-PRIM>}
+<BOOLEAN-PRIM>	::= <FUNCTION-CALL>
+				::= <COMPARISON>
+				::= "if" <BOOLEAN> "then" <BOOLEAN> ["else" <BOOLEAN>] # returns true
+				::= ("not" | "exists" | "ensure") <BOOLEAN-PRIM> # ensure X throws if not X
+				::= "(" <BOOLEAN> ")"
+<FUNCTION-CALL>	::= <FUNCTION-NAME> "(" {<PATTERN>, ...} ")"
+<FUNCTION-NAME>	::= <ID>
+				::= <FUNCTION-NAME> "." <ID>
+<COMPARISON>	::= <EXPRESSION> ("==" | "!=" | "<" | "<=" | ">" | ">=") <EXPRESSION>
+
+<EXPRESSION>	::= ...
+=================================================
+PATTERN MATCHING
+
+_								: any, not referenced in the code
+Type{pattern1, pattern2 ,...}	: struct, class, union, ...
+id								: any, referenced in the code
+id : Type						: any, of that type
+<constant-value>				: the specified constant value
+=================================================
+TABLE OPERATION STATEMENTS
+
+set Table(value1, value2, value3 ...);
+update Table(a, b, c) :- a == b, c = a + b;
+remove Table(value1, value2, value3 ...);
+remove Table(a, b, _) :- a == b;
+remove Table;
+uncache Table(a, b, _) :- a == b;
+uncache Table;
+
+for query(person) :-
+	Person(person), exists person.Children(_)
+(
+	set person.Abilities(FeedingChild)
+)
+
+let <name> = query ...
+=================================================
+TABLE AGGREGATION STATEMENTS
+
+// collection_query returns an collection, can be used as expression
+collection_query(person, score) :-
+	Exam(person, exam), score = exam.score
+partition_by person(person, sample_score = OrderByDesc(score, 3))
+group_by person(person, average_score = Average(sample_score))
+	:- average_score > 5
+order_by average_score
+range_by <first>..<last>;
+
+collection_query(person, OrderByDesc(score, 3)) :- 
+	Exam(person, exam), score = exam.score;
+
+Collect : aggregation function
+Average : aggregation function
+OrderBy : sequence function
+=================================================
+GRAPH STORAGE
+
+see "data class"
+=================================================
+NAMESPACE / DATABASE / MODULE
+
+namespace Nodes // namespace can be nested
+{
+	class Node // class cannot be nested
+	{
+	}
+}
+
+using namespace Nodes;
+
+namespace Program
+{
+	class TestCase
+	{
+		a : Node;
+		b : Nodes::Node;
+	}
+}
+
+A database is a group of files.
+A database instance is an installed database with data.
+If a database references another database, all public symbol is usable.
+
+A module is a group of databases.
+A module instance hosts a group of database instances.
+Each database can has at most one instance in an module instance.
+Modules cannot exchange data between each other.
+
+Comparing to .NET, database likes assembly, module likes appdomain.
+=================================================

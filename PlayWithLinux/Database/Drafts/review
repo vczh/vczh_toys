@@ -1,0 +1,5 @@
+The design finally turns out to be an object-oriented database,
+which is not a real graph database,
+so I am going to redesign it.
+
+This folder keeps all those old ideas.
