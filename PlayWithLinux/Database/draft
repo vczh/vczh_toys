@@ -1,1 +1,7 @@
 # The previous draft is actually an object-oriented database, not a graph database, so I am going to redesign it.
+#
+# Concepts:
+# 	Collection, Index, View (List, Tree, Partial Ordering, Graph), Collection Variable
+# 	Struct, Class, Data Class, Computation Collection, Query, Function, Function Closure
+# 	View Operation (Create Subtree, Subgraph Matching, Path Searching, etc)
+# 	Pattern Matching, Multiple Dispatching
