@@ -9,11 +9,64 @@
 ################################################
 # TYPE
 
+bool, int, float, string
+
+enum Season = Spring | Summer | Autumn | Winter;
+
+struct Point
+(
+	x : int,
+	y : int
+);
+
 ################################################
 # COLLECTION AND INDEX
 
+data AttendExam(s : Student, e : Exam, score : int)
+ index	Hash(s),
+		Hash(e),
+		Unique(e, s), # Hash(e, s), hash index is always default
+		Partition(e) Ordered(score) # Ordered(e, score) is illegal because Exam is not sortable
+		;
+
 ################################################
 # ENTITY, INDEX AND VIEW
+
+entity Person
+(
+	name : string,
+	id : string,
+) index Hash(name),
+		Unique(id)
+		;
+
+entity School
+(
+	students : data(Student)
+);
+
+entity Student : Person
+(
+	school : School
+);
+
+entity index 1..n Student.school * School.students;	# school and students are connected, verified and modifiable
+
+================================================
+
+entity Tree
+(
+	data				: int,
+	left				: Tree,
+	right				: Tree,
+	readonly parent		: Tree,
+	readonly children	: data(tree)
+) index	Ordered(data)
+		;
+
+entity index 1..1 Tree.left > Tree.parent;		# parent is readonly, left is modifiable, verified
+entity index 1..1 Tree.right > Tree.parent;		# parent is readonly, right is modifiable, verified
+entity index 1..n Tree.parent * Tree.children;	# parent and children are connected, so children is readable
 
 ################################################
 # COMPLEX ENTITY FIELD TYPE
@@ -25,7 +78,10 @@
 # FUNCTION
 
 ################################################
-# VIEW OPERATION
+# CONDITION AND EXCEPTION
+
+################################################
+# VIEW AND VIEW OPERATION
 
 ################################################
 # PATTERN MATCHING, MULTIPLE DISPATCHING
@@ -35,3 +91,6 @@
 
 ################################################
 # NAMESPACE, MODULE AND DATABASE
+
+################################################
+# SCHEMA AND SYSTEM COLLECTION
