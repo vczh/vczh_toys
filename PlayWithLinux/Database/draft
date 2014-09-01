@@ -2,6 +2,36 @@
 #
 # Concepts:
 # 	Collection, Index, View (List, Tree, Partial Ordering, Graph), Collection Variable
-# 	Struct, Class, Data Class, Report, Query, Function, Function Closure
+# 	Struct, Entity, Report, Query, Function, Function Closure
 # 	View Operation (Create Subtree, Subgraph Matching, Path Searching, Strong Connected Components, etc)
 # 	Pattern Matching, Multiple Dispatching
+
+################################################
+# TYPE
+
+################################################
+# COLLECTION AND INDEX
+
+################################################
+# ENTITY, INDEX AND VIEW
+
+################################################
+# COMPLEX ENTITY FIELD TYPE
+
+################################################
+# REPORT
+
+################################################
+# FUNCTION
+
+################################################
+# VIEW OPERATION
+
+################################################
+# PATTERN MATCHING, MULTIPLE DISPATCHING
+
+################################################
+# QUERY AND AGGREGATION
+
+################################################
+# NAMESPACE, MODULE AND DATABASE
