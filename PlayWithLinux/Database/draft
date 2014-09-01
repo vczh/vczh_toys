@@ -2,6 +2,6 @@
 #
 # Concepts:
 # 	Collection, Index, View (List, Tree, Partial Ordering, Graph), Collection Variable
-# 	Struct, Class, Data Class, Computation Collection, Query, Function, Function Closure
+# 	Struct, Class, Data Class, Report, Query, Function, Function Closure
 # 	View Operation (Create Subtree, Subgraph Matching, Path Searching, Strong Connected Components, etc)
 # 	Pattern Matching, Multiple Dispatching
