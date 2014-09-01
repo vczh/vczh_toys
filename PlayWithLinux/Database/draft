@@ -2,7 +2,7 @@
 #
 # Concepts:
 # 	Collection, Index, View (List, Tree, Partial Ordering, Graph), Collection Variable
-# 	Struct, Entity, Report, Query, Function, Function Closure
+# 	Struct, Entity, Query, Cached Query, Function, Function Closure
 # 	View Operation (Create Subtree, Subgraph Matching, Path Searching, Strong Connected Components, etc)
 # 	Pattern Matching, Multiple Dispatching
 
@@ -72,7 +72,50 @@ entity index 1..n Tree.parent * Tree.children;	# parent and children are connect
 # COMPLEX ENTITY FIELD TYPE
 
 ################################################
-# REPORT
+# QUERY, CACHED QUERY AND AGGREGATION
+
+enum Gender = Male | Female;
+
+entity Person
+(
+	name		: string,
+	gender		: Gender,
+	parents		: data(Person),
+	children	: data(Person)
+) index	Ordered(name)
+		;
+
+entity index n..n Person.parents * Person.children;
+
+# query
+query GrandParents(person : Person, grandParent : Person) :-
+	person.parents(out parent),
+	parent.parents(out grandParent);
+
+# cached query
+query GP_Cached(in person : Person, grandParent : Person) :-
+	GrandParents(person, out grandParent)
+ index	Cached(person)	# Cached likes primary key index, one query can has only one Cached index
+		;				# Cached(person) creates Hash(person) if not other index on (person) is used
+
+# ordering
+query ExamTop3(out s : Student, in e : Exam, out score : int) :-
+	AttendExam(out s, e, out score)
+OrderByDesc score(s, e, Top(score, 3));
+
+# group by
+query ExamAttendCount(in e: Exam, out count : int) :-
+	AttendExam(_, e, _)
+GroupBy e(e, count = Count(e));
+
+# partition
+query AllExamTop3(out s : Student, out e : Exam, out score : int) :-
+	AttendExam(out s, out e, out score)
+PartitionBy e(s, e, Top(OrderByDesc(score), 3));
+
+# inner join
+
+# left join
 
 ################################################
 # FUNCTION
@@ -85,9 +128,6 @@ entity index 1..n Tree.parent * Tree.children;	# parent and children are connect
 
 ################################################
 # PATTERN MATCHING, MULTIPLE DISPATCHING
-
-################################################
-# QUERY AND AGGREGATION
 
 ################################################
 # NAMESPACE, MODULE AND DATABASE
