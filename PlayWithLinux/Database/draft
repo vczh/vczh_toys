@@ -19,7 +19,7 @@ struct Point
 	y : int
 );
 
-query ( ... )
+query ( ... ) # { a, b, c }, data name, query closure
 
 ################################################
 # COLLECTION AND INDEX
@@ -71,9 +71,6 @@ entity index 1..1 Tree.right > Tree.parent;		# parent is readonly, right is modi
 entity index 1..n Tree.parent * Tree.children;	# parent and children are connected, so children is readable
 
 ################################################
-# COMPLEX ENTITY FIELD TYPE
-
-################################################
 # QUERY, CACHED QUERY AND AGGREGATION
 
 enum Gender = Male | Female;
@@ -123,6 +120,23 @@ query ClassExams(c : Class, e : Exam) :-
 ################################################
 # FUNCTION
 
+func add(in a : int, in b : int, out c : int) :-
+	c = a + b;
+
+func sqrt(in a : float, out b : float) :-
+	sqrt_internal(a, out c),
+	b = {c, -c};
+
+# all arguments in a function should be "in" or "out"
+# function will not be inlined
+# function can contains collection operating statements (see exceptions)
+
+if <expression> then <expression> else <expression>
+try <expression>
+exists <expression>
+not <expression>
+<expression> (and | or) <expression>
+
 ################################################
 # CONDITION AND EXCEPTION
 
@@ -142,6 +156,15 @@ remove Data # remove all
 
 ################################################
 # VIEW AND VIEW OPERATION
+
+# Scenarios
+# 	epsilon edge removing in NFA construction
+# 	state merging in DFA construction
+# 	state/edge mapping
+# 	build scope tree from syntax tree
+# 	strong connected components in optimizing type inferencing
+# 	state connectivity
+# 	edge with properties
 
 ################################################
 # PATTERN MATCHING, MULTIPLE DISPATCHING
