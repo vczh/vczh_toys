@@ -9,7 +9,7 @@
 ################################################
 # TYPE
 
-bool, int, float, string
+bool, int, float, string, object
 
 enum Season = Spring | Summer | Autumn | Winter;
 
@@ -18,6 +18,8 @@ struct Point
 	x : int,
 	y : int
 );
+
+query ( ... )
 
 ################################################
 # COLLECTION AND INDEX
@@ -93,29 +95,30 @@ query GrandParents(person : Person, grandParent : Person) :-
 	parent.parents(out grandParent);
 
 # cached query
-query GP_Cached(in person : Person, grandParent : Person) :-
+query GP_Cached(person : Person, grandParent : Person) :-
 	GrandParents(person, out grandParent)
  index	Cached(person)	# Cached likes primary key index, one query can has only one Cached index
 		;				# Cached(person) creates Hash(person) if not other index on (person) is used
 
 # ordering
-query ExamTop3(out s : Student, in e : Exam, out score : int) :-
-	AttendExam(out s, e, out score)
+query ExamTop3(s : Student, e : Exam, score : int) :-
+	AttendExam(s, e, score)
 OrderByDesc score(s, e, Top(score, 3));
 
 # group by
-query ExamAttendCount(in e: Exam, out count : int) :-
+query ExamAttendCount(e: Exam, out count : int) :-
 	AttendExam(_, e, _)
 GroupBy e(e, count = Count(e));
 
 # partition
-query AllExamTop3(out s : Student, out e : Exam, out score : int) :-
-	AttendExam(out s, out e, out score)
+query AllExamTop3(s : Student, e : Exam, score : int) :-
+	AttendExam(s, e, score)
 PartitionBy e(s, e, Top(OrderByDesc(score), 3));
 
 # inner join
-
-# left join
+query ClassExams(c : Class, e : Exam) :-
+	AttendExam(out s, e, _),
+	AttendClass(out c, s);
 
 ################################################
 # FUNCTION
@@ -123,14 +126,85 @@ PartitionBy e(s, e, Top(OrderByDesc(score), 3));
 ################################################
 # CONDITION AND EXCEPTION
 
+# the following expressions always returns true
+# if the operation failed, it throws an exception
+# use "try <expression>" to turn exception to false
+set Data(value1, value2, ...)
+update Data(value1, value2, ...) :-
+	(
+		value1 < 10,
+		value2 = 20
+	)
+remove Data(value1, value2, ...) :- condition
+remove Data # remove all
+
+# exception is not cachable, it directly turns the transaction to failure	
+
 ################################################
 # VIEW AND VIEW OPERATION
 
 ################################################
 # PATTERN MATCHING, MULTIPLE DISPATCHING
 
+# when <pattern> is used in multiple dispatching, <type> should not be a query
+<pattern>	::= <id>													# a name
+			::= <constant>												# a constant value
+			::= <id> ":" <type>											# test the class
+			::= <id> [":" <type>] "{" {<field> = <pattern> ,...} "}"	#test the class and match fields
+			::= "_"														# don't bind the value to a name
+			::= "{" {<pattern>, ...} [ : xs] "}"						# match a list
+
+# multiple dispatching only applies on functions
+# it needs a root declaration
+# functions never overload
+
+func TheSame(a : Node, b : Node, out result : bool) :-
+	result = false;
+
+func TheSame(a : Square, b : Square, out result) :-
+	result = true;
+
+func TheSame(a : Triangle, b : Triangle, out result) :-
+	result = true;
+
 ################################################
 # NAMESPACE, MODULE AND DATABASE
+
+# declare a database and make dependencies
+# a database can be implemented in different files
+# but one file can only implement one database
+# database is not a namespace
+# a file can use the namespace from the same database, or from what is imported
+database <name>;
+using database <name>;
+
+# module contains several databases
+# an instance of a module will creates instances for each database
+
+using namespace a.b;
+
+namespace a
+{
+	namespace b
+	{
+		struct Point
+		(
+			x : int,
+			y : int
+		);
+	}
+
+	namespace c
+	{
+		struct Vector
+		(
+			x : int,
+			y : int
+		);
+	}
+
+	data Something(a : Point, b : c.Vector);
+}
 
 ################################################
 # SCHEMA AND SYSTEM COLLECTION
