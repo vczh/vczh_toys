@@ -87,6 +87,7 @@ entity Person
 entity index n..n Person.parents * Person.children;
 
 # query
+# query cannot call functions which contains modification expressions
 query GrandParents(person : Person, grandParent : Person) :-
 	person.parents(out parent),
 	parent.parents(out grandParent);
@@ -177,14 +178,14 @@ remove Data # remove all
 # 	state connectivity
 # 	edge with properties
 
-# only view, default viewimpl and function has type parameters
+# only struct, view, default viewimpl and function has type parameters
 # only functions can appear inside a view
-view<T> Comparable
+view[T] Comparable
 {
 	func Compare(in a : T, in b : T, out result : int);
 }
 
-viewimpl [IntComparable : ]Comparable<int>
+viewimpl [IntComparable : ]Comparable[int]
 {
 	func Compare(in a, in b, out result) :-
 		result = a - b;
@@ -193,10 +194,10 @@ viewimpl [IntComparable : ]Comparable<int>
 # type arguments should be specified in order, or specify nothing and do type inference
 # view arguments can be specified in any order
 # missing view arguments will be replaced with default implementation
-func<T : cmp<int>> Sort(in x : data(T), out y : T) :- ...;
+func[T : cmp[int]] Sort(in x : data(T), out y : T) :- ...;
 Sort(a, out b);
-Sort<int>(a, out b);
-Sort<int : IntComparable>(a, b);
+Sort[int](a, out b);
+Sort[int : IntComparable](a, b);
 
 ################################################
 # PATTERN MATCHING, MULTIPLE DISPATCHING
