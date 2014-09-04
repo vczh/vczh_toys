@@ -99,23 +99,34 @@ query GP_Cached(person : Person, grandParent : Person) :-
 
 # ordering
 query ExamTop3(s : Student, e : Exam, score : int) :-
-	AttendExam(s, e, score)
-OrderByDesc score(s, e, Top(score, 3));
+	select (s, e, score)
+	from AttendExam(s, e, score)
+	order_by_desc score
+	fetch 0..2;
 
 # group by
 query ExamAttendCount(e: Exam, out count : int) :-
-	AttendExam(_, e, _)
-GroupBy e(e, count = Count(e));
+	select (e)
+	from AttendExam(_, e, _)
+	group_by e (count = Count(e));
 
 # partition
 query AllExamTop3(s : Student, e : Exam, score : int) :-
-	AttendExam(s, e, score)
-PartitionBy e(s, e, Top(OrderByDesc(score), 3));
+	select (s, e, score)
+	from AttendExam(s, e, score)
+	partition_by e
+	(
+		order_by_desc score
+		fetch 0..2
+	);
 
 # inner join
 query ClassExams(c : Class, e : Exam) :-
 	AttendExam(out s, e, _),
 	AttendClass(out c, s);
+
+# union
+# intersect
 
 ################################################
 # FUNCTION
@@ -125,7 +136,7 @@ func add(in a : int, in b : int, out c : int) :-
 
 func sqrt(in a : float, out b : float) :-
 	sqrt_internal(a, out c),
-	b = {c, -c};
+	expand b = {c, -c};
 
 # all arguments in a function should be "in" or "out"
 # function will not be inlined
@@ -166,6 +177,27 @@ remove Data # remove all
 # 	state connectivity
 # 	edge with properties
 
+# only view, default viewimpl and function has type parameters
+# only functions can appear inside a view
+view<T> Comparable
+{
+	func Compare(in a : T, in b : T, out result : int);
+}
+
+viewimpl [IntComparable : ]Comparable<int>
+{
+	func Compare(in a, in b, out result) :-
+		result = a - b;
+}
+
+# type arguments should be specified in order, or specify nothing and do type inference
+# view arguments can be specified in any order
+# missing view arguments will be replaced with default implementation
+func<T : cmp<int>> Sort(in x : data(T), out y : T) :- ...;
+Sort(a, out b);
+Sort<int>(a, out b);
+Sort<int : IntComparable>(a, b);
+
 ################################################
 # PATTERN MATCHING, MULTIPLE DISPATCHING
 
@@ -173,7 +205,7 @@ remove Data # remove all
 <pattern>	::= <id>													# a name
 			::= <constant>												# a constant value
 			::= <id> ":" <type>											# test the class
-			::= <id> [":" <type>] "{" {<field> = <pattern> ,...} "}"	#test the class and match fields
+			::= <id> [":" <type>] "{" {<field> = <pattern> ,...} "}"	# test the class and match fields
 			::= "_"														# don't bind the value to a name
 			::= "{" {<pattern>, ...} [ : xs] "}"						# match a list
 
