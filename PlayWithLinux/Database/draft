@@ -148,6 +148,7 @@ try <expression>
 exists <expression>
 not <expression>
 <expression> (and | or) <expression>
+for <query> <expression>
 
 ################################################
 # CONDITION AND EXCEPTION
