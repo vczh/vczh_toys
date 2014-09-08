@@ -2,10 +2,12 @@ include
 	../Source/makefile.database.makegen
 
 folder UNITTEST = .
+	h = *.h
 	cpp = *.cpp
 
 dependency
-	UNITTEST:cpp < DATABASE:h
+	UNITTEST:h < DATABASE:h
+	UNITTEST:cpp < UNITTEST:h
 
 targets
 	obj = ./Obj/

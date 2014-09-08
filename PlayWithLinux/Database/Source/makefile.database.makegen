@@ -5,8 +5,14 @@ folder VLPP = .
 folder DATABASE_BASIC = .
 	h = DatabaseVlppReference.h
 
-group DATABASE = DATABASE_BASIC
+folder DATABASE_UTILITY = ./Utility
+	h = *.h
+	cpp = *.cpp
+
+group DATABASE = DATABASE_BASIC DATABASE_UTILITY
 
 dependency
 	VLPP:cpp < VLPP:h
 	DATABASE_BASIC:h < VLPP:h
+	DATABASE_UTILITY:h < DATABASE_BASIC:h
+	DATABASE_UTILITY:cpp < DATABASE_UTILITY:h
