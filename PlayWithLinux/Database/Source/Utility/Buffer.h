@@ -39,8 +39,13 @@ namespace vl
 
 		class BufferManager
 		{
+		private:
+			vuint64_t			pageSize;
+			vuint64_t			maxCacheSize;
+			vuint64_t			pageSizeBits;
+
 		public:
-			BufferManager(vuint64_t pageSize, vuint64_t maxCacheSize);
+			BufferManager(vuint64_t _pageSize, vuint64_t _maxCacheSize);
 			~BufferManager();
 
 			vuint64_t			GetPageSize();
