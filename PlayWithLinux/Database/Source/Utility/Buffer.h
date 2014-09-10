@@ -43,15 +43,6 @@ namespace vl
 		class BufferManager
 		{
 		private:
-			typedef collections::Dictionary<vuint64_t, void*>							OffsetPageMap;
-			class SourceDesc
-			{
-			public:
-				bool						inMemory;
-				int							fileDescriptor = -1;
-				WString						fileName;
-				OffsetPageMap				pages;
-			};
 			class PageDesc
 			{
 			public:
@@ -61,8 +52,17 @@ namespace vl
 				bool			locked = false;
 				vuint64_t		lastAccessTime = 0;
 			};
+			typedef collections::Dictionary<vuint64_t, Ptr<PageDesc>>					PageDescMap;
+
+			class SourceDesc
+			{
+			public:
+				bool						inMemory;
+				int							fileDescriptor = -1;
+				WString						fileName;
+				PageDescMap					mappedPages;
+			};
 			typedef collections::Dictionary<BufferSource::IndexType, Ptr<SourceDesc>>	SourceDescMap;
-			typedef collections::Dictionary<void*, Ptr<PageDesc>>						MemoryDescMap;
 
 		private:
 			vuint64_t			pageSize;
@@ -70,7 +70,6 @@ namespace vl
 			vuint64_t			pageSizeBits;
 
 			SourceDescMap		sourceDescs;
-			MemoryDescMap		pageDescs;
 
 		protected:
 			Ptr<PageDesc>		MapPage(BufferSource source, Ptr<SourceDesc> sourceDesc, BufferPage page);

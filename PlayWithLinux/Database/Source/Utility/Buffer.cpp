@@ -22,10 +22,10 @@ BufferManager
 
 		Ptr<BufferManager::PageDesc> BufferManager::MapPage(BufferSource source, Ptr<SourceDesc> sourceDesc, BufferPage page)
 		{
-			vuint64_t offset = page.index * pageSize;
-			vint index = sourceDesc->pages.Keys().IndexOf(offset);
+			vint index = sourceDesc->mappedPages.Keys().IndexOf(page.index);
 			if (index == -1)
 			{
+				vuint64_t offset = page.index * pageSize;
 				void* address = nullptr;
 				if (sourceDesc->inMemory)
 				{
@@ -46,14 +46,12 @@ BufferManager
 				pageDesc->source = source;
 				pageDesc->offset = offset;
 				pageDesc->lastAccessTime = (vuint64_t)time(nullptr);
-				pageDescs.Add(address, pageDesc);
-				sourceDesc->pages.Add(offset, address);
+				sourceDesc->mappedPages.Add(page.index, pageDesc);
 				return pageDesc;
 			}
 			else
 			{
-				void* address = sourceDesc->pages.Values()[index];
-				auto pageDesc = pageDescs[address];
+				auto pageDesc = sourceDesc->mappedPages.Values()[index];
 				pageDesc->lastAccessTime = (vuint64_t)time(nullptr);
 				return pageDesc;
 			}
@@ -61,7 +59,21 @@ BufferManager
 
 		bool BufferManager::UnmapPage(BufferSource source, Ptr<SourceDesc> sourceDesc, BufferPage page)
 		{
-			return false;
+			vint index = sourceDesc->mappedPages.Keys().IndexOf(page.index);
+			if (index == -1) return false;
+
+			auto pageDesc = sourceDesc->mappedPages.Values()[index];
+			if (sourceDesc->inMemory)
+			{
+				free(pageDesc->address);
+			}
+			else
+			{
+				munmap(pageDesc->address, pageSize);
+			}
+
+			sourceDesc->mappedPages.Remove(page.index);
+			return true;
 		}
 
 		BufferPage BufferManager::AppendPage(BufferSource source, Ptr<SourceDesc> sourceDesc)
@@ -183,16 +195,15 @@ BufferManager
 			if (index == -1) return false;
 			auto sourceDesc = sourceDescs.Values()[index];
 
-			FOREACH(void*, address, sourceDesc->pages.Values())
+			FOREACH(Ptr<PageDesc>, pageDesc, sourceDesc->mappedPages.Values())
 			{
-				pageDescs.Remove(address);
 				if (sourceDesc->inMemory)
 				{
-					free(address);
+					free(pageDesc->address);
 				}
 				else
 				{
-					munmap(address, pageSize);
+					munmap(pageDesc->address, pageSize);
 				}
 			}
 
@@ -220,8 +231,7 @@ BufferManager
 			BufferPage initialPage{0};
 			if (sourceDesc->inMemory)
 			{
-				vuint64_t offset = page.index * pageSize;
-				if (!sourceDesc->pages.Keys().Contains(offset))
+				if (!sourceDesc->mappedPages.Keys().Contains(page.index))
 				{
 					return nullptr;
 				}
@@ -253,22 +263,16 @@ BufferManager
 			if (index == -1) return false;
 
 			auto sourceDesc = sourceDescs.Values()[index];
-			vuint64_t offset = page.index * pageSize;
-			index = sourceDesc->pages.Keys().IndexOf(offset);
+			index = sourceDesc->mappedPages.Keys().IndexOf(page.index);
 			if (index == -1) return false;
 
-			void* address = sourceDesc->pages.Values()[index];
-			if (address != buffer) return false;
-
-			index = pageDescs.Keys().IndexOf(address);
-			if (index == -1) return false;
-
-			auto pageDesc = pageDescs.Values()[index];
+			auto pageDesc = sourceDesc->mappedPages.Values()[index];
+			if (pageDesc->address != buffer) return false;
 			if (!pageDesc->locked) return false;
 
 			if (persist && !sourceDesc->inMemory)
 			{
-				msync(address, pageSize, MS_SYNC);
+				msync(pageDesc->address, pageSize, MS_SYNC);
 			}
 			pageDesc->locked = false;
 			return true;
