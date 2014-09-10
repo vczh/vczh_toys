@@ -3,7 +3,9 @@ Vczh Library++ 3.0
 Developer: Zihan Chen(vczh)
 Database::Utility
 
-Interfaces:
+Page Structure
+	[Initial Page]	|uint64 TotalPageCount|uint64 nextFreePage|uint64 availableItems|uint64 FreePages ...|
+	[Free Page]		|uint64 <reserved>    |uint64 nextFreePage|uint64 availableItems|uint64 FreePages ...|
 ***********************************************************************/
 
 #ifndef VCZH_DATABASE_UTILITY_BUFFER
@@ -56,6 +58,8 @@ namespace vl
 				void*			address;
 				BufferSource	source;
 				vuint64_t		offset;
+				bool			locked = false;
+				vuint64_t		lastAccessTime = 0;
 			};
 			typedef collections::Dictionary<BufferSource::IndexType, Ptr<SourceDesc>>	SourceDescMap;
 			typedef collections::Dictionary<void*, Ptr<PageDesc>>						MemoryDescMap;
@@ -67,6 +71,12 @@ namespace vl
 
 			SourceDescMap		sourceDescs;
 			MemoryDescMap		pageDescs;
+
+		protected:
+			Ptr<PageDesc>		MapPage(BufferSource source, Ptr<SourceDesc> sourceDesc, BufferPage page);
+			bool				UnmapPage(BufferSource source, Ptr<SourceDesc> sourceDesc, BufferPage page);
+			BufferPage			AppendPage(BufferSource source, Ptr<SourceDesc> sourceDesc);
+			void				InitializeSource(BufferSource source, Ptr<SourceDesc> sourceDesc);
 
 		public:
 			BufferManager(vuint64_t _pageSize, vuint64_t _cachePageCount);
@@ -82,7 +92,7 @@ namespace vl
 			WString				GetSourceFileName(BufferSource source);
 
 			void*				LockPage(BufferSource source, BufferPage page);
-			bool				UnlockPage(BufferSource source, BufferPage page, void* buffer);
+			bool				UnlockPage(BufferSource source, BufferPage page, void* buffer, bool persist);
 			BufferPage			AllocatePage(BufferSource source);
 			bool				FreePage(BufferSource source, BufferPage page);
 			bool				EncodePointer(BufferPointer& pointer, BufferPage page, vuint64_t offset);

@@ -1,10 +1,15 @@
 #include "Buffer.h"
 #include <stdlib.h>
+#include <time.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+
+#define INDEX_INITIAL_TOTALPAGECOUNT 0
+#define INDEX_INITIAL_NEXTFREEPAGE 1
+#define INDEX_INITIAL_AVAILABLEITEMS 2
 
 namespace vl
 {
@@ -14,6 +19,84 @@ namespace vl
 /***********************************************************************
 BufferManager
 ***********************************************************************/
+
+		Ptr<BufferManager::PageDesc> BufferManager::MapPage(BufferSource source, Ptr<SourceDesc> sourceDesc, BufferPage page)
+		{
+			vuint64_t offset = page.index * pageSize;
+			vint index = sourceDesc->pages.Keys().IndexOf(offset);
+			if (index == -1)
+			{
+				void* address = nullptr;
+				if (sourceDesc->inMemory)
+				{
+					address = malloc(pageSize);
+				}
+				else
+				{
+					address = mmap(nullptr, pageSize, PROT_READ | PROT_WRITE, MAP_SHARED, sourceDesc->fileDescriptor, offset);
+					if (address == MAP_FAILED)
+					{
+						address = nullptr;
+					}
+				}
+				if (!address) return 0;
+				
+				auto pageDesc = MakePtr<PageDesc>();
+				pageDesc->address = address;
+				pageDesc->source = source;
+				pageDesc->offset = offset;
+				pageDesc->lastAccessTime = (vuint64_t)time(nullptr);
+				pageDescs.Add(address, pageDesc);
+				sourceDesc->pages.Add(offset, address);
+				return pageDesc;
+			}
+			else
+			{
+				void* address = sourceDesc->pages.Values()[index];
+				auto pageDesc = pageDescs[address];
+				pageDesc->lastAccessTime = (vuint64_t)time(nullptr);
+				return pageDesc;
+			}
+		}
+
+		bool BufferManager::UnmapPage(BufferSource source, Ptr<SourceDesc> sourceDesc, BufferPage page)
+		{
+			return false;
+		}
+
+		BufferPage BufferManager::AppendPage(BufferSource source, Ptr<SourceDesc> sourceDesc)
+		{
+			BufferPage initialPage{0};
+			vuint64_t* numbers = (vuint64_t*)LockPage(source, initialPage);
+
+			BufferPage page{numbers[INDEX_INITIAL_TOTALPAGECOUNT]};
+			if (auto pageDesc = MapPage(source, sourceDesc, page))
+			{
+				numbers[INDEX_INITIAL_TOTALPAGECOUNT]++;
+				memset(pageDesc->address, 0, pageSize);
+				UnlockPage(source, initialPage, numbers, true);
+			}
+			else
+			{
+				UnlockPage(source, initialPage, numbers, false);
+			}
+		}
+
+		void BufferManager::InitializeSource(BufferSource source, Ptr<SourceDesc> sourceDesc)
+		{
+			BufferPage page{0};
+			auto pageDesc = MapPage(source, sourceDesc, page);
+			vuint64_t* numbers = (vuint64_t*)pageDesc->address;
+			memset(numbers, 0, pageSize);
+			numbers[INDEX_INITIAL_TOTALPAGECOUNT] = 1;
+			numbers[INDEX_INITIAL_NEXTFREEPAGE] = -1;
+			numbers[INDEX_INITIAL_AVAILABLEITEMS] = 0;
+
+			if(!sourceDesc->inMemory)
+			{
+				msync(numbers, pageSize, MS_SYNC);
+			}
+		}
 
 		BufferManager::BufferManager(vuint64_t _pageSize, vuint64_t _cachePageCount)
 			:pageSize(_pageSize)
@@ -62,6 +145,7 @@ BufferManager
 			auto desc = MakePtr<SourceDesc>();
 			desc->inMemory = true;
 			sourceDescs.Add(source.index, desc);
+			InitializeSource(source, desc);
 			return source;
 		}
 
@@ -86,6 +170,10 @@ BufferManager
 			}
 
 			sourceDescs.Add(source.index, desc);
+			if (createNew)
+			{
+				InitializeSource(source, desc);
+			}
 			return source;
 		}
 
@@ -125,32 +213,97 @@ BufferManager
 
 		void* BufferManager::LockPage(BufferSource source, BufferPage page)
 		{
-			return nullptr;
+			vint index = sourceDescs.Keys().IndexOf(source.index);
+			if (index == -1) return nullptr;
+
+			auto sourceDesc = sourceDescs.Values()[index];
+			BufferPage initialPage{0};
+			if (sourceDesc->inMemory)
+			{
+				vuint64_t offset = page.index * pageSize;
+				if (!sourceDesc->pages.Keys().Contains(offset))
+				{
+					return nullptr;
+				}
+			}
+			else if (auto pageDesc = MapPage(source, sourceDesc, initialPage))
+			{
+				vuint64_t* numbers = (vuint64_t*)pageDesc->address;
+				if (page.index >= numbers[INDEX_INITIAL_TOTALPAGECOUNT])
+				{
+					return nullptr;
+				}
+			}
+
+			if (auto pageDesc = MapPage(source, sourceDesc, page))
+			{
+				if (pageDesc->locked) return nullptr;
+				pageDesc->locked = true;
+				return pageDesc->address;
+			}
+			else
+			{
+				return nullptr;
+			}
 		}
 
-		bool BufferManager::UnlockPage(BufferSource source, BufferPage page, void* buffer)
+		bool BufferManager::UnlockPage(BufferSource source, BufferPage page, void* buffer, bool persist)
 		{
-			return false;
+			vint index = sourceDescs.Keys().IndexOf(source.index);
+			if (index == -1) return false;
+
+			auto sourceDesc = sourceDescs.Values()[index];
+			vuint64_t offset = page.index * pageSize;
+			index = sourceDesc->pages.Keys().IndexOf(offset);
+			if (index == -1) return false;
+
+			void* address = sourceDesc->pages.Values()[index];
+			if (address != buffer) return false;
+
+			index = pageDescs.Keys().IndexOf(address);
+			if (index == -1) return false;
+
+			auto pageDesc = pageDescs.Values()[index];
+			if (!pageDesc->locked) return false;
+
+			if (persist && !sourceDesc->inMemory)
+			{
+				msync(address, pageSize, MS_SYNC);
+			}
+			pageDesc->locked = false;
+			return true;
 		}
 
 		BufferPage BufferManager::AllocatePage(BufferSource source)
 		{
+			vint index = sourceDescs.Keys().IndexOf(source.index);
+			if (index == -1) return BufferPage::Invalid();
+
+			auto sourceDesc = sourceDescs.Values()[index];
 			return BufferPage::Invalid();
 		}
 
 		bool BufferManager::FreePage(BufferSource source, BufferPage page)
 		{
+			vint index = sourceDescs.Keys().IndexOf(source.index);
+			if (index == -1) return false;
+
+			auto sourceDesc = sourceDescs.Values()[index];
 			return false;
 		}
 
 		bool BufferManager::EncodePointer(BufferPointer& pointer, BufferPage page, vuint64_t offset)
 		{
-			return false;
+			if (offset >= pageSize) return false;
+			pointer.index = (page.index << pageSizeBits) & offset;
+			return true;
 		}
 
 		bool BufferManager::DecodePointer(BufferPointer pointer, BufferPage& page, vuint64_t& offset)
 		{
-			return false;
+			page.index = pointer.index >> pageSizeBits;
+			offset = pointer.index << pageSizeBits >> pageSizeBits;
+			return true;
 		}
 	}
 }
