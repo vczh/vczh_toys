@@ -15,53 +15,27 @@ namespace vl
 {
 	namespace database
 	{
-		struct BufferSource
-		{
-			vint32_t			index;
+#define DEFINE_INDEX_TYPE(NAME, TYPE)							\
+		struct NAME												\
+		{														\
+			TYPE				index;							\
+																\
+			bool IsValid()const									\
+			{													\
+				return index != ~(TYPE)0;						\
+			}													\
+																\
+			static NAME Invalid()								\
+			{													\
+				NAME source{~(TYPE)0};							\
+				return source;									\
+			}													\
+		}														\
 
-			bool IsValid()const
-			{
-				return index != ~(decltype(index))0;
-			}
-
-			static BufferSource Invalid()
-			{
-				BufferSource source{~(decltype(index))0};
-				return source;
-			}
-		};
-
-		struct BufferPage
-		{
-			vuint64_t			index;
-
-			bool IsValid()const
-			{
-				return index != ~(decltype(index))0;
-			}
-
-			static BufferPage Invalid()
-			{
-				BufferPage page{~(decltype(index))0};
-				return page;
-			}
-		};
-
-		struct BufferPointer
-		{
-			vuint64_t			index;
-
-			bool IsValid()const
-			{
-				return index != ~(decltype(index))0;
-			}
-	
-			static BufferPointer Invalid()
-			{
-				BufferPointer pointer{~(decltype(index))0};
-				return pointer;
-			}
-		};
+		DEFINE_INDEX_TYPE(BufferSource, vint32_t);
+		DEFINE_INDEX_TYPE(BufferPage, vuint64_t);
+		DEFINE_INDEX_TYPE(BufferPointer, vuint64_t);
+#undef DEFINE_INDEX_TYPE
 
 		class BufferManager
 		{
