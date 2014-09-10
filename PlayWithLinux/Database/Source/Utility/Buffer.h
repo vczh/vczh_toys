@@ -41,30 +41,32 @@ namespace vl
 		class BufferManager
 		{
 		private:
-			struct SourceDesc
+			typedef collections::Dictionary<vuint64_t, void*>							OffsetPageMap;
+			class SourceDesc
 			{
-				bool			inMemory;
-				int				fileDescriptor;
-				WString			fileName;
+			public:
+				bool						inMemory;
+				int							fileDescriptor = -1;
+				WString						fileName;
+				OffsetPageMap				pages;
 			};
-			struct PageDesc
+			class PageDesc
 			{
+			public:
 				void*			address;
 				BufferSource	source;
 				vuint64_t		offset;
 			};
-			typedef collections::Dictionary<BufferSource::IndexType, SourceDesc>	SourceDescMap;
-			typedef collections::Group<BufferSource::IndexType, void*>				SourceMemoryMap;
-			typedef collections::Dictionary<void*, PageDesc>						MemoryDescMap;
+			typedef collections::Dictionary<BufferSource::IndexType, Ptr<SourceDesc>>	SourceDescMap;
+			typedef collections::Dictionary<void*, Ptr<PageDesc>>						MemoryDescMap;
 
 		private:
 			vuint64_t			pageSize;
 			vuint64_t			cachePageCount;
 			vuint64_t			pageSizeBits;
 
-			SourceDescMap		sourceDescriptions;
-			SourceMemoryMap		sourceMemories;
-			MemoryDescMap		memoryDescriptions;
+			SourceDescMap		sourceDescs;
+			MemoryDescMap		pageDescs;
 
 		public:
 			BufferManager(vuint64_t _pageSize, vuint64_t _cachePageCount);

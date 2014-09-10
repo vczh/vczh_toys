@@ -34,9 +34,9 @@ BufferManager
 
 		BufferManager::~BufferManager()
 		{
-			while (sourceDescriptions.Count() > 0)
+			while (sourceDescs.Count() > 0)
 			{
-				BufferSource source{sourceDescriptions.Keys()[0]};
+				BufferSource source{sourceDescs.Keys()[0]};
 				UnloadSource(source);
 			}
 		}
@@ -58,44 +58,47 @@ BufferManager
 
 		BufferSource BufferManager::LoadMemorySource()
 		{
-			BufferSource source{(BufferSource::IndexType)sourceDescriptions.Count()};
-			SourceDesc desc{true, -1};
-			sourceDescriptions.Add(source.index, desc);
+			BufferSource source{(BufferSource::IndexType)sourceDescs.Count()};
+			auto desc = MakePtr<SourceDesc>();
+			desc->inMemory = true;
+			sourceDescs.Add(source.index, desc);
 			return source;
 		}
 
 		BufferSource BufferManager::LoadFileSource(const WString& fileName, bool createNew)
 		{
-			BufferSource source{(BufferSource::IndexType)sourceDescriptions.Count()};
-			SourceDesc desc{false, -1, fileName};
+			BufferSource source{(BufferSource::IndexType)sourceDescs.Count()};
+			auto desc = MakePtr<SourceDesc>();
+			desc->inMemory = false;
+			desc->fileName = fileName;
 
 			if (createNew)
 			{
-				desc.fileDescriptor = creat(wtoa(fileName).Buffer(), 0x555);
+				desc->fileDescriptor = creat(wtoa(fileName).Buffer(), 0x555);
 			}
 			else
 			{
-				desc.fileDescriptor = open(wtoa(fileName).Buffer(), O_RDWR);
+				desc->fileDescriptor = open(wtoa(fileName).Buffer(), O_RDWR);
 			}
-			if (desc.fileDescriptor == -1)
+			if (desc->fileDescriptor == -1)
 			{
 				return BufferSource::Invalid();
 			}
 
-			sourceDescriptions.Add(source.index, desc);
+			sourceDescs.Add(source.index, desc);
 			return source;
 		}
 
 		bool BufferManager::UnloadSource(BufferSource source)
 		{
-			vint index = sourceDescriptions.Keys().IndexOf(source.index);
+			vint index = sourceDescs.Keys().IndexOf(source.index);
 			if (index == -1) return false;
-			auto sourceDesc = sourceDescriptions.Values()[index];
+			auto sourceDesc = sourceDescs.Values()[index];
 
-			FOREACH(void*, address, sourceMemories.Get(source.index))
+			FOREACH(void*, address, sourceDesc->pages.Values())
 			{
-				memoryDescriptions.Remove(address);
-				if (sourceDesc.inMemory)
+				pageDescs.Remove(address);
+				if (sourceDesc->inMemory)
 				{
 					free(address);
 				}
@@ -105,20 +108,19 @@ BufferManager
 				}
 			}
 
-			sourceMemories.Remove(source.index);
-			sourceDescriptions.Remove(source.index);
-			if (!sourceDesc.inMemory)
+			sourceDescs.Remove(source.index);
+			if (!sourceDesc->inMemory)
 			{
-				close(sourceDesc.fileDescriptor);
+				close(sourceDesc->fileDescriptor);
 			}
 			return true;
 		}
 
 		WString BufferManager::GetSourceFileName(BufferSource source)
 		{
-			vint index = sourceDescriptions.Keys().IndexOf(source.index);
+			vint index = sourceDescs.Keys().IndexOf(source.index);
 			if (index == -1) return L"";
-			return sourceDescriptions.Values()[index].fileName;
+			return sourceDescs.Values()[index]->fileName;
 		}
 
 		void* BufferManager::LockPage(BufferSource source, BufferPage page)
