@@ -75,6 +75,8 @@ namespace vl
 			Ptr<PageDesc>		MapPage(BufferSource source, Ptr<SourceDesc> sourceDesc, BufferPage page);
 			bool				UnmapPage(BufferSource source, Ptr<SourceDesc> sourceDesc, BufferPage page);
 			BufferPage			AppendPage(BufferSource source, Ptr<SourceDesc> sourceDesc);
+			BufferPage			AllocatePage(BufferSource source, Ptr<SourceDesc> sourceDesc);
+			bool				FreePage(BufferSource source, Ptr<SourceDesc> sourceDesc, BufferPage page);
 			void				InitializeSource(BufferSource source, Ptr<SourceDesc> sourceDesc);
 
 		public:

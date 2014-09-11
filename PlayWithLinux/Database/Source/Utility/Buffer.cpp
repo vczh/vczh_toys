@@ -10,6 +10,8 @@
 #define INDEX_INITIAL_TOTALPAGECOUNT 0
 #define INDEX_INITIAL_NEXTFREEPAGE 1
 #define INDEX_INITIAL_AVAILABLEITEMS 2
+#define INDEX_INITIAL_AVAILABLEITEMBEGIN 3
+#define INDEX_INVALID (~(vuint64_t)0)
 
 namespace vl
 {
@@ -94,6 +96,56 @@ BufferManager
 			}
 		}
 
+		BufferPage BufferManager::AllocatePage(BufferSource source, Ptr<SourceDesc> sourceDesc)
+		{
+			BufferPage page = BufferPage::Invalid();
+			BufferPage freePage{0};
+			BufferPage previousFreePage = BufferPage::Invalid();
+			while (page.index == INDEX_INVALID && freePage.index != INDEX_INVALID)
+			{
+				previousFreePage = freePage;
+				vuint64_t* numbers = (vuint64_t*)LockPage(source, freePage);
+				if (!numbers) return BufferPage::Invalid();
+
+				auto next = numbers[INDEX_INITIAL_NEXTFREEPAGE];
+				if (next == INDEX_INVALID)
+				{
+					vuint64_t& count = numbers[INDEX_INITIAL_AVAILABLEITEMS];
+					if (count > 0)
+					{
+						page.index = numbers[count - 1 + INDEX_INITIAL_AVAILABLEITEMBEGIN];
+						count--;
+						UnlockPage(source, freePage, numbers, true);
+
+						if (count == 0 && previousFreePage.index != INDEX_INVALID)
+						{
+							numbers = (vuint64_t*)LockPage(source, previousFreePage);
+							numbers[INDEX_INITIAL_NEXTFREEPAGE] = INDEX_INVALID;
+							UnlockPage(source, previousFreePage, numbers, false);
+							FreePage(source, freePage);
+							break;
+						}
+					}
+				}
+				freePage.index = next;
+				UnlockPage(source, previousFreePage, numbers, false);
+			}
+
+			if (page.index == -1)
+			{
+				return AppendPage(source, sourceDesc);
+			}
+			else
+			{
+				return page;
+			}
+		}
+
+		bool BufferManager::FreePage(BufferSource, Ptr<SourceDesc> sourceDesc, BufferPage page)
+		{
+			return false;
+		}
+
 		void BufferManager::InitializeSource(BufferSource source, Ptr<SourceDesc> sourceDesc)
 		{
 			BufferPage page{0};
@@ -101,7 +153,7 @@ BufferManager
 			vuint64_t* numbers = (vuint64_t*)pageDesc->address;
 			memset(numbers, 0, pageSize);
 			numbers[INDEX_INITIAL_TOTALPAGECOUNT] = 1;
-			numbers[INDEX_INITIAL_NEXTFREEPAGE] = -1;
+			numbers[INDEX_INITIAL_NEXTFREEPAGE] = INDEX_INVALID;
 			numbers[INDEX_INITIAL_AVAILABLEITEMS] = 0;
 
 			if(!sourceDesc->inMemory)
@@ -284,7 +336,7 @@ BufferManager
 			if (index == -1) return BufferPage::Invalid();
 
 			auto sourceDesc = sourceDescs.Values()[index];
-			return BufferPage::Invalid();
+			return AllocatePage(source, sourceDesc);
 		}
 
 		bool BufferManager::FreePage(BufferSource source, BufferPage page)
@@ -293,7 +345,7 @@ BufferManager
 			if (index == -1) return false;
 
 			auto sourceDesc = sourceDescs.Values()[index];
-			return false;
+			return FreePage(source, sourceDesc, page);
 		}
 
 		bool BufferManager::EncodePointer(BufferPointer& pointer, BufferPage page, vuint64_t offset)
