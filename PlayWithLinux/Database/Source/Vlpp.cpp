@@ -22887,12 +22887,14 @@ Threading.cpp
 ***********************************************************************/
 
 #ifdef VCZH_MSVC
+#endif
 
 namespace vl
 {
 	using namespace threading_internal;
 	using namespace collections;
 
+#ifdef VCZH_MSVC
 /***********************************************************************
 WaitableObject
 ***********************************************************************/
@@ -23695,7 +23697,7 @@ ConditionVariable
 	{
 		WakeAllConditionVariable(&internalData->variable);
 	}
-
+#endif
 /***********************************************************************
 SpinLock
 ***********************************************************************/
@@ -23722,12 +23724,20 @@ SpinLock
 
 	bool SpinLock::TryEnter()
 	{
+#if defined VCZH_MSVC
 		return _InterlockedExchange(&token, 1)==0;
+#elif defined VCZH_GCC
+		return __sync_lock_test_and_set(&token, 1)==0;
+#endif
 	}
 
 	void SpinLock::Enter()
 	{
+#if defined VCZH_MSVC
 		while(_InterlockedCompareExchange(&token, 1, 0)!=0)
+#elif defined VCZH_GCC
+		while(__sync_val_compare_and_swap(&token, 1, 0)!=0)
+#endif
 		{
 			while(token!=0) _mm_pause();
 		}
@@ -23735,7 +23745,10 @@ SpinLock
 
 	void SpinLock::Leave()
 	{
+#if defined VCZH_MSVC
 		_InterlockedExchange(&token, 0);
+#elif defined VCZH_GCC
+		__sync_lock_test_and_set(&token, 0);
+#endif
 	}
 }
-#endif

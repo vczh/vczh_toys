@@ -14810,11 +14810,9 @@ Classes:
 #define VCZH_THREADING
 
 
-#ifdef VCZH_MSVC
-
 namespace vl
 {
-
+	
 /***********************************************************************
 内核模式对象
 ***********************************************************************/
@@ -14831,7 +14829,8 @@ namespace vl
 		struct ReaderWriterLockData;
 		struct ConditionVariableData;
 	}
-
+	
+#ifdef VCZH_MSVC
 	class WaitableObject : public Object, public NotCopyable
 	{
 	private:
@@ -15035,7 +15034,7 @@ namespace vl
 		void										WakeOnePending();
 		void										WakeAllPendings();
 	};
-
+#endif
 /***********************************************************************
 用户模式对象
 ***********************************************************************/
@@ -15070,6 +15069,7 @@ namespace vl
 #define READER_LOCK(LOCK) SCOPE_VARIABLE(ReaderWriterLock::ReaderScope, scope, LOCK)
 #define WRITER_LOCK(LOCK) SCOPE_VARIABLE(ReaderWriterLock::WriterScope, scope, LOCK)
 
+#ifdef VCZH_MSVC
 /***********************************************************************
 RepeatingTaskExecutor
 ***********************************************************************/
@@ -15149,10 +15149,8 @@ RepeatingTaskExecutor
 			}
 		}
 	};
-}
-
 #endif
-
+}
 #endif
 
 /***********************************************************************
