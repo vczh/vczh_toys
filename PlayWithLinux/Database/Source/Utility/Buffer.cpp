@@ -141,8 +141,62 @@ BufferManager
 			}
 		}
 
-		bool BufferManager::FreePage(BufferSource, Ptr<SourceDesc> sourceDesc, BufferPage page)
+		bool BufferManager::FreePage(BufferSource source, Ptr<SourceDesc> sourceDesc, BufferPage page)
 		{
+			if (sourceDesc->inMemory)
+			{
+				if (!sourceDesc->mappedPages.Keys().Contains(page.index))
+				{
+					return false;
+				}
+			}
+
+			vuint64_t maxAvailableItems = (pageSize - INDEX_INITIAL_AVAILABLEITEMBEGIN * sizeof(vuint64_t)) / sizeof(vuint64_t);
+			BufferPage freePage{0};
+			while (freePage.index != INDEX_INVALID)
+			{
+				vuint64_t* numbers = (vuint64_t*)LockPage(source, freePage);
+				if (!numbers)
+				{
+					return false;
+				}
+
+				vuint64_t& count = numbers[INDEX_INITIAL_AVAILABLEITEMS];
+				if (count < maxAvailableItems)
+				{
+					numbers[count + INDEX_INITIAL_AVAILABLEITEMBEGIN] = page.index;
+					count++;
+					UnlockPage(source, freePage, numbers, true);
+					break;
+				}
+				else if (numbers[INDEX_INITIAL_NEXTFREEPAGE] != INDEX_INVALID)
+				{
+					vuint64_t index = numbers[INDEX_INITIAL_NEXTFREEPAGE];
+					UnlockPage(source, freePage, numbers, false);
+					freePage.index = index;
+				}
+				else
+				{
+					BufferPage nextFreePage = AppendPage(source, sourceDesc);
+					if (nextFreePage.index != INDEX_INVALID)
+					{
+						numbers[INDEX_INITIAL_NEXTFREEPAGE] = nextFreePage.index;
+						UnlockPage(source, freePage, numbers, true);
+
+						numbers = (vuint64_t*)LockPage(source, nextFreePage);
+						numbers[INDEX_INITIAL_NEXTFREEPAGE] = INDEX_INVALID;
+						numbers[INDEX_INITIAL_AVAILABLEITEMS] = 0;
+						UnlockPage(source, nextFreePage, numbers, true);
+						return true;
+					}
+					else
+					{
+						UnlockPage(source, freePage, numbers, false);
+						break;
+					}
+				}
+			}
+
 			return false;
 		}
 
