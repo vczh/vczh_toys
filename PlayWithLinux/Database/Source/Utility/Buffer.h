@@ -57,6 +57,7 @@ namespace vl
 			class SourceDesc
 			{
 			public:
+				SpinLock					lock;
 				bool						inMemory;
 				int							fileDescriptor = -1;
 				WString						fileName;
@@ -68,6 +69,8 @@ namespace vl
 			vuint64_t			pageSize;
 			vuint64_t			cachePageCount;
 			vuint64_t			pageSizeBits;
+			SpinLock			lock;
+			volatile vint		usedSourceIndex;
 
 			SourceDescMap		sourceDescs;
 
@@ -77,6 +80,9 @@ namespace vl
 			BufferPage			AppendPage(BufferSource source, Ptr<SourceDesc> sourceDesc);
 			BufferPage			AllocatePage(BufferSource source, Ptr<SourceDesc> sourceDesc);
 			bool				FreePage(BufferSource source, Ptr<SourceDesc> sourceDesc, BufferPage page);
+			void*				LockPage(BufferSource source, Ptr<SourceDesc> sourceDesc, BufferPage page);
+			bool				UnlockPage(BufferSource source, Ptr<SourceDesc> sourceDesc, BufferPage page, void* buffer, bool persist);
+
 			void				InitializeSource(BufferSource source, Ptr<SourceDesc> sourceDesc);
 
 		public:

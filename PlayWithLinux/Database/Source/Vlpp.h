@@ -15064,10 +15064,10 @@ namespace vl
 		};
 	};
 
-#define SPIN_LOCK(LOCK) SCOPE_VARIABLE(SpinLock::Scope, scope, LOCK)
-#define CS_LOCK(LOCK) SCOPE_VARIABLE(CriticalSection::Scope, scope, LOCK)
-#define READER_LOCK(LOCK) SCOPE_VARIABLE(ReaderWriterLock::ReaderScope, scope, LOCK)
-#define WRITER_LOCK(LOCK) SCOPE_VARIABLE(ReaderWriterLock::WriterScope, scope, LOCK)
+#define SPIN_LOCK(LOCK) SCOPE_VARIABLE(const SpinLock::Scope&, scope, LOCK)
+#define CS_LOCK(LOCK) SCOPE_VARIABLE(const CriticalSection::Scope&, scope, LOCK)
+#define READER_LOCK(LOCK) SCOPE_VARIABLE(const ReaderWriterLock::ReaderScope&, scope, LOCK)
+#define WRITER_LOCK(LOCK) SCOPE_VARIABLE(const ReaderWriterLock::WriterScope&, scope, LOCK)
 
 #ifdef VCZH_MSVC
 /***********************************************************************

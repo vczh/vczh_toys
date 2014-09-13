@@ -81,18 +81,18 @@ BufferManager
 		BufferPage BufferManager::AppendPage(BufferSource source, Ptr<SourceDesc> sourceDesc)
 		{
 			BufferPage initialPage{0};
-			vuint64_t* numbers = (vuint64_t*)LockPage(source, initialPage);
+			vuint64_t* numbers = (vuint64_t*)LockPage(source, sourceDesc, initialPage);
 
 			BufferPage page{numbers[INDEX_INITIAL_TOTALPAGECOUNT]};
 			if (auto pageDesc = MapPage(source, sourceDesc, page))
 			{
 				numbers[INDEX_INITIAL_TOTALPAGECOUNT]++;
 				memset(pageDesc->address, 0, pageSize);
-				UnlockPage(source, initialPage, numbers, true);
+				UnlockPage(source, sourceDesc, initialPage, numbers, true);
 			}
 			else
 			{
-				UnlockPage(source, initialPage, numbers, false);
+				UnlockPage(source, sourceDesc, initialPage, numbers, false);
 			}
 		}
 
@@ -104,7 +104,7 @@ BufferManager
 			while (page.index == INDEX_INVALID && freePage.index != INDEX_INVALID)
 			{
 				previousFreePage = freePage;
-				vuint64_t* numbers = (vuint64_t*)LockPage(source, freePage);
+				vuint64_t* numbers = (vuint64_t*)LockPage(source, sourceDesc, freePage);
 				if (!numbers) return BufferPage::Invalid();
 
 				auto next = numbers[INDEX_INITIAL_NEXTFREEPAGE];
@@ -115,20 +115,20 @@ BufferManager
 					{
 						page.index = numbers[count - 1 + INDEX_INITIAL_AVAILABLEITEMBEGIN];
 						count--;
-						UnlockPage(source, freePage, numbers, true);
+						UnlockPage(source, sourceDesc, freePage, numbers, true);
 
 						if (count == 0 && previousFreePage.index != INDEX_INVALID)
 						{
-							numbers = (vuint64_t*)LockPage(source, previousFreePage);
+							numbers = (vuint64_t*)LockPage(source, sourceDesc, previousFreePage);
 							numbers[INDEX_INITIAL_NEXTFREEPAGE] = INDEX_INVALID;
-							UnlockPage(source, previousFreePage, numbers, false);
+							UnlockPage(source, sourceDesc, previousFreePage, numbers, false);
 							FreePage(source, freePage);
 							break;
 						}
 					}
 				}
 				freePage.index = next;
-				UnlockPage(source, previousFreePage, numbers, false);
+				UnlockPage(source, sourceDesc, previousFreePage, numbers, false);
 			}
 
 			if (page.index == -1)
@@ -155,7 +155,7 @@ BufferManager
 			BufferPage freePage{0};
 			while (freePage.index != INDEX_INVALID)
 			{
-				vuint64_t* numbers = (vuint64_t*)LockPage(source, freePage);
+				vuint64_t* numbers = (vuint64_t*)LockPage(source, sourceDesc, freePage);
 				if (!numbers)
 				{
 					return false;
@@ -166,13 +166,13 @@ BufferManager
 				{
 					numbers[count + INDEX_INITIAL_AVAILABLEITEMBEGIN] = page.index;
 					count++;
-					UnlockPage(source, freePage, numbers, true);
+					UnlockPage(source, sourceDesc, freePage, numbers, true);
 					break;
 				}
 				else if (numbers[INDEX_INITIAL_NEXTFREEPAGE] != INDEX_INVALID)
 				{
 					vuint64_t index = numbers[INDEX_INITIAL_NEXTFREEPAGE];
-					UnlockPage(source, freePage, numbers, false);
+					UnlockPage(source, sourceDesc, freePage, numbers, false);
 					freePage.index = index;
 				}
 				else
@@ -181,17 +181,17 @@ BufferManager
 					if (nextFreePage.index != INDEX_INVALID)
 					{
 						numbers[INDEX_INITIAL_NEXTFREEPAGE] = nextFreePage.index;
-						UnlockPage(source, freePage, numbers, true);
+						UnlockPage(source, sourceDesc, freePage, numbers, true);
 
-						numbers = (vuint64_t*)LockPage(source, nextFreePage);
+						numbers = (vuint64_t*)LockPage(source, sourceDesc, nextFreePage);
 						numbers[INDEX_INITIAL_NEXTFREEPAGE] = INDEX_INVALID;
 						numbers[INDEX_INITIAL_AVAILABLEITEMS] = 0;
-						UnlockPage(source, nextFreePage, numbers, true);
+						UnlockPage(source, sourceDesc, nextFreePage, numbers, true);
 						return true;
 					}
 					else
 					{
-						UnlockPage(source, freePage, numbers, false);
+						UnlockPage(source, sourceDesc, freePage, numbers, false);
 						break;
 					}
 				}
@@ -200,7 +200,55 @@ BufferManager
 			return false;
 		}
 
-		void BufferManager::InitializeSource(BufferSource source, Ptr<SourceDesc> sourceDesc)
+		void* BufferManager::LockPage(BufferSource source, Ptr<SourceDesc> sourceDesc, BufferPage page)
+		{
+			BufferPage initialPage{0};
+			if (sourceDesc->inMemory)
+			{
+				if (!sourceDesc->mappedPages.Keys().Contains(page.index))
+				{
+					return nullptr;
+				}
+			}
+			else if (auto pageDesc = MapPage(source, sourceDesc, initialPage))
+			{
+				vuint64_t* numbers = (vuint64_t*)pageDesc->address;
+				if (page.index >= numbers[INDEX_INITIAL_TOTALPAGECOUNT])
+				{
+					return nullptr;
+				}
+			}
+
+			if (auto pageDesc = MapPage(source, sourceDesc, page))
+			{
+				if (pageDesc->locked) return nullptr;
+				pageDesc->locked = true;
+				return pageDesc->address;
+			}
+			else
+			{
+				return nullptr;
+			}
+		}
+
+		bool BufferManager::UnlockPage(BufferSource source, Ptr<SourceDesc> sourceDesc, BufferPage page, void* buffer, bool persist)
+		{
+			vint index = sourceDesc->mappedPages.Keys().IndexOf(page.index);
+			if (index == -1) return false;
+
+			auto pageDesc = sourceDesc->mappedPages.Values()[index];
+			if (pageDesc->address != buffer) return false;
+			if (!pageDesc->locked) return false;
+
+			if (persist && !sourceDesc->inMemory)
+			{
+				msync(pageDesc->address, pageSize, MS_SYNC);
+			}
+			pageDesc->locked = false;
+			return true;
+		}	
+
+	void BufferManager::InitializeSource(BufferSource source, Ptr<SourceDesc> sourceDesc)
 		{
 			BufferPage page{0};
 			auto pageDesc = MapPage(source, sourceDesc, page);
@@ -220,6 +268,7 @@ BufferManager
 			:pageSize(_pageSize)
 			,cachePageCount(_cachePageCount)
 			,pageSizeBits(0)
+			,usedSourceIndex(0)
 		{
 			vuint64_t systemPageSize = sysconf(_SC_PAGE_SIZE);
 			pageSize = IntUpperBound(pageSize, systemPageSize);
@@ -259,17 +308,24 @@ BufferManager
 
 		BufferSource BufferManager::LoadMemorySource()
 		{
-			BufferSource source{(BufferSource::IndexType)sourceDescs.Count()};
+			BufferSource source{(BufferSource::IndexType)INCRC(&usedSourceIndex)};
 			auto desc = MakePtr<SourceDesc>();
 			desc->inMemory = true;
-			sourceDescs.Add(source.index, desc);
-			InitializeSource(source, desc);
+
+			SPIN_LOCK(lock)
+			{
+				sourceDescs.Add(source.index, desc);
+			}
+			SPIN_LOCK(desc->lock)
+			{
+				InitializeSource(source, desc);
+			}
 			return source;
 		}
 
 		BufferSource BufferManager::LoadFileSource(const WString& fileName, bool createNew)
 		{
-			BufferSource source{(BufferSource::IndexType)sourceDescs.Count()};
+			BufferSource source{(BufferSource::IndexType)INCRC(&usedSourceIndex)};
 			auto desc = MakePtr<SourceDesc>();
 			desc->inMemory = false;
 			desc->fileName = fileName;
@@ -287,33 +343,46 @@ BufferManager
 				return BufferSource::Invalid();
 			}
 
-			sourceDescs.Add(source.index, desc);
+			SPIN_LOCK(lock)
+			{
+				sourceDescs.Add(source.index, desc);
+			}
 			if (createNew)
 			{
-				InitializeSource(source, desc);
+				SPIN_LOCK(desc->lock)
+				{
+					InitializeSource(source, desc);
+				}
 			}
 			return source;
 		}
 
 		bool BufferManager::UnloadSource(BufferSource source)
 		{
-			vint index = sourceDescs.Keys().IndexOf(source.index);
-			if (index == -1) return false;
-			auto sourceDesc = sourceDescs.Values()[index];
-
-			FOREACH(Ptr<PageDesc>, pageDesc, sourceDesc->mappedPages.Values())
+			Ptr<SourceDesc> sourceDesc;
+			SPIN_LOCK(lock)
 			{
-				if (sourceDesc->inMemory)
+				vint index = sourceDescs.Keys().IndexOf(source.index);
+				if (index == -1) return false;
+				sourceDesc = sourceDescs.Values()[index];
+				sourceDescs.Remove(source.index);
+			}
+
+			SPIN_LOCK(sourceDesc->lock)
+			{
+				FOREACH(Ptr<PageDesc>, pageDesc, sourceDesc->mappedPages.Values())
 				{
-					free(pageDesc->address);
-				}
-				else
-				{
-					munmap(pageDesc->address, pageSize);
+					if (sourceDesc->inMemory)
+					{
+						free(pageDesc->address);
+					}
+					else
+					{
+						munmap(pageDesc->address, pageSize);
+					}
 				}
 			}
 
-			sourceDescs.Remove(source.index);
 			if (!sourceDesc->inMemory)
 			{
 				close(sourceDesc->fileDescriptor);
@@ -323,83 +392,76 @@ BufferManager
 
 		WString BufferManager::GetSourceFileName(BufferSource source)
 		{
-			vint index = sourceDescs.Keys().IndexOf(source.index);
-			if (index == -1) return L"";
-			return sourceDescs.Values()[index]->fileName;
+			SPIN_LOCK(lock)
+			{
+				vint index = sourceDescs.Keys().IndexOf(source.index);
+				if (index == -1) return L"";
+				return sourceDescs.Values()[index]->fileName;
+			}
 		}
 
 		void* BufferManager::LockPage(BufferSource source, BufferPage page)
 		{
-			vint index = sourceDescs.Keys().IndexOf(source.index);
-			if (index == -1) return nullptr;
-
-			auto sourceDesc = sourceDescs.Values()[index];
-			BufferPage initialPage{0};
-			if (sourceDesc->inMemory)
+			Ptr<SourceDesc> sourceDesc;
+			SPIN_LOCK(lock)
 			{
-				if (!sourceDesc->mappedPages.Keys().Contains(page.index))
-				{
-					return nullptr;
-				}
-			}
-			else if (auto pageDesc = MapPage(source, sourceDesc, initialPage))
-			{
-				vuint64_t* numbers = (vuint64_t*)pageDesc->address;
-				if (page.index >= numbers[INDEX_INITIAL_TOTALPAGECOUNT])
-				{
-					return nullptr;
-				}
+				vint index = sourceDescs.Keys().IndexOf(source.index);
+				if (index == -1) return nullptr;
+				sourceDesc = sourceDescs.Values()[index];
 			}
 
-			if (auto pageDesc = MapPage(source, sourceDesc, page))
+			SPIN_LOCK(sourceDesc->lock)
 			{
-				if (pageDesc->locked) return nullptr;
-				pageDesc->locked = true;
-				return pageDesc->address;
-			}
-			else
-			{
-				return nullptr;
+				return LockPage(source, sourceDesc, page);
 			}
 		}
 
 		bool BufferManager::UnlockPage(BufferSource source, BufferPage page, void* buffer, bool persist)
 		{
-			vint index = sourceDescs.Keys().IndexOf(source.index);
-			if (index == -1) return false;
-
-			auto sourceDesc = sourceDescs.Values()[index];
-			index = sourceDesc->mappedPages.Keys().IndexOf(page.index);
-			if (index == -1) return false;
-
-			auto pageDesc = sourceDesc->mappedPages.Values()[index];
-			if (pageDesc->address != buffer) return false;
-			if (!pageDesc->locked) return false;
-
-			if (persist && !sourceDesc->inMemory)
+			Ptr<SourceDesc> sourceDesc;
+			SPIN_LOCK(lock)
 			{
-				msync(pageDesc->address, pageSize, MS_SYNC);
+				vint index = sourceDescs.Keys().IndexOf(source.index);
+				if (index == -1) return false;
+				sourceDesc = sourceDescs.Values()[index];
 			}
-			pageDesc->locked = false;
-			return true;
+
+			SPIN_LOCK(sourceDesc->lock)
+			{
+				return UnlockPage(source, sourceDesc, page, buffer, persist);
+			}
 		}
 
 		BufferPage BufferManager::AllocatePage(BufferSource source)
 		{
-			vint index = sourceDescs.Keys().IndexOf(source.index);
-			if (index == -1) return BufferPage::Invalid();
+			Ptr<SourceDesc> sourceDesc;
+			SPIN_LOCK(lock)
+			{
+				vint index = sourceDescs.Keys().IndexOf(source.index);
+				if (index == -1) return BufferPage::Invalid();
+				auto sourceDesc = sourceDescs.Values()[index];
+			}
 
-			auto sourceDesc = sourceDescs.Values()[index];
-			return AllocatePage(source, sourceDesc);
+			SPIN_LOCK(sourceDesc->lock)
+			{
+				return AllocatePage(source, sourceDesc);
+			}
 		}
 
 		bool BufferManager::FreePage(BufferSource source, BufferPage page)
 		{
-			vint index = sourceDescs.Keys().IndexOf(source.index);
-			if (index == -1) return false;
+			Ptr<SourceDesc> sourceDesc;
+			SPIN_LOCK(lock)
+			{
+				vint index = sourceDescs.Keys().IndexOf(source.index);
+				if (index == -1) return false;
+				auto sourceDesc = sourceDescs.Values()[index];
+			}
 
-			auto sourceDesc = sourceDescs.Values()[index];
-			return FreePage(source, sourceDesc, page);
+			SPIN_LOCK(sourceDesc->lock)
+			{
+				return FreePage(source, sourceDesc, page);
+			}
 		}
 
 		bool BufferManager::EncodePointer(BufferPointer& pointer, BufferPage page, vuint64_t offset)
