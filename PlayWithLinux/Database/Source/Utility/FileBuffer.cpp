@@ -9,11 +9,25 @@
 #include <errno.h>
 #include <string.h>
 
+/*
+ * Page Structure
+ *		Initial Page	: [uint64 TotalPageCount][uint64 NextFreePage][uint64 FreePageItems]{[uint64 FreePage] ...}
+ *		Free Page		: [uint64 TotalPageCount][uint64 NextFreePage][uint64 FreePageItems]{[uint64 FreePage] ...}
+ *		Use Mask Page	: [uint64 NextUseMaskPage]{[bit FreePageMask] ...}
+ *			FreePageMask 1=used, 0=free
+ */
+
+#define INDEX_INVALID (~(vuint64_t)0)
+#define INDEX_PAGE_INITIAL 0
+#define INDEX_PAGE_USEMASK 1
+
 #define INDEX_INITIAL_TOTALPAGECOUNT 0
 #define INDEX_INITIAL_NEXTFREEPAGE 1
-#define INDEX_INITIAL_AVAILABLEITEMS 2
-#define INDEX_INITIAL_AVAILABLEITEMBEGIN 3
-#define INDEX_INVALID (~(vuint64_t)0)
+#define INDEX_INITIAL_FREEPAGEITEMS 2
+#define INDEX_INITIAL_FREEPAGEITEMBEGIN 3
+
+#define INDEX_USEMASK_NEXTUSEMASKPAGE 0
+#define INDEX_USEMASK_FREEPAGEMASKBEGIN 1
 
 namespace vl
 {
@@ -28,13 +42,17 @@ FileBufferSource
 		class FileBufferSource : public Object, public IBufferSource
 		{
 			typedef collections::Dictionary<vuint64_t, Ptr<BufferPageDesc>>		PageMap;
+			typedef collections::List<vuint64_t>								PageList;
 		private:
 			BufferSource			source;
 			vuint64_t				pageSize;
 			SpinLock				lock;
 			WString					fileName;
 			int						fileDescriptor;
+
 			PageMap					mappedPages;
+			PageList				useMaskPages;
+			vuint64_t				useMaskPageItemCount;
 
 		public:
 
@@ -43,6 +61,7 @@ FileBufferSource
 				,pageSize(_pageSize)
 				,fileName(_fileName)
 				,fileDescriptor(_fileDescriptor)
+				,useMaskPageItemCount((_pageSize - sizeof(vuint64_t)) / sizeof(vuint64_t))
 			{
 			}
 
@@ -122,7 +141,7 @@ FileBufferSource
 
 			BufferPage AppendPage()
 			{
-				BufferPage initialPage{0};
+				BufferPage initialPage{INDEX_PAGE_INITIAL};
 				vuint64_t* numbers = (vuint64_t*)LockPage(initialPage);
 
 				BufferPage page{numbers[INDEX_INITIAL_TOTALPAGECOUNT]};
@@ -142,7 +161,7 @@ FileBufferSource
 			BufferPage AllocatePage()override
 			{
 				BufferPage page = BufferPage::Invalid();
-				BufferPage freePage{0};
+				BufferPage freePage{INDEX_PAGE_INITIAL};
 				BufferPage previousFreePage = BufferPage::Invalid();
 				while (page.index == INDEX_INVALID && freePage.index != INDEX_INVALID)
 				{
@@ -152,10 +171,10 @@ FileBufferSource
 					auto next = numbers[INDEX_INITIAL_NEXTFREEPAGE];
 					if (next == INDEX_INVALID)
 					{
-						vuint64_t& count = numbers[INDEX_INITIAL_AVAILABLEITEMS];
+						vuint64_t& count = numbers[INDEX_INITIAL_FREEPAGEITEMS];
 						if (count > 0)
 						{
-							page.index = numbers[count - 1 + INDEX_INITIAL_AVAILABLEITEMBEGIN];
+							page.index = numbers[count - 1 + INDEX_INITIAL_FREEPAGEITEMBEGIN];
 							count--;
 							UnlockPage(freePage, numbers, true);
 
@@ -197,8 +216,8 @@ FileBufferSource
 					}
 				}
 
-				vuint64_t maxAvailableItems = (pageSize - INDEX_INITIAL_AVAILABLEITEMBEGIN * sizeof(vuint64_t)) / sizeof(vuint64_t);
-				BufferPage freePage{0};
+				vuint64_t maxAvailableItems = (pageSize - INDEX_INITIAL_FREEPAGEITEMBEGIN * sizeof(vuint64_t)) / sizeof(vuint64_t);
+				BufferPage freePage{INDEX_PAGE_INITIAL};
 				while (freePage.index != INDEX_INVALID)
 				{
 					vuint64_t* numbers = (vuint64_t*)LockPage(freePage);
@@ -207,10 +226,10 @@ FileBufferSource
 						return false;
 					}
 
-					vuint64_t& count = numbers[INDEX_INITIAL_AVAILABLEITEMS];
+					vuint64_t& count = numbers[INDEX_INITIAL_FREEPAGEITEMS];
 					if (count < maxAvailableItems)
 					{
-						numbers[count + INDEX_INITIAL_AVAILABLEITEMBEGIN] = page.index;
+						numbers[count + INDEX_INITIAL_FREEPAGEITEMBEGIN] = page.index;
 						count++;
 						UnlockPage(freePage, numbers, true);
 						mappedPages.Remove(page.index);
@@ -232,7 +251,7 @@ FileBufferSource
 
 							numbers = (vuint64_t*)LockPage(nextFreePage);
 							numbers[INDEX_INITIAL_NEXTFREEPAGE] = INDEX_INVALID;
-							numbers[INDEX_INITIAL_AVAILABLEITEMS] = 0;
+							numbers[INDEX_INITIAL_FREEPAGEITEMS] = 0;
 							UnlockPage(nextFreePage, numbers, true);
 							mappedPages.Remove(page.index);
 							return true;
@@ -250,7 +269,7 @@ FileBufferSource
 
 			void* LockPage(BufferPage page)override
 			{
-				BufferPage initialPage{0};
+				BufferPage initialPage{INDEX_PAGE_INITIAL};
 				if (auto pageDesc = MapPage(initialPage))
 				{
 					vuint64_t* numbers = (vuint64_t*)pageDesc->address;
@@ -289,16 +308,42 @@ FileBufferSource
 				return true;
 			}	
 
-			void InitializeSource()
+			void InitializeEmptySource()
 			{
-				BufferPage page{0};
-				auto pageDesc = MapPage(page);
-				vuint64_t* numbers = (vuint64_t*)pageDesc->address;
-				memset(numbers, 0, pageSize);
-				numbers[INDEX_INITIAL_TOTALPAGECOUNT] = 1;
-				numbers[INDEX_INITIAL_NEXTFREEPAGE] = INDEX_INVALID;
-				numbers[INDEX_INITIAL_AVAILABLEITEMS] = 0;
-				msync(numbers, pageSize, MS_SYNC);
+				useMaskPages.Clear();
+				{
+					BufferPage page{INDEX_PAGE_INITIAL};
+					auto pageDesc = MapPage(page);
+					vuint64_t* numbers = (vuint64_t*)pageDesc->address;
+					memset(numbers, 0, pageSize);
+					numbers[INDEX_INITIAL_TOTALPAGECOUNT] = 2;
+					numbers[INDEX_INITIAL_NEXTFREEPAGE] = INDEX_INVALID;
+					numbers[INDEX_INITIAL_FREEPAGEITEMS] = 0;
+					msync(numbers, pageSize, MS_SYNC);
+				}
+				{
+					BufferPage page{INDEX_PAGE_USEMASK};
+					auto pageDesc = MapPage(page);
+					vuint64_t* numbers = (vuint64_t*)pageDesc->address;
+					memset(numbers, 0, pageSize);
+					numbers[INDEX_USEMASK_NEXTUSEMASKPAGE] = INDEX_INVALID;
+					msync(numbers, pageSize, MS_SYNC);
+					useMaskPages.Add(page.index);
+				}
+			}
+
+			void InitializeExistingSource()
+			{
+				useMaskPages.Clear();
+				BufferPage page{INDEX_PAGE_USEMASK};
+				
+				while(page.index != INDEX_INVALID)
+				{
+					useMaskPages.Add(page.index);
+					auto pageDesc = MapPage(page);
+					vuint64_t* numbers = (vuint64_t*)pageDesc->address;
+					page.index = numbers[INDEX_USEMASK_NEXTUSEMASKPAGE];
+				}
 			}
 		};
 
@@ -324,7 +369,11 @@ FileBufferSource
 				auto result = new FileBufferSource(source, pageSize, fileName, fileDescriptor);
 				if (createNew)
 				{
-					result->InitializeSource();
+					result->InitializeEmptySource();
+				}
+				else
+				{
+					result->InitializeExistingSource();
 				}
 				return result;
 			}

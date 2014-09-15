@@ -3,9 +3,6 @@ Vczh Library++ 3.0
 Developer: Zihan Chen(vczh)
 Database::Utility
 
-Page Structure
-	[Initial Page]	|uint64 TotalPageCount|uint64 nextFreePage|uint64 availableItems|uint64 FreePages ...|
-	[Free Page]		|uint64 <reserved>    |uint64 nextFreePage|uint64 availableItems|uint64 FreePages ...|
 ***********************************************************************/
 
 #ifndef VCZH_DATABASE_UTILITY_BUFFER

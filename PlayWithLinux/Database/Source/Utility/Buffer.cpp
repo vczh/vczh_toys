@@ -9,12 +9,6 @@
 #include <errno.h>
 #include <string.h>
 
-#define INDEX_INITIAL_TOTALPAGECOUNT 0
-#define INDEX_INITIAL_NEXTFREEPAGE 1
-#define INDEX_INITIAL_AVAILABLEITEMS 2
-#define INDEX_INITIAL_AVAILABLEITEMBEGIN 3
-#define INDEX_INVALID (~(vuint64_t)0)
-
 namespace vl
 {
 	namespace database
