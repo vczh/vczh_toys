@@ -27,7 +27,7 @@
 #define INDEX_INITIAL_FREEPAGEITEMBEGIN 3
 
 #define INDEX_USEMASK_NEXTUSEMASKPAGE 0
-#define INDEX_USEMASK_FREEPAGEMASKBEGIN 1
+#define INDEX_USEMASK_USEMASKBEGIN 1
 
 namespace vl
 {
@@ -52,6 +52,8 @@ FileBufferSource
 
 			PageMap					mappedPages;
 			PageList				useMaskPages;
+
+			vuint64_t				initialPageItemCount;
 			vuint64_t				useMaskPageItemCount;
 
 		public:
@@ -61,7 +63,8 @@ FileBufferSource
 				,pageSize(_pageSize)
 				,fileName(_fileName)
 				,fileDescriptor(_fileDescriptor)
-				,useMaskPageItemCount((_pageSize - sizeof(vuint64_t)) / sizeof(vuint64_t))
+				,initialPageItemCount((_pageSize - INDEX_INITIAL_FREEPAGEITEMBEGIN * sizeof(vuint64_t)) / sizeof(vuint64_t))
+				,useMaskPageItemCount((_pageSize - INDEX_USEMASK_USEMASKBEGIN * sizeof(vuint64_t)) / sizeof(vuint64_t))
 			{
 			}
 
@@ -139,6 +142,69 @@ FileBufferSource
 				return true;
 			}
 
+			bool GetUseMask(BufferPage page)
+			{
+				auto useMaskPageBits = 8 * sizeof(vuint64_t);
+				auto useMaskPageIndex = page.index / (useMaskPageBits * useMaskPageItemCount);
+				auto useMaskPageItem = INDEX_USEMASK_USEMASKBEGIN + page.index % (useMaskPageBits * useMaskPageItemCount);
+				auto useMaskPageShift = page.index % useMaskPageBits;
+
+				BufferPage useMaskPage{useMaskPages[useMaskPageIndex]};
+				auto pageDesc = MapPage(useMaskPage);
+				vuint64_t* numbers = (vuint64_t*)pageDesc->address;
+				auto& item = numbers[useMaskPageItem];
+				bool result = ((item >> useMaskPageShift) & ((vuint64_t)1)) == 1;
+				return result;
+			}
+			
+			void SetUseMask(BufferPage page, bool available)
+			{
+				auto useMaskPageBits = 8 * sizeof(vuint64_t);
+				auto useMaskPageIndex = page.index / (useMaskPageBits * useMaskPageItemCount);
+				auto useMaskPageItem = INDEX_USEMASK_USEMASKBEGIN + page.index % (useMaskPageBits * useMaskPageItemCount);
+				auto useMaskPageShift = page.index % useMaskPageBits;
+				bool newPage = false;
+
+				BufferPage useMaskPage = BufferPage::Invalid();
+
+				if (useMaskPageIndex == useMaskPages.Count())
+				{
+					newPage = true;
+					BufferPage lastPage{useMaskPages[useMaskPageIndex - 1]};
+					useMaskPage = AppendPage();
+					useMaskPages.Add(useMaskPage.index);
+
+					auto pageDesc = MapPage(lastPage);
+					vuint64_t* numbers = (vuint64_t*)pageDesc->address;
+					numbers[INDEX_USEMASK_NEXTUSEMASKPAGE] = useMaskPage.index;
+					msync(numbers, pageSize, MS_SYNC);
+				}
+				else
+				{
+					useMaskPage.index = useMaskPageIndex;
+				}
+
+				auto pageDesc = MapPage(useMaskPage);
+				vuint64_t* numbers = (vuint64_t*)pageDesc->address;
+				if (newPage)
+				{
+					numbers[INDEX_USEMASK_NEXTUSEMASKPAGE] = INDEX_INVALID;
+				}
+
+				auto& item = numbers[useMaskPageItem];
+				if (available)
+				{
+					vuint64_t mask = ((vuint64_t)1) << useMaskPageShift;
+					item |= mask;
+				}
+				else
+				{
+					vuint64_t mask = ~(((vuint64_t)1) << useMaskPageShift);
+					item &= mask;
+				}
+				msync(numbers, pageSize, MS_SYNC);
+			}
+
 			BufferPage AppendPage()
 			{
 				BufferPage initialPage{INDEX_PAGE_INITIAL};
@@ -155,6 +221,7 @@ FileBufferSource
 				{
 					UnlockPage(initialPage, numbers, false);
 				}
+				SetUseMask(page, true);
 				return page;
 			}
 
@@ -200,6 +267,7 @@ FileBufferSource
 				}
 				else
 				{
+					SetUseMask(page, true);
 					return page;
 				}
 			}
@@ -226,6 +294,15 @@ FileBufferSource
 						return false;
 					}
 
+					if (freePage.index == INDEX_PAGE_INITIAL)
+					{
+						if (page.index >= numbers[INDEX_INITIAL_TOTALPAGECOUNT])
+						{
+							UnlockPage(freePage, numbers, false);
+							return false;
+						}
+					}
+
 					vuint64_t& count = numbers[INDEX_INITIAL_FREEPAGEITEMS];
 					if (count < maxAvailableItems)
 					{
@@ -233,6 +310,8 @@ FileBufferSource
 						count++;
 						UnlockPage(freePage, numbers, true);
 						mappedPages.Remove(page.index);
+
+						SetUseMask(page, false);
 						return true;
 					}
 					else if (numbers[INDEX_INITIAL_NEXTFREEPAGE] != INDEX_INVALID)
@@ -254,6 +333,8 @@ FileBufferSource
 							numbers[INDEX_INITIAL_FREEPAGEITEMS] = 0;
 							UnlockPage(nextFreePage, numbers, true);
 							mappedPages.Remove(page.index);
+
+							SetUseMask(page, false);
 							return true;
 						}
 						else
@@ -279,6 +360,7 @@ FileBufferSource
 					}
 				}
 
+				if (!GetUseMask(page)) return nullptr;
 				if (auto pageDesc = MapPage(page))
 				{
 					if (pageDesc->locked) return nullptr;
@@ -329,6 +411,10 @@ FileBufferSource
 					numbers[INDEX_USEMASK_NEXTUSEMASKPAGE] = INDEX_INVALID;
 					msync(numbers, pageSize, MS_SYNC);
 					useMaskPages.Add(page.index);
+				}
+				{
+					BufferPage page{INDEX_PAGE_INITIAL};
+					SetUseMask(page, true);
 				}
 			}
 
