@@ -40,50 +40,39 @@ namespace vl
 		DEFINE_INDEX_TYPE(BufferPointer, vuint64_t);
 #undef DEFINE_INDEX_TYPE
 
+		class IBufferSource : public virtual Interface
+		{
+		public:
+			virtual void			Unload() = 0;
+			virtual BufferSource	GetBufferSource() = 0;
+			virtual SpinLock&		GetLock() = 0;
+			virtual WString			GetFileName() = 0;
+			virtual bool			UnmapPage(BufferPage page) = 0;
+			virtual BufferPage		AllocatePage() = 0;
+			virtual bool			FreePage(BufferPage page) = 0;
+			virtual void*			LockPage(BufferPage page) = 0;
+			virtual bool			UnlockPage(BufferPage page, void* address, bool persist) = 0;
+		};
+
+		class BufferPageDesc
+		{
+		public:
+			void*					address = nullptr;
+			vuint64_t				offset = 0;
+			bool					locked = false;
+			vuint64_t				lastAccessTime = 0;
+		};
+
 		class BufferManager
 		{
-		private:
-			class PageDesc
-			{
-			public:
-				void*			address;
-				BufferSource	source;
-				vuint64_t		offset;
-				bool			locked = false;
-				vuint64_t		lastAccessTime = 0;
-			};
-			typedef collections::Dictionary<vuint64_t, Ptr<PageDesc>>					PageDescMap;
-
-			class SourceDesc
-			{
-			public:
-				SpinLock					lock;
-				bool						inMemory;
-				int							fileDescriptor = -1;
-				WString						fileName;
-				PageDescMap					mappedPages;
-			};
-			typedef collections::Dictionary<BufferSource::IndexType, Ptr<SourceDesc>>	SourceDescMap;
-
+			typedef collections::Dictionary<BufferSource::IndexType, Ptr<IBufferSource>>	SourceMap;
 		private:
 			vuint64_t			pageSize;
 			vuint64_t			cachePageCount;
 			vuint64_t			pageSizeBits;
 			SpinLock			lock;
 			volatile vint		usedSourceIndex;
-
-			SourceDescMap		sourceDescs;
-
-		protected:
-			Ptr<PageDesc>		MapPage(BufferSource source, Ptr<SourceDesc> sourceDesc, BufferPage page);
-			bool				UnmapPage(BufferSource source, Ptr<SourceDesc> sourceDesc, BufferPage page);
-			BufferPage			AppendPage(BufferSource source, Ptr<SourceDesc> sourceDesc);
-			BufferPage			AllocatePage(BufferSource source, Ptr<SourceDesc> sourceDesc);
-			bool				FreePage(BufferSource source, Ptr<SourceDesc> sourceDesc, BufferPage page);
-			void*				LockPage(BufferSource source, Ptr<SourceDesc> sourceDesc, BufferPage page);
-			bool				UnlockPage(BufferSource source, Ptr<SourceDesc> sourceDesc, BufferPage page, void* buffer, bool persist);
-
-			void				InitializeSource(BufferSource source, Ptr<SourceDesc> sourceDesc);
+			SourceMap			sources;
 
 		public:
 			BufferManager(vuint64_t _pageSize, vuint64_t _cachePageCount);
