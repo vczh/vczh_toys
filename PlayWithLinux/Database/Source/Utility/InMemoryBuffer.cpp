@@ -58,7 +58,11 @@ InMemoryBufferSource
 
 			Ptr<BufferPageDesc> MapPage(BufferPage page)
 			{
-				if (page.index == pages.Count())
+				if (page.index > pages.Count())
+				{
+					return nullptr;
+				}
+				else if (page.index == pages.Count() || !pages[page.index])
 				{
 					auto address = malloc(pageSize);
 					if (!address) return nullptr;
@@ -67,7 +71,15 @@ InMemoryBufferSource
 					pageDesc->address = address;
 					pageDesc->offset = page.index * pageSize;
 					pageDesc->lastAccessTime = (vuint64_t)time(nullptr);
-					pages.Add(pageDesc);
+
+					if (page.index == pages.Count())
+					{
+						pages.Add(pageDesc);
+					}
+					else
+					{
+						pages[page.index] = pageDesc;
+					}
 					return pageDesc;
 				}
 				else
