@@ -156,14 +156,16 @@ BufferManager
 
 		bool BufferManager::FreePage(BufferSource source, Ptr<SourceDesc> sourceDesc, BufferPage page)
 		{
-			if (sourceDesc->inMemory)
+			vint index = sourceDesc->mappedPages.Keys().IndexOf(page.index);
+			if (index == -1)
 			{
-				vint index = sourceDesc->mappedPages.Keys().IndexOf(page.index);
-				if (index == -1)
+				if (sourceDesc->inMemory)
 				{
 					return false;
 				}
-
+			}
+			else
+			{
 				auto pageDesc = sourceDesc->mappedPages.Values()[index];
 				if (pageDesc->locked)
 				{
