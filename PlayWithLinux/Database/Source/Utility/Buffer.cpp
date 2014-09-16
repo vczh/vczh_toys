@@ -332,7 +332,7 @@ BufferManager
 
 			if (createNew)
 			{
-				desc->fileDescriptor = creat(wtoa(fileName).Buffer(), 0x555);
+				desc->fileDescriptor = creat(wtoa(fileName).Buffer(), 0666);
 			}
 			else
 			{
