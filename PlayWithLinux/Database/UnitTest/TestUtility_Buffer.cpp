@@ -76,7 +76,7 @@ TEST_CASE_SOURCE(AllocateFreePage)
 	TEST_ASSERT(page2.IsValid());
 	TEST_ASSERT(page1.index != page2.index);
 
-	auto addr1 = bm.LockPage(source, page2);
+	auto addr1 = bm.LockPage(source, page1);
 	TEST_ASSERT(addr1 != nullptr);
 	auto addr2 = bm.LockPage(source, page2);
 	TEST_ASSERT(addr2 != nullptr);
@@ -91,7 +91,7 @@ TEST_CASE_SOURCE(AllocateFreePage)
 	addr2 = bm.LockPage(source, page2);
 	TEST_ASSERT(addr2 != nullptr);
 	TEST_ASSERT(strcmp((char*)addr2, "This is page 2") == 0);
-	TEST_ASSERT(bm.UnlockPage(source, page2, addr2, true) == true);
+	TEST_ASSERT(bm.UnlockPage(source, page2, addr2, false) == true);
 
 	auto page3 = bm.AllocatePage(source);
 	TEST_ASSERT(page3.index == page1.index);

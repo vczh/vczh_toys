@@ -128,15 +128,21 @@ BufferManager
 					{
 						page.index = numbers[count - 1 + INDEX_INITIAL_AVAILABLEITEMBEGIN];
 						count--;
-						UnlockPage(source, sourceDesc, freePage, numbers, true);
 
 						if (count == 0 && previousFreePage.index != INDEX_INVALID)
 						{
-							numbers = (vuint64_t*)LockPage(source, sourceDesc, previousFreePage);
 							numbers[INDEX_INITIAL_NEXTFREEPAGE] = INDEX_INVALID;
-							UnlockPage(source, sourceDesc, previousFreePage, numbers, false);
-							FreePage(source, freePage);
+							UnlockPage(source, sourceDesc, freePage, numbers, true);
+
+							if (sourceDesc->inMemory)
+							{
+								MapPage(source, sourceDesc, page);
+							}
 							break;
+						}
+						else
+						{
+							UnlockPage(source, sourceDesc, freePage, numbers, true);
 						}
 					}
 				}
@@ -189,6 +195,7 @@ BufferManager
 					numbers[count + INDEX_INITIAL_AVAILABLEITEMBEGIN] = page.index;
 					count++;
 					UnlockPage(source, sourceDesc, freePage, numbers, true);
+					sourceDesc->mappedPages.Remove(page.index);
 					return true;
 				}
 				else if (numbers[INDEX_INITIAL_NEXTFREEPAGE] != INDEX_INVALID)
@@ -209,6 +216,7 @@ BufferManager
 						numbers[INDEX_INITIAL_NEXTFREEPAGE] = INDEX_INVALID;
 						numbers[INDEX_INITIAL_AVAILABLEITEMS] = 0;
 						UnlockPage(source, sourceDesc, nextFreePage, numbers, true);
+						sourceDesc->mappedPages.Remove(page.index);
 						return true;
 					}
 					else
