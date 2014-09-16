@@ -27,3 +27,27 @@ TEST_CASE(Utility_Buffer_AddRemoveSource)
 	TEST_ASSERT(bm.GetSourceFileName(a) == L"");
 	TEST_ASSERT(bm.GetSourceFileName(b) == TEMP_DIR L"db.bin");
 }
+
+#define TEST_CASE_SOURCE(NAME)														\
+extern void TestCase_Utility_Buffer_##NAME(BufferManager& bm, BufferSource source);	\
+TEST_CASE(Utility_Buffer_InMemory_##NAME)											\
+{																					\
+	BufferManager bm(64 KB, 1 MB);													\
+	auto source = bm.LoadMemorySource();											\
+	TestCase_Utility_Buffer_##NAME(bm, source);										\
+}																					\
+TEST_CASE(Utility_Buffer_File_##NAME)												\
+{																					\
+	BufferManager bm(64 KB, 1 MB);													\
+	auto source = bm.LoadFileSource(TEMP_DIR L"db.bin", true);						\
+	TestCase_Utility_Buffer_##NAME(bm, source);										\
+}																					\
+void TestCase_Utility_Buffer_##NAME(BufferManager& bm, BufferSource source)			\
+
+TEST_CASE_SOURCE(AllocateFreePage)
+{
+}
+
+TEST_CASE_SOURCE(LockUnlockPage)
+{
+}
