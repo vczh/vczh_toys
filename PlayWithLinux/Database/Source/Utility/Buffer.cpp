@@ -116,7 +116,6 @@ BufferManager
 			BufferPage previousFreePage = BufferPage::Invalid();
 			while (page.index == INDEX_INVALID && freePage.index != INDEX_INVALID)
 			{
-				previousFreePage = freePage;
 				vuint64_t* numbers = (vuint64_t*)LockPage(source, sourceDesc, freePage);
 				if (!numbers) return BufferPage::Invalid();
 
@@ -128,24 +127,24 @@ BufferManager
 					{
 						page.index = numbers[count - 1 + INDEX_INITIAL_AVAILABLEITEMBEGIN];
 						count--;
+						UnlockPage(source, sourceDesc, freePage, numbers, true);
 
 						if (count == 0 && previousFreePage.index != INDEX_INVALID)
 						{
+							numbers = (vuint64_t*)LockPage(source, sourceDesc, previousFreePage);
 							numbers[INDEX_INITIAL_NEXTFREEPAGE] = INDEX_INVALID;
-							UnlockPage(source, sourceDesc, freePage, numbers, true);
-
-							if (sourceDesc->inMemory)
-							{
-								MapPage(source, sourceDesc, page);
-							}
-							break;
+							UnlockPage(source, sourceDesc, previousFreePage, numbers, true);
+							FreePage(source, sourceDesc, freePage);
 						}
-						else
+						if (sourceDesc->inMemory)
 						{
-							UnlockPage(source, sourceDesc, freePage, numbers, true);
+							MapPage(source, sourceDesc, page);
 						}
+						break;
 					}
 				}
+
+				previousFreePage = freePage;
 				freePage.index = next;
 				UnlockPage(source, sourceDesc, previousFreePage, numbers, false);
 			}
