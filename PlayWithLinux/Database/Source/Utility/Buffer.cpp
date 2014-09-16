@@ -6,6 +6,8 @@
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <errno.h>
+#include <string.h>
 
 #define INDEX_INITIAL_TOTALPAGECOUNT 0
 #define INDEX_INITIAL_NEXTFREEPAGE 1
@@ -35,6 +37,16 @@ BufferManager
 				}
 				else
 				{
+					struct stat fileState;	
+					if (fstat(sourceDesc->fileDescriptor, &fileState) == -1)
+					{
+						return 0;
+					}
+					if (fileState.st_size < offset + pageSize)
+					{
+						ftruncate(sourceDesc->fileDescriptor, offset + pageSize);
+					}
+
 					address = mmap(nullptr, pageSize, PROT_READ | PROT_WRITE, MAP_SHARED, sourceDesc->fileDescriptor, offset);
 					if (address == MAP_FAILED)
 					{
@@ -332,7 +344,8 @@ BufferManager
 
 			if (createNew)
 			{
-				desc->fileDescriptor = creat(wtoa(fileName).Buffer(), 0666);
+				auto mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH;
+				desc->fileDescriptor = open(wtoa(fileName).Buffer(), O_CREAT | O_TRUNC | O_RDWR, mode);
 			}
 			else
 			{
