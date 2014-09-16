@@ -106,6 +106,7 @@ BufferManager
 			{
 				UnlockPage(source, sourceDesc, initialPage, numbers, false);
 			}
+			return page;
 		}
 
 		BufferPage BufferManager::AllocatePage(BufferSource source, Ptr<SourceDesc> sourceDesc)
@@ -157,7 +158,14 @@ BufferManager
 		{
 			if (sourceDesc->inMemory)
 			{
-				if (!sourceDesc->mappedPages.Keys().Contains(page.index))
+				vint index = sourceDesc->mappedPages.Keys().IndexOf(page.index);
+				if (index == -1)
+				{
+					return false;
+				}
+
+				auto pageDesc = sourceDesc->mappedPages.Values()[index];
+				if (pageDesc->locked)
 				{
 					return false;
 				}
@@ -179,7 +187,7 @@ BufferManager
 					numbers[count + INDEX_INITIAL_AVAILABLEITEMBEGIN] = page.index;
 					count++;
 					UnlockPage(source, sourceDesc, freePage, numbers, true);
-					break;
+					return true;
 				}
 				else if (numbers[INDEX_INITIAL_NEXTFREEPAGE] != INDEX_INVALID)
 				{
@@ -452,7 +460,7 @@ BufferManager
 			{
 				vint index = sourceDescs.Keys().IndexOf(source.index);
 				if (index == -1) return BufferPage::Invalid();
-				auto sourceDesc = sourceDescs.Values()[index];
+				sourceDesc = sourceDescs.Values()[index];
 			}
 
 			SPIN_LOCK(sourceDesc->lock)
@@ -468,7 +476,7 @@ BufferManager
 			{
 				vint index = sourceDescs.Keys().IndexOf(source.index);
 				if (index == -1) return false;
-				auto sourceDesc = sourceDescs.Values()[index];
+				sourceDesc = sourceDescs.Values()[index];
 			}
 
 			SPIN_LOCK(sourceDesc->lock)

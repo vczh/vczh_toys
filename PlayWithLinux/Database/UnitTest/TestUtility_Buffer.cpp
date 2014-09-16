@@ -62,8 +62,8 @@ TEST_CASE_SOURCE(LockUnlockPage)
 	TEST_ASSERT(bm.UnlockPage(source, page, addr, false) == true);
 	TEST_ASSERT(bm.UnlockPage(source, page, addr, false) == false);
 
-	TEST_ASSERT(bm.UnlockPage(source, page, (char*)addr + 1, false) == false);
 	TEST_ASSERT(bm.FreePage(source, page) == true);
+	TEST_ASSERT(bm.UnlockPage(source, page, (char*)addr + 1, false) == false);
 	TEST_ASSERT(bm.UnlockPage(source, page, addr, false) == false);
 	TEST_ASSERT(bm.UnlockPage(source, page, addr, false) == false);
 }
