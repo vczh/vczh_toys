@@ -196,7 +196,7 @@ FileBufferSource
 			BufferPage PopFreePage()
 			{
 				BufferPage page = BufferPage::Invalid();
-				BufferPage initialPage{initialPages[initialPages.Count() - 1]};
+				BufferPage initialPage{initialPages[activeInitialPageIndex]};
 				auto pageDesc = MapPage(initialPage);
 				vuint64_t* numbers = (vuint64_t*)pageDesc->address;
 				vuint64_t& count = numbers[INDEX_INITIAL_FREEPAGEITEMS];
