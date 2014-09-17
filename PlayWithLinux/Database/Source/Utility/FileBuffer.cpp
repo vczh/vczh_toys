@@ -187,7 +187,7 @@ FileBufferSource
 				}
 				else
 				{
-					numbers[INDEX_INITIAL_FREEPAGEITEMBEGIN + count] == page.index;
+					numbers[INDEX_INITIAL_FREEPAGEITEMBEGIN + count] = page.index;
 					count++;
 					msync(numbers, pageSize, MS_SYNC);
 				}
