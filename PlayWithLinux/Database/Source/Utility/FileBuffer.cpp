@@ -181,7 +181,7 @@ FileBufferSource
 				}
 				else
 				{
-					useMaskPage.index = useMaskPageIndex;
+					useMaskPage.index = useMaskPages[useMaskPageIndex];
 				}
 
 				auto pageDesc = MapPage(useMaskPage);
