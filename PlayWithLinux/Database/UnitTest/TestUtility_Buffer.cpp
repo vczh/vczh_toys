@@ -124,10 +124,7 @@ TEST_CASE(Utility_Buffer_File_AllocateFreeManyTimes)
 
 	for (vint i = 0; i < TotalCount; i++)
 	{
-		if (i % 1000 == 0)
-		{
-			console::Console::WriteLine(L"Allocating " + itow(i) + L" ... " + itow(i + 999));
-		}
+		console::Console::WriteLine(L"Allocating " + itow(i) + L" ... ");
 
 		auto page = bm.AllocatePage(source);
 		if (!page.IsValid()) throw 0;
@@ -136,10 +133,7 @@ TEST_CASE(Utility_Buffer_File_AllocateFreeManyTimes)
 
 	for (vint i = 0; i < TotalCount; i++)
 	{
-		if (i % 1000 == 0)
-		{
-			console::Console::WriteLine(L"Freeing " + itow(i) + L" ... " + itow(i + 999));
-		}
+		console::Console::WriteLine(L"Freeing " + itow(i) + L" ... ");
 
 		auto page = pages[i];
 		if (!bm.FreePage(source, page)) throw 0;
@@ -147,10 +141,7 @@ TEST_CASE(Utility_Buffer_File_AllocateFreeManyTimes)
 
 	for (vint i = 0; i < TotalCount; i++)
 	{
-		if (i % 1000 == 0)
-		{
-			console::Console::WriteLine(L"Allocating " + itow(i) + L" ... " + itow(i + 999));
-		}
+		console::Console::WriteLine(L"Allocating " + itow(i) + L" ... ");
 
 		auto page = bm.AllocatePage(source);
 		if (!page.IsValid()) throw 0;
