@@ -3,6 +3,7 @@
 
 using namespace vl;
 using namespace vl::database;
+using namespace vl::collections;
 
 extern WString GetTempFolder();
 #define TEMP_DIR GetTempFolder()+
@@ -112,4 +113,47 @@ TEST_CASE_SOURCE(AllocateFreePage)
 	TEST_ASSERT(bm.UnlockPage(source, page2, addr2, true) == true);
 	TEST_ASSERT(bm.LockPage(source, page3) == nullptr);
 	TEST_ASSERT(bm.UnlockPage(source, page3, addr3, true) == true);
+}
+
+TEST_CASE(Utility_Buffer_File_AllocateFreeManyTimes)
+{
+	BufferManager bm(4 KB, 16);
+	auto source = bm.LoadFileSource(TEMP_DIR L"db.bin", true);
+	List<BufferPage> pages;
+	const vint TotalCount = 32768;
+
+	for (vint i = 0; i < TotalCount; i++)
+	{
+		if (i % 1000 == 0)
+		{
+			console::Console::WriteLine(L"Allocating " + itow(i) + L" ... " + itow(i + 999));
+		}
+
+		auto page = bm.AllocatePage(source);
+		if (!page.IsValid()) throw 0;
+		pages.Add(page);
+	}
+
+	for (vint i = 0; i < TotalCount; i++)
+	{
+		if (i % 1000 == 0)
+		{
+			console::Console::WriteLine(L"Freeing " + itow(i) + L" ... " + itow(i + 999));
+		}
+
+		auto page = pages[i];
+		if (!bm.FreePage(source, page)) throw 0;
+	}
+
+	for (vint i = 0; i < TotalCount; i++)
+	{
+		if (i % 1000 == 0)
+		{
+			console::Console::WriteLine(L"Allocating " + itow(i) + L" ... " + itow(i + 999));
+		}
+
+		auto page = bm.AllocatePage(source);
+		if (!page.IsValid()) throw 0;
+		if (page.index != pages[TotalCount - i - 1].index) throw 0;
+	}
 }
