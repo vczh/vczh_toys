@@ -172,6 +172,7 @@ FileBufferSource
 						numbers[INDEX_INITIAL_FREEPAGEITEMBEGIN] = page.index;
 						msync(numbers, pageSize, MS_SYNC);
 						initialPages.Add(newInitialPage.index);
+						SetUseMask(newInitialPage, true);
 					}
 					else
 					{
@@ -311,7 +312,7 @@ FileBufferSource
 
 			bool FreePage(BufferPage page)override
 			{
-				if (GetUseMask(page)) return false;
+				if (!GetUseMask(page)) return false;
 				vint index = mappedPages.Keys().IndexOf(page.index);
 				if (index != -1)
 				{
@@ -321,6 +322,7 @@ FileBufferSource
 					}
 				}
 				PushFreePage(page);
+				SetUseMask(page, false);
 				return true;
 			}
 
@@ -387,6 +389,10 @@ FileBufferSource
 				}
 				{
 					BufferPage page{INDEX_PAGE_INITIAL};
+					SetUseMask(page, true);
+				}
+				{
+					BufferPage page{INDEX_PAGE_USEMASK};
 					SetUseMask(page, true);
 				}
 			}
