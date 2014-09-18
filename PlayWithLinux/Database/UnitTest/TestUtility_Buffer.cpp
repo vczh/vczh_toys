@@ -120,7 +120,7 @@ TEST_CASE(Utility_Buffer_File_AllocateFreeManyTimes)
 	BufferManager bm(4 KB, 16);
 	auto source = bm.LoadFileSource(TEMP_DIR L"db.bin", true);
 	List<BufferPage> pages;
-	const vint TotalCount = 32768;
+	const vint TotalCount = 1024;
 
 	for (vint i = 0; i < TotalCount; i++)
 	{

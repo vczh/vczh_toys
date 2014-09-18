@@ -11,8 +11,7 @@
 
 /*
  * Page Structure
- *		Initial Page	: [uint64 TotalPageCount][uint64 NextFreePage][uint64 FreePageItems]{[uint64 FreePage] ...}
- *		Free Page		: [uint64 TotalPageCount][uint64 NextFreePage][uint64 FreePageItems]{[uint64 FreePage] ...}
+ *		Initial Page	: [uint64 NextInitialPage][uint64 FreePageItems]{[uint64 FreePage] ...}
  *		Use Mask Page	: [uint64 NextUseMaskPage]{[bit FreePageMask] ...}
  *			FreePageMask 1=used, 0=free
  */
@@ -21,10 +20,9 @@
 #define INDEX_PAGE_INITIAL 0
 #define INDEX_PAGE_USEMASK 1
 
-#define INDEX_INITIAL_TOTALPAGECOUNT 0
-#define INDEX_INITIAL_NEXTFREEPAGE 1
-#define INDEX_INITIAL_FREEPAGEITEMS 2
-#define INDEX_INITIAL_FREEPAGEITEMBEGIN 3
+#define INDEX_INITIAL_NEXTINITIALPAGE 0
+#define INDEX_INITIAL_FREEPAGEITEMS 1
+#define INDEX_INITIAL_FREEPAGEITEMBEGIN 2
 
 #define INDEX_USEMASK_NEXTUSEMASKPAGE 0
 #define INDEX_USEMASK_USEMASKBEGIN 1
@@ -51,7 +49,9 @@ FileBufferSource
 			int						fileDescriptor;
 
 			PageMap					mappedPages;
+			PageList				initialPages;
 			PageList				useMaskPages;
+			vuint64_t				totalPageCount;
 
 			vuint64_t				initialPageItemCount;
 			vuint64_t				useMaskPageItemCount;
@@ -105,7 +105,12 @@ FileBufferSource
 					}
 					if (fileState.st_size < offset + pageSize)
 					{
+						if (fileState.st_size != offset)
+						{
+							return 0;
+						}
 						ftruncate(fileDescriptor, offset + pageSize);
+						totalPageCount = offset / pageSize + 1;
 					}
 
 					void* address = mmap(nullptr, pageSize, PROT_READ | PROT_WRITE, MAP_SHARED, fileDescriptor, offset);
@@ -141,19 +146,78 @@ FileBufferSource
 				mappedPages.Remove(page.index);
 				return true;
 			}
+			
+			void PushFreePage(BufferPage page)
+			{
+				BufferPage initialPage{initialPages[initialPages.Count() - 1]};
+				auto pageDesc = MapPage(initialPage);
+				vuint64_t* numbers = (vuint64_t*)pageDesc->address;
+				vuint64_t& count = numbers[INDEX_INITIAL_FREEPAGEITEMS];
+				if (count == initialPageItemCount)
+				{
+					BufferPage newInitialPage{totalPageCount};
+					numbers[INDEX_INITIAL_NEXTINITIALPAGE] = newInitialPage.index;
+					msync(numbers, pageSize, MS_SYNC);
+
+					auto newPageDesc = MapPage(newInitialPage);
+					numbers = (vuint64_t*)newPageDesc->address;
+					numbers[INDEX_INITIAL_NEXTINITIALPAGE] = INDEX_INVALID;
+					numbers[INDEX_INITIAL_FREEPAGEITEMS] = 1;
+					numbers[INDEX_INITIAL_FREEPAGEITEMBEGIN] = page.index;
+					msync(numbers, pageSize, MS_SYNC);
+					initialPages.Add(newInitialPage.index);
+				}
+				else
+				{
+					numbers[INDEX_INITIAL_FREEPAGEITEMBEGIN + count] == page.index;
+					count++;
+					msync(numbers, pageSize, MS_SYNC);
+				}
+			}
+
+			BufferPage PopFreePage()
+			{
+				BufferPage page = BufferPage::Invalid();
+				BufferPage initialPage{initialPages[initialPages.Count() - 1]};
+				auto pageDesc = MapPage(initialPage);
+				vuint64_t* numbers = (vuint64_t*)pageDesc->address;
+				vuint64_t& count = numbers[INDEX_INITIAL_FREEPAGEITEMS];
+
+				if (count == 0 && initialPage.index == INDEX_PAGE_INITIAL)
+				{
+					return page;
+				}
+				count--;
+				page.index = numbers[INDEX_INITIAL_FREEPAGEITEMBEGIN + count];
+				msync(numbers, pageSize, MS_SYNC);
+
+				if (count == 0)
+				{
+					initialPages.RemoveAt(initialPages.Count() - 1);
+					BufferPage previousInitialPage{initialPages[initialPages.Count() - 1]};
+					pageDesc = MapPage(previousInitialPage);
+					numbers = (vuint64_t*)pageDesc->address;
+					numbers[INDEX_INITIAL_NEXTINITIALPAGE] = INDEX_INVALID;
+					msync(numbers, pageSize, MS_SYNC);
+					PushFreePage(initialPage);
+				}
+				return page;
+			}
 
 			bool GetUseMask(BufferPage page)
 			{
 				auto useMaskPageBits = 8 * sizeof(vuint64_t);
 				auto useMaskPageIndex = page.index / (useMaskPageBits * useMaskPageItemCount);
-				auto useMaskPageItem = INDEX_USEMASK_USEMASKBEGIN + page.index % (useMaskPageBits * useMaskPageItemCount);
-				auto useMaskPageShift = page.index % useMaskPageBits;
+				auto useMaskPageBitIndex = page.index % (useMaskPageBits * useMaskPageItemCount);
+				auto useMaskPageItem = INDEX_USEMASK_USEMASKBEGIN + useMaskPageBitIndex / useMaskPageBits;
+				auto useMaskPageShift = useMaskPageBitIndex % useMaskPageBits;
 
 				BufferPage useMaskPage{useMaskPages[useMaskPageIndex]};
 				auto pageDesc = MapPage(useMaskPage);
 				vuint64_t* numbers = (vuint64_t*)pageDesc->address;
 				auto& item = numbers[useMaskPageItem];
 				bool result = ((item >> useMaskPageShift) & ((vuint64_t)1)) == 1;
+				msync(numbers, pageSize, MS_SYNC);
 				return result;
 			}
 			
@@ -161,8 +225,9 @@ FileBufferSource
 			{
 				auto useMaskPageBits = 8 * sizeof(vuint64_t);
 				auto useMaskPageIndex = page.index / (useMaskPageBits * useMaskPageItemCount);
-				auto useMaskPageItem = INDEX_USEMASK_USEMASKBEGIN + page.index % (useMaskPageBits * useMaskPageItemCount);
-				auto useMaskPageShift = page.index % useMaskPageBits;
+				auto useMaskPageBitIndex = page.index % (useMaskPageBits * useMaskPageItemCount);
+				auto useMaskPageItem = INDEX_USEMASK_USEMASKBEGIN + useMaskPageBitIndex / useMaskPageBits;
+				auto useMaskPageShift = useMaskPageBitIndex % useMaskPageBits;
 				bool newPage = false;
 
 				BufferPage useMaskPage = BufferPage::Invalid();
@@ -207,60 +272,21 @@ FileBufferSource
 
 			BufferPage AppendPage()
 			{
-				BufferPage initialPage{INDEX_PAGE_INITIAL};
-				vuint64_t* numbers = (vuint64_t*)LockPage(initialPage);
-
-				BufferPage page{numbers[INDEX_INITIAL_TOTALPAGECOUNT]};
+				BufferPage page{totalPageCount};
 				if (auto pageDesc = MapPage(page))
 				{
-					numbers[INDEX_INITIAL_TOTALPAGECOUNT]++;
-					memset(pageDesc->address, 0, pageSize);
-					UnlockPage(initialPage, numbers, true);
+					SetUseMask(page, true);
+					return page;
 				}
 				else
 				{
-					UnlockPage(initialPage, numbers, false);
+					return BufferPage::Invalid();
 				}
-				SetUseMask(page, true);
-				return page;
 			}
 
 			BufferPage AllocatePage()override
 			{
-				BufferPage page = BufferPage::Invalid();
-				BufferPage freePage{INDEX_PAGE_INITIAL};
-				BufferPage previousFreePage = BufferPage::Invalid();
-				while (page.index == INDEX_INVALID && freePage.index != INDEX_INVALID)
-				{
-					vuint64_t* numbers = (vuint64_t*)LockPage(freePage);
-					if (!numbers) return BufferPage::Invalid();
-
-					auto next = numbers[INDEX_INITIAL_NEXTFREEPAGE];
-					if (next == INDEX_INVALID)
-					{
-						vuint64_t& count = numbers[INDEX_INITIAL_FREEPAGEITEMS];
-						if (count > 0)
-						{
-							page.index = numbers[count - 1 + INDEX_INITIAL_FREEPAGEITEMBEGIN];
-							count--;
-							UnlockPage(freePage, numbers, true);
-
-							if (count == 0 && previousFreePage.index != INDEX_INVALID)
-							{
-								numbers = (vuint64_t*)LockPage(previousFreePage);
-								numbers[INDEX_INITIAL_NEXTFREEPAGE] = INDEX_INVALID;
-								UnlockPage(previousFreePage, numbers, true);
-								FreePage(freePage);
-							}
-							break;
-						}
-					}
-
-					previousFreePage = freePage;
-					freePage.index = next;
-					UnlockPage(previousFreePage, numbers, false);
-				}
-
+				BufferPage page = PopFreePage();
 				if (page.index == -1)
 				{
 					return AppendPage();
@@ -274,92 +300,25 @@ FileBufferSource
 
 			bool FreePage(BufferPage page)override
 			{
+				if (GetUseMask(page)) return false;
 				vint index = mappedPages.Keys().IndexOf(page.index);
 				if (index != -1)
 				{
-					auto pageDesc = mappedPages.Values()[index];
-					if (pageDesc->locked)
+					if (!UnmapPage(page))
 					{
 						return false;
 					}
 				}
-
-				vuint64_t maxAvailableItems = (pageSize - INDEX_INITIAL_FREEPAGEITEMBEGIN * sizeof(vuint64_t)) / sizeof(vuint64_t);
-				BufferPage freePage{INDEX_PAGE_INITIAL};
-				while (freePage.index != INDEX_INVALID)
-				{
-					vuint64_t* numbers = (vuint64_t*)LockPage(freePage);
-					if (!numbers)
-					{
-						return false;
-					}
-
-					if (freePage.index == INDEX_PAGE_INITIAL)
-					{
-						if (page.index >= numbers[INDEX_INITIAL_TOTALPAGECOUNT])
-						{
-							UnlockPage(freePage, numbers, false);
-							return false;
-						}
-					}
-
-					vuint64_t& count = numbers[INDEX_INITIAL_FREEPAGEITEMS];
-					if (count < maxAvailableItems)
-					{
-						numbers[count + INDEX_INITIAL_FREEPAGEITEMBEGIN] = page.index;
-						count++;
-						UnlockPage(freePage, numbers, true);
-						mappedPages.Remove(page.index);
-
-						SetUseMask(page, false);
-						return true;
-					}
-					else if (numbers[INDEX_INITIAL_NEXTFREEPAGE] != INDEX_INVALID)
-					{
-						vuint64_t index = numbers[INDEX_INITIAL_NEXTFREEPAGE];
-						UnlockPage(freePage, numbers, false);
-						freePage.index = index;
-					}
-					else
-					{
-						BufferPage nextFreePage = AppendPage();
-						if (nextFreePage.index != INDEX_INVALID)
-						{
-							numbers[INDEX_INITIAL_NEXTFREEPAGE] = nextFreePage.index;
-							UnlockPage(freePage, numbers, true);
-
-							numbers = (vuint64_t*)LockPage(nextFreePage);
-							numbers[INDEX_INITIAL_NEXTFREEPAGE] = INDEX_INVALID;
-							numbers[INDEX_INITIAL_FREEPAGEITEMS] = 0;
-							UnlockPage(nextFreePage, numbers, true);
-							mappedPages.Remove(page.index);
-
-							SetUseMask(page, false);
-							return true;
-						}
-						else
-						{
-							UnlockPage(freePage, numbers, false);
-							break;
-						}
-					}
-				}
-
-				return false;
+				PushFreePage(page);
+				return true;
 			}
 
 			void* LockPage(BufferPage page)override
 			{
-				BufferPage initialPage{INDEX_PAGE_INITIAL};
-				if (auto pageDesc = MapPage(initialPage))
+				if (page.index >= totalPageCount)
 				{
-					vuint64_t* numbers = (vuint64_t*)pageDesc->address;
-					if (page.index >= numbers[INDEX_INITIAL_TOTALPAGECOUNT])
-					{
-						return nullptr;
-					}
+					return nullptr;
 				}
-
 				if (!GetUseMask(page)) return nullptr;
 				if (auto pageDesc = MapPage(page))
 				{
@@ -392,16 +351,18 @@ FileBufferSource
 
 			void InitializeEmptySource()
 			{
+				initialPages.Clear();
 				useMaskPages.Clear();
 				{
 					BufferPage page{INDEX_PAGE_INITIAL};
 					auto pageDesc = MapPage(page);
 					vuint64_t* numbers = (vuint64_t*)pageDesc->address;
 					memset(numbers, 0, pageSize);
-					numbers[INDEX_INITIAL_TOTALPAGECOUNT] = 2;
-					numbers[INDEX_INITIAL_NEXTFREEPAGE] = INDEX_INVALID;
+					numbers[INDEX_INITIAL_NEXTINITIALPAGE] = INDEX_INVALID;
 					numbers[INDEX_INITIAL_FREEPAGEITEMS] = 0;
 					msync(numbers, pageSize, MS_SYNC);
+					initialPages.Add(page.index);
+					totalPageCount = 2;
 				}
 				{
 					BufferPage page{INDEX_PAGE_USEMASK};
@@ -420,15 +381,34 @@ FileBufferSource
 
 			void InitializeExistingSource()
 			{
+				initialPages.Clear();
 				useMaskPages.Clear();
-				BufferPage page{INDEX_PAGE_USEMASK};
-				
-				while(page.index != INDEX_INVALID)
 				{
-					useMaskPages.Add(page.index);
-					auto pageDesc = MapPage(page);
-					vuint64_t* numbers = (vuint64_t*)pageDesc->address;
-					page.index = numbers[INDEX_USEMASK_NEXTUSEMASKPAGE];
+					struct stat fileState;
+					fstat(fileDescriptor, &fileState);
+					totalPageCount = fileState.st_size / pageSize;
+				}
+				{
+					BufferPage page{INDEX_PAGE_INITIAL};
+					
+					while(page.index != INDEX_INVALID)
+					{
+						initialPages.Add(page.index);
+						auto pageDesc = MapPage(page);
+						vuint64_t* numbers = (vuint64_t*)pageDesc->address;
+						page.index = numbers[INDEX_INITIAL_NEXTINITIALPAGE];
+					}				
+				}
+				{
+					BufferPage page{INDEX_PAGE_USEMASK};
+					
+					while(page.index != INDEX_INVALID)
+					{
+						useMaskPages.Add(page.index);
+						auto pageDesc = MapPage(page);
+						vuint64_t* numbers = (vuint64_t*)pageDesc->address;
+						page.index = numbers[INDEX_USEMASK_NEXTUSEMASKPAGE];
+					}
 				}
 			}
 		};
