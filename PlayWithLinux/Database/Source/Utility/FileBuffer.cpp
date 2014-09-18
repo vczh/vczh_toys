@@ -51,6 +51,7 @@ FileBufferSource
 			PageMap					mappedPages;
 			PageList				initialPages;
 			PageList				useMaskPages;
+			vint					activeInitialPageIndex;
 			vuint64_t				totalPageCount;
 
 			vuint64_t				initialPageItemCount;
@@ -65,6 +66,8 @@ FileBufferSource
 				,fileDescriptor(_fileDescriptor)
 				,initialPageItemCount((_pageSize - INDEX_INITIAL_FREEPAGEITEMBEGIN * sizeof(vuint64_t)) / sizeof(vuint64_t))
 				,useMaskPageItemCount((_pageSize - INDEX_USEMASK_USEMASKBEGIN * sizeof(vuint64_t)) / sizeof(vuint64_t))
+				,activeInitialPageIndex(-1)
+				,totalPageCount(0)
 			{
 			}
 
@@ -149,23 +152,37 @@ FileBufferSource
 			
 			void PushFreePage(BufferPage page)
 			{
-				BufferPage initialPage{initialPages[initialPages.Count() - 1]};
+				BufferPage initialPage{initialPages[activeInitialPageIndex]};
 				auto pageDesc = MapPage(initialPage);
 				vuint64_t* numbers = (vuint64_t*)pageDesc->address;
 				vuint64_t& count = numbers[INDEX_INITIAL_FREEPAGEITEMS];
 				if (count == initialPageItemCount)
 				{
-					BufferPage newInitialPage{totalPageCount};
-					numbers[INDEX_INITIAL_NEXTINITIALPAGE] = newInitialPage.index;
-					msync(numbers, pageSize, MS_SYNC);
+					if (activeInitialPageIndex == initialPages.Count() - 1)
+					{
+						BufferPage newInitialPage{totalPageCount};
+						numbers[INDEX_INITIAL_NEXTINITIALPAGE] = newInitialPage.index;
+						msync(numbers, pageSize, MS_SYNC);
 
-					auto newPageDesc = MapPage(newInitialPage);
-					numbers = (vuint64_t*)newPageDesc->address;
-					numbers[INDEX_INITIAL_NEXTINITIALPAGE] = INDEX_INVALID;
-					numbers[INDEX_INITIAL_FREEPAGEITEMS] = 1;
-					numbers[INDEX_INITIAL_FREEPAGEITEMBEGIN] = page.index;
-					msync(numbers, pageSize, MS_SYNC);
-					initialPages.Add(newInitialPage.index);
+						auto newPageDesc = MapPage(newInitialPage);
+						numbers = (vuint64_t*)newPageDesc->address;
+						memset(numbers, 0, pageSize);
+						numbers[INDEX_INITIAL_NEXTINITIALPAGE] = INDEX_INVALID;
+						numbers[INDEX_INITIAL_FREEPAGEITEMS] = 1;
+						numbers[INDEX_INITIAL_FREEPAGEITEMBEGIN] = page.index;
+						msync(numbers, pageSize, MS_SYNC);
+						initialPages.Add(newInitialPage.index);
+					}
+					else
+					{
+						BufferPage newInitialPage{initialPages[activeInitialPageIndex + 1]};
+						auto newPageDesc = MapPage(newInitialPage);
+						numbers = (vuint64_t*)newPageDesc->address;
+						numbers[INDEX_INITIAL_FREEPAGEITEMS] = 1;
+						numbers[INDEX_INITIAL_FREEPAGEITEMBEGIN] = page.index;
+						msync(numbers, pageSize, MS_SYNC);
+					}
+					activeInitialPageIndex++;
 				}
 				else
 				{
@@ -193,13 +210,7 @@ FileBufferSource
 
 				if (count == 0)
 				{
-					initialPages.RemoveAt(initialPages.Count() - 1);
-					BufferPage previousInitialPage{initialPages[initialPages.Count() - 1]};
-					pageDesc = MapPage(previousInitialPage);
-					numbers = (vuint64_t*)pageDesc->address;
-					numbers[INDEX_INITIAL_NEXTINITIALPAGE] = INDEX_INVALID;
-					msync(numbers, pageSize, MS_SYNC);
-					PushFreePage(initialPage);
+					activeInitialPageIndex--;
 				}
 				return page;
 			}
@@ -362,6 +373,7 @@ FileBufferSource
 					numbers[INDEX_INITIAL_FREEPAGEITEMS] = 0;
 					msync(numbers, pageSize, MS_SYNC);
 					initialPages.Add(page.index);
+					activeInitialPageIndex = 0;
 					totalPageCount = 2;
 				}
 				{
@@ -397,7 +409,17 @@ FileBufferSource
 						auto pageDesc = MapPage(page);
 						vuint64_t* numbers = (vuint64_t*)pageDesc->address;
 						page.index = numbers[INDEX_INITIAL_NEXTINITIALPAGE];
-					}				
+
+						if (numbers[INDEX_INITIAL_FREEPAGEITEMS] != 0)
+						{
+							activeInitialPageIndex = initialPages.Count() - 1;
+						}
+					}
+					
+					if (activeInitialPageIndex == -1)
+					{
+						activeInitialPageIndex = 0;
+					}
 				}
 				{
 					BufferPage page{INDEX_PAGE_USEMASK};
