@@ -174,6 +174,10 @@ InMemoryBufferSource
 				pageDesc->locked = false;
 				return true;
 			}
+
+			void FillUnmapPageCandidates(collections::List<BufferPageTimeTuple>& pages, vint expectCount)override
+			{
+			}
 		};
 
 		IBufferSource* CreateMemorySource(BufferSource source, volatile vuint64_t* totalUsedPages, vuint64_t pageSize)

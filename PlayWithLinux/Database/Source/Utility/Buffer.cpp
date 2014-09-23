@@ -22,6 +22,13 @@ namespace vl
 BufferManager
 ***********************************************************************/
 
+		void BufferManager::SwapCacheIfNecessary()
+		{
+			if (totalCachedPages > cachePageCount)
+			{
+			}
+		}
+
 		BufferManager::BufferManager(vuint64_t _pageSize, vuint64_t _cachePageCount)
 			:pageSize(_pageSize)
 			,cachePageCount(_cachePageCount)
@@ -82,6 +89,7 @@ BufferManager
 			{
 				sources.Add(source.index, bs);
 			}
+			SwapCacheIfNecessary();
 			return source;
 		}
 
@@ -98,6 +106,7 @@ BufferManager
 			{
 				sources.Add(source.index, bs);
 			}
+			SwapCacheIfNecessary();
 			return source;
 		}
 
@@ -141,7 +150,9 @@ BufferManager
 
 			SPIN_LOCK(bs->GetLock())
 			{
-				return bs->LockPage(page);
+				auto address = bs->LockPage(page);
+				SwapCacheIfNecessary();
+				return address;
 			}
 		}
 
@@ -151,7 +162,9 @@ BufferManager
 
 			SPIN_LOCK(bs->GetLock())
 			{
-				return bs->UnlockPage(page, buffer, persist);
+				auto successful = bs->UnlockPage(page, buffer, persist);
+				SwapCacheIfNecessary();
+				return successful;
 			}
 		}
 
@@ -161,7 +174,9 @@ BufferManager
 
 			SPIN_LOCK(bs->GetLock())
 			{
-				return bs->AllocatePage();
+				auto page = bs->AllocatePage();
+				SwapCacheIfNecessary();
+				return page;
 			}
 		}
 
@@ -171,7 +186,9 @@ BufferManager
 			
 			SPIN_LOCK(bs->GetLock())
 			{
-				return bs->FreePage(page);
+				auto successful = bs->FreePage(page);
+				SwapCacheIfNecessary();
+				return successful;
 			}
 		}
 		

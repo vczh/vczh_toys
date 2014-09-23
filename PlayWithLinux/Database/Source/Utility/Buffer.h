@@ -17,6 +17,8 @@ namespace vl
 		class IBufferSource : public virtual Interface
 		{
 		public:
+			typedef Tuple<BufferSource, BufferPage, vuint64_t>		BufferPageTimeTuple;
+
 			virtual void			Unload() = 0;
 			virtual BufferSource	GetBufferSource() = 0;
 			virtual SpinLock&		GetLock() = 0;
@@ -26,6 +28,7 @@ namespace vl
 			virtual bool			FreePage(BufferPage page) = 0;
 			virtual void*			LockPage(BufferPage page) = 0;
 			virtual bool			UnlockPage(BufferPage page, void* address, bool persist) = 0;
+			virtual void			FillUnmapPageCandidates(collections::List<BufferPageTimeTuple>& pages, vint expectCount) = 0;
 		};
 
 		class BufferPageDesc
@@ -49,6 +52,7 @@ namespace vl
 			volatile vint		usedSourceIndex;
 			SourceMap			sources;
 
+			void				SwapCacheIfNecessary();
 		public:
 			BufferManager(vuint64_t _pageSize, vuint64_t _cachePageCount);
 			~BufferManager();

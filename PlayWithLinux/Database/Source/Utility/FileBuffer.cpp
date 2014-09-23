@@ -443,6 +443,41 @@ FileBufferSource
 					}
 				}
 			}
+
+			void FillUnmapPageCandidates(collections::List<BufferPageTimeTuple>& pages, vint expectCount)override
+			{
+				vint mappedCount = mappedPages.Count();
+				if (mappedCount == 0) return;
+
+				Array<BufferPageTimeTuple> tuples(mappedCount);
+				vint usedCount = 0;
+				for (vint i = 0; i < mappedCount; i++)
+				{
+					auto key = mappedPages.Keys()[i];
+					auto value = mappedPages.Values()[i];
+					if (!value->locked)
+					{
+						BufferPage page{key};
+						tuples[usedCount++] = BufferPageTimeTuple(source, page, value->lastAccessTime);
+					}
+				}
+
+				if (tuples.Count() > 0)
+				{
+					SortLambda(&tuples[0], usedCount, [](const BufferPageTimeTuple& t1, const BufferPageTimeTuple& t2)
+					{
+						if (t1.f2 < t2.f2) return -1;
+						else if (t1.f2 > t2.f2) return 1;
+						else return 0;
+					});
+
+					vint copyCount = usedCount < expectCount ? usedCount : expectCount;
+					for (vint i = 0; i < copyCount; i++)
+					{
+						pages.Add(tuples[i]);
+					}
+				}
+			}
 		};
 
 		IBufferSource* CreateFileSource(BufferSource source, volatile vuint64_t* totalUsedPages, vuint64_t pageSize, const WString& fileName, bool createNew)

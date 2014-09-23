@@ -115,6 +115,11 @@ TEST_CASE_SOURCE(AllocateFreePage)
 	TEST_ASSERT(bm.UnlockPage(source, page3, addr3, true) == true);
 }
 
+#define TEST_ASSERT_CACHE														\
+	console::Console::Write(L"    <CACHED-PAGE-COUNT>: ");						\
+	console::Console::WriteLine(itow(bm.GetCurrentlyCachedPageCount()));		\
+	TEST_ASSERT(bm.GetCurrentlyCachedPageCount() <= bm.GetCachePageCount());	\
+
 TEST_CASE(Utility_Buffer_AllocateAndSwap)
 {
 	BufferManager bm(4 KB, 8);
@@ -122,7 +127,7 @@ TEST_CASE(Utility_Buffer_AllocateAndSwap)
 	auto s2 = bm.LoadFileSource(TEMP_DIR L"db2.bin", true);
 	BufferSource sources[] = {s1, s2};
 	const wchar_t* sourceNames[] = {L"db1.bin ", L"db2.bin "};
-	TEST_ASSERT(bm.GetCachePageCount() == 4);
+	TEST_ASSERT(bm.GetCachePageCount() == 8);
 	List<BufferPage> pages;
 
 	for (vint i = 0; i < 16; i++)
@@ -134,13 +139,13 @@ TEST_CASE(Utility_Buffer_AllocateAndSwap)
 			auto page = bm.AllocatePage(source);
 			pages.Add(page);
 			TEST_ASSERT(page.IsValid());
-			TEST_ASSERT(bm.GetCurrentlyCachedPageCount() <= bm.GetCachePageCount());
+			TEST_ASSERT_CACHE;
 			auto address = (wchar_t*)bm.LockPage(source, page);
 			TEST_ASSERT(address != nullptr);
-			TEST_ASSERT(bm.GetCurrentlyCachedPageCount() <= bm.GetCachePageCount());
+			TEST_ASSERT_CACHE;
 			wcscpy(address, (WString(sourceNames[j]) + itow(i + 1)).Buffer());
 			TEST_ASSERT(bm.UnlockPage(source, page, address, true));
-			TEST_ASSERT(bm.GetCurrentlyCachedPageCount() <= bm.GetCachePageCount());
+			TEST_ASSERT_CACHE;
 		}
 	}
 
@@ -153,10 +158,10 @@ TEST_CASE(Utility_Buffer_AllocateAndSwap)
 			auto page = pages[i * 2 + j];
 			auto address = (wchar_t*)bm.LockPage(source, page);
 			TEST_ASSERT(address != nullptr);
-			TEST_ASSERT(bm.GetCurrentlyCachedPageCount() <= bm.GetCachePageCount());
+			TEST_ASSERT_CACHE;
 			TEST_ASSERT(wcscmp(address, (WString(sourceNames[j]) + itow(i + 1)).Buffer()) == 0);
 			TEST_ASSERT(bm.UnlockPage(source, page, address, true));
-			TEST_ASSERT(bm.GetCurrentlyCachedPageCount() <= bm.GetCachePageCount());
+			TEST_ASSERT_CACHE;
 		}
 	}
 }
