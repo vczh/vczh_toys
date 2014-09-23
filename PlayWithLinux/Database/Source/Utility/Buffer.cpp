@@ -26,6 +26,36 @@ BufferManager
 		{
 			if (totalCachedPages > cachePageCount)
 			{
+				SPIN_LOCK(lock)
+				{
+					vuint64_t expectPage = cachePageCount / 4;
+					List<IBufferSource::BufferPageTimeTuple> pages;
+					FOREACH(Ptr<IBufferSource>, source, sources.Values())
+					{
+						source->FillUnmapPageCandidates(pages, expectPage);
+					}
+
+					if (pages.Count() > 0)
+					{
+						SortLambda(&pages[0], pages.Count(), [](const IBufferSource::BufferPageTimeTuple& t1, const IBufferSource::BufferPageTimeTuple& t2)
+						{
+							if (t1.f2 < t2.f2) return -1;
+							else if (t1.f2 > t2.f2) return 1;
+							else return 0;
+						});
+
+						vint count = pages.Count() < expectPage ? pages.Count() : expectPage;
+						for (vint i = 0; i < count; i++)
+						{
+							auto tuple = pages[i];
+							auto source = sources[tuple.f0.index];
+							SPIN_LOCK(source->GetLock())
+							{
+								source->UnmapPage(tuple.f1);
+							}
+						}
+					}
+				}
 			}
 		}
 
@@ -148,48 +178,52 @@ BufferManager
 		{
 			TRY_GET_BUFFER_SOURCE(bs, source, nullptr);
 
+			void* address = nullptr;
 			SPIN_LOCK(bs->GetLock())
 			{
-				auto address = bs->LockPage(page);
-				SwapCacheIfNecessary();
-				return address;
+				address = bs->LockPage(page);
 			}
+			SwapCacheIfNecessary();
+			return address;
 		}
 
 		bool BufferManager::UnlockPage(BufferSource source, BufferPage page, void* buffer, bool persist)
 		{
 			TRY_GET_BUFFER_SOURCE(bs, source, false);
 
+			bool successful = false;
 			SPIN_LOCK(bs->GetLock())
 			{
-				auto successful = bs->UnlockPage(page, buffer, persist);
-				SwapCacheIfNecessary();
-				return successful;
+				successful = bs->UnlockPage(page, buffer, persist);
 			}
+			SwapCacheIfNecessary();
+			return successful;
 		}
 
 		BufferPage BufferManager::AllocatePage(BufferSource source)
 		{
 			TRY_GET_BUFFER_SOURCE(bs, source, BufferPage::Invalid());
 
+			BufferPage page;
 			SPIN_LOCK(bs->GetLock())
 			{
-				auto page = bs->AllocatePage();
-				SwapCacheIfNecessary();
-				return page;
+				page = bs->AllocatePage();
 			}
+			SwapCacheIfNecessary();
+			return page;
 		}
 
 		bool BufferManager::FreePage(BufferSource source, BufferPage page)
 		{
 			TRY_GET_BUFFER_SOURCE(bs, source, false);
 			
+			bool successful = false;
 			SPIN_LOCK(bs->GetLock())
 			{
-				auto successful = bs->FreePage(page);
-				SwapCacheIfNecessary();
-				return successful;
+				successful = bs->FreePage(page);
 			}
+			SwapCacheIfNecessary();
+			return successful;
 		}
 		
 #undef TRY_GET_BUFFER_SOURCE
