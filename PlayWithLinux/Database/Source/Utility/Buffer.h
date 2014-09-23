@@ -8,35 +8,12 @@ Database::Utility
 #ifndef VCZH_DATABASE_UTILITY_BUFFER
 #define VCZH_DATABASE_UTILITY_BUFFER
 
-#include "../DatabaseVlppReferences.h"
+#include "Common.h"
 
 namespace vl
 {
 	namespace database
 	{
-#define DEFINE_INDEX_TYPE(NAME, TYPE)							\
-		struct NAME												\
-		{														\
-			typedef TYPE		IndexType;						\
-			TYPE				index;							\
-																\
-			bool IsValid()const									\
-			{													\
-				return index != ~(TYPE)0;						\
-			}													\
-																\
-			static NAME Invalid()								\
-			{													\
-				NAME source{~(TYPE)0};							\
-				return source;									\
-			}													\
-		}														\
-
-		DEFINE_INDEX_TYPE(BufferSource, vint32_t);
-		DEFINE_INDEX_TYPE(BufferPage, vuint64_t);
-		DEFINE_INDEX_TYPE(BufferPointer, vuint64_t);
-#undef DEFINE_INDEX_TYPE
-
 		class IBufferSource : public virtual Interface
 		{
 		public:
@@ -91,12 +68,6 @@ namespace vl
 			bool				EncodePointer(BufferPointer& pointer, BufferPage page, vuint64_t offset);
 			bool				DecodePointer(BufferPointer pointer, BufferPage& page, vuint64_t& offset);
 		};
-
-		template<typename T>
-		T IntUpperBound(T size, T divisor)
-		{
-			return size + (divisor - (size % divisor)) % divisor;
-		}
 	}
 }
 
