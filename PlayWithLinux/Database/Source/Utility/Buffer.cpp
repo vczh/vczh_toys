@@ -28,7 +28,8 @@ BufferManager
 			{
 				SPIN_LOCK(lock)
 				{
-					vuint64_t expectPage = cachePageCount / 4;
+					vuint64_t remainPage = cachePageCount / 4 * 3;
+					vuint64_t expectPage = totalCachedPages - remainPage;
 					List<IBufferSource::BufferPageTimeTuple> pages;
 					FOREACH(Ptr<IBufferSource>, source, sources.Values())
 					{
@@ -53,6 +54,11 @@ BufferManager
 							{
 								source->UnmapPage(tuple.f1);
 							}
+						}
+
+						if (totalCachedPages > cachePageCount)
+						{
+							throw 0;
 						}
 					}
 				}

@@ -135,7 +135,7 @@ TEST_CASE(Utility_Buffer_AllocateAndSwap)
 		for(vint j = 0; j < 2; j++)
 		{
 			auto source = sources[j];
-			console::Console::WriteLine(sourceNames[j] + itow(i + 1));
+			console::Console::WriteLine(WString(L"Allocate ") + sourceNames[j] + itow(i + 1));
 			auto page = bm.AllocatePage(source);
 			pages.Add(page);
 			TEST_ASSERT(page.IsValid());
@@ -154,7 +154,7 @@ TEST_CASE(Utility_Buffer_AllocateAndSwap)
 		for(vint j = 0; j < 2; j++)
 		{
 			auto source = sources[j];
-			console::Console::WriteLine(sourceNames[j] + itow(i + 1));
+			console::Console::WriteLine(WString(L"Testing ") + sourceNames[j] + itow(i + 1));
 			auto page = pages[i * 2 + j];
 			auto address = (wchar_t*)bm.LockPage(source, page);
 			TEST_ASSERT(address != nullptr);

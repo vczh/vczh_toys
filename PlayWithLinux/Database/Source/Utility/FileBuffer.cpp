@@ -143,10 +143,16 @@ FileBufferSource
 			bool UnmapPage(BufferPage page)override
 			{
 				vint index = mappedPages.Keys().IndexOf(page.index);
-				if (index == -1) return false;
+				if (index == -1)
+				{
+					return false;
+				}
 
 				auto pageDesc = mappedPages.Values()[index];
-				if (pageDesc->locked) return false;
+				if (pageDesc->locked)
+				{
+					return false;
+				}
 				munmap(pageDesc->address, pageSize);
 
 				mappedPages.Remove(page.index);
