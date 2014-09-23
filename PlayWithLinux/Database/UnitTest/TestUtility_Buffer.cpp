@@ -115,6 +115,52 @@ TEST_CASE_SOURCE(AllocateFreePage)
 	TEST_ASSERT(bm.UnlockPage(source, page3, addr3, true) == true);
 }
 
+TEST_CASE(Utility_Buffer_AllocateAndSwap)
+{
+	BufferManager bm(4 KB, 8);
+	auto s1 = bm.LoadFileSource(TEMP_DIR L"db1.bin", true);
+	auto s2 = bm.LoadFileSource(TEMP_DIR L"db2.bin", true);
+	BufferSource sources[] = {s1, s2};
+	const wchar_t* sourceNames[] = {L"db1.bin ", L"db2.bin "};
+	TEST_ASSERT(bm.GetCachePageCount() == 4);
+	List<BufferPage> pages;
+
+	for (vint i = 0; i < 16; i++)
+	{
+		for(vint j = 0; j < 2; j++)
+		{
+			auto source = sources[j];
+			console::Console::WriteLine(sourceNames[j] + itow(i + 1));
+			auto page = bm.AllocatePage(source);
+			pages.Add(page);
+			TEST_ASSERT(page.IsValid());
+			TEST_ASSERT(bm.GetCurrentlyCachedPageCount() <= bm.GetCachePageCount());
+			auto address = (wchar_t*)bm.LockPage(source, page);
+			TEST_ASSERT(address != nullptr);
+			TEST_ASSERT(bm.GetCurrentlyCachedPageCount() <= bm.GetCachePageCount());
+			wcscpy(address, (WString(sourceNames[j]) + itow(i + 1)).Buffer());
+			TEST_ASSERT(bm.UnlockPage(source, page, address, true));
+			TEST_ASSERT(bm.GetCurrentlyCachedPageCount() <= bm.GetCachePageCount());
+		}
+	}
+
+	for (vint i = 0; i < 16; i++)
+	{
+		for(vint j = 0; j < 2; j++)
+		{
+			auto source = sources[j];
+			console::Console::WriteLine(sourceNames[j] + itow(i + 1));
+			auto page = pages[i * 2 + j];
+			auto address = (wchar_t*)bm.LockPage(source, page);
+			TEST_ASSERT(address != nullptr);
+			TEST_ASSERT(bm.GetCurrentlyCachedPageCount() <= bm.GetCachePageCount());
+			TEST_ASSERT(wcscmp(address, (WString(sourceNames[j]) + itow(i + 1)).Buffer()) == 0);
+			TEST_ASSERT(bm.UnlockPage(source, page, address, true));
+			TEST_ASSERT(bm.GetCurrentlyCachedPageCount() <= bm.GetCachePageCount());
+		}
+	}
+}
+
 // Only enable this test case when refactor BufferManager
 /*
 TEST_CASE(Utility_Buffer_File_AllocateFreeManyTimes)

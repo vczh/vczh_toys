@@ -43,6 +43,7 @@ FileBufferSource
 			typedef collections::List<vuint64_t>								PageList;
 		private:
 			BufferSource			source;
+			volatile vuint64_t*		totalUsedPages;
 			vuint64_t				pageSize;
 			SpinLock				lock;
 			WString					fileName;
@@ -59,8 +60,9 @@ FileBufferSource
 
 		public:
 
-			FileBufferSource(BufferSource _source, vuint64_t _pageSize, const WString& _fileName, int _fileDescriptor)
+			FileBufferSource(BufferSource _source, volatile vuint64_t* _totalUsedPages, vuint64_t _pageSize, const WString& _fileName, int _fileDescriptor)
 				:source(_source)
+				,totalUsedPages(_totalUsedPages)
 				,pageSize(_pageSize)
 				,fileName(_fileName)
 				,fileDescriptor(_fileDescriptor)
@@ -127,6 +129,7 @@ FileBufferSource
 					pageDesc->offset = offset;
 					pageDesc->lastAccessTime = (vuint64_t)time(nullptr);
 					mappedPages.Add(page.index, pageDesc);
+					INCRC(totalUsedPages);
 					return pageDesc;
 				}
 				else
@@ -147,6 +150,7 @@ FileBufferSource
 				munmap(pageDesc->address, pageSize);
 
 				mappedPages.Remove(page.index);
+				DECRC(totalUsedPages);
 				return true;
 			}
 			
@@ -441,7 +445,7 @@ FileBufferSource
 			}
 		};
 
-		IBufferSource* CreateFileSource(BufferSource source, vuint64_t pageSize, const WString& fileName, bool createNew)
+		IBufferSource* CreateFileSource(BufferSource source, volatile vuint64_t* totalUsedPages, vuint64_t pageSize, const WString& fileName, bool createNew)
 		{
 			int fileDescriptor = 0;
 			if (createNew)
@@ -460,7 +464,7 @@ FileBufferSource
 			}
 			else
 			{
-				auto result = new FileBufferSource(source, pageSize, fileName, fileDescriptor);
+				auto result = new FileBufferSource(source, totalUsedPages, pageSize, fileName, fileDescriptor);
 				if (createNew)
 				{
 					result->InitializeEmptySource();

@@ -44,6 +44,7 @@ namespace vl
 			vuint64_t			pageSize;
 			vuint64_t			cachePageCount;
 			vuint64_t			pageSizeBits;
+			volatile vuint64_t	totalCachedPages;
 			SpinLock			lock;
 			volatile vint		usedSourceIndex;
 			SourceMap			sources;
@@ -55,6 +56,7 @@ namespace vl
 			vuint64_t			GetPageSize();
 			vuint64_t			GetCachePageCount();
 			vuint64_t			GetCacheSize();
+			vuint64_t			GetCurrentlyCachedPageCount();
 
 			BufferSource		LoadMemorySource();
 			BufferSource		LoadFileSource(const WString& fileName, bool createNew);

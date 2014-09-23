@@ -18,14 +18,16 @@ InMemoryBufferSource
 			typedef collections::List<vuint64_t>			PageIdList;
 		private:
 			BufferSource		source;
+			volatile vuint64_t*	totalUsedPages;
 			vuint64_t			pageSize;
 			SpinLock			lock;
 			PageList			pages;
 			PageIdList			freePages;
 
 		public:
-			InMemoryBufferSource(BufferSource _source, vuint64_t _pageSize)
+			InMemoryBufferSource(BufferSource _source, volatile vuint64_t* _totalUsedPages, vuint64_t _pageSize)
 				:source(_source)
+				,totalUsedPages(_totalUsedPages)
 				,pageSize(_pageSize)
 			{
 			}
@@ -80,6 +82,7 @@ InMemoryBufferSource
 					{
 						pages[page.index] = pageDesc;
 					}
+					INCRC(totalUsedPages);
 					return pageDesc;
 				}
 				else
@@ -106,6 +109,7 @@ InMemoryBufferSource
 				free(pageDesc->address);
 				pages[page.index] = 0;
 				freePages.Add(page.index);
+				DECRC(totalUsedPages);
 				return true;
 			}
 
@@ -172,9 +176,9 @@ InMemoryBufferSource
 			}
 		};
 
-		IBufferSource* CreateMemorySource(BufferSource source, vuint64_t pageSize)
+		IBufferSource* CreateMemorySource(BufferSource source, volatile vuint64_t* totalUsedPages, vuint64_t pageSize)
 		{
-			return new InMemoryBufferSource(source, pageSize);
+			return new InMemoryBufferSource(source, totalUsedPages, pageSize);
 		}
 	}
 }

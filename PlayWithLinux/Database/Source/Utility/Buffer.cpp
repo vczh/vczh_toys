@@ -15,8 +15,8 @@ namespace vl
 	{
 		using namespace collections;
 
-		extern IBufferSource*		CreateMemorySource(BufferSource source, vuint64_t pageSize);
-		extern IBufferSource*		CreateFileSource(BufferSource source, vuint64_t pageSize, const WString& fileName, bool createNew);
+		extern IBufferSource*		CreateMemorySource(BufferSource source, volatile vuint64_t* totalCachedPages, vuint64_t pageSize);
+		extern IBufferSource*		CreateFileSource(BufferSource source, volatile vuint64_t* totalCachedPages, vuint64_t pageSize, const WString& fileName, bool createNew);
 
 /***********************************************************************
 BufferManager
@@ -26,6 +26,7 @@ BufferManager
 			:pageSize(_pageSize)
 			,cachePageCount(_cachePageCount)
 			,pageSizeBits(0)
+			,totalCachedPages(0)
 			,usedSourceIndex(0)
 		{
 			vuint64_t systemPageSize = sysconf(_SC_PAGE_SIZE);
@@ -63,10 +64,15 @@ BufferManager
 			return pageSize * cachePageCount;
 		}
 
+		vuint64_t BufferManager::GetCurrentlyCachedPageCount()
+		{
+			return totalCachedPages;
+		}
+
 		BufferSource BufferManager::LoadMemorySource()
 		{
 			BufferSource source{(BufferSource::IndexType)INCRC(&usedSourceIndex)};
-			Ptr<IBufferSource> bs = CreateMemorySource(source, pageSize);
+			Ptr<IBufferSource> bs = CreateMemorySource(source, &totalCachedPages, pageSize);
 			if (!bs)
 			{
 				return BufferSource::Invalid();
@@ -82,7 +88,7 @@ BufferManager
 		BufferSource BufferManager::LoadFileSource(const WString& fileName, bool createNew)
 		{
 			BufferSource source{(BufferSource::IndexType)INCRC(&usedSourceIndex)};
-			Ptr<IBufferSource> bs = CreateFileSource(source, pageSize, fileName, createNew);
+			Ptr<IBufferSource> bs = CreateFileSource(source, &totalCachedPages, pageSize, fileName, createNew);
 			if (!bs)
 			{
 				return BufferSource::Invalid();
