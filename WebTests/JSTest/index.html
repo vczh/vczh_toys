@@ -7,6 +7,11 @@
             font-family: 'Segoe UI';
         }
 
+        .nodeContainer {
+            list-style: none;
+            padding-left: 0;
+        }
+
         .decorator {
             float: left;
             min-width: 1.2em;
@@ -72,12 +77,12 @@
         function expandTreeNode(node) {
             node.data_expanded = !node.data_expanded;
             if (node.data_expanded) {
-                node.data_titleBar.data_decorator.firstChild.nodeValue = "-";
-                node.data_content.setAttribute("class", "visibleContent");
+                node.data_decorator.firstChild.nodeValue = "-";
+                node.data_content.setAttribute("class", "nodeContainer visibleContent");
             }
             else {
-                node.data_titleBar.data_decorator.firstChild.nodeValue = "+";
-                node.data_content.setAttribute("class", "invisibleContent");
+                node.data_decorator.firstChild.nodeValue = "+";
+                node.data_content.setAttribute("class", "nodeContainer invisibleContent");
             }
 
             if (!node.data_loaded) {
@@ -87,33 +92,30 @@
         }
 
         function createTreeNode(name, reference) {
-            var node = dom("div");
+            var node = dom("li");
             node.data_reference = reference;
             node.data_loaded = false;
             node.data_expanded = false;
             {
-                var titleBar = node.data_titleBar = dom("div", node);
-                {
-                    var decorator = titleBar.data_decorator = dom("div", titleBar);
-                    decorator.setAttribute("class", "decorator");
-                    if (reference != null) {
-                        decorator.appendChild(document.createTextNode("+"));
-                        decorator.onclick = function () { expandTreeNode(node); };
-                    }
-                    else {
-                        decorator.appendChild(document.createTextNode("\u00A0"));
-                    }
-
-                    var title = titleBar.data_title = dom("div", titleBar);
-                    title.appendChild(document.createTextNode(name));
-                    title.setAttribute("class", "title");
+                var decorator = node.data_decorator = dom("div", node);
+                decorator.setAttribute("class", "decorator");
+                if (reference != null) {
+                    decorator.appendChild(document.createTextNode("+"));
+                    decorator.onclick = function () { expandTreeNode(node); };
                 }
+                else {
+                    decorator.appendChild(document.createTextNode("\u00A0"));
+                }
+
+                var title = node.data_title = dom("div", node);
+                title.appendChild(document.createTextNode(name));
+                title.setAttribute("class", "title");
 
                 dom("div", node).setAttribute("style", "clear: both;");
 
                 if (reference != null) {
-                    var content = node.data_content = dom("div", node);
-                    content.setAttribute("class", "invisibleContent");
+                    var content = node.data_content = dom("ul", node);
+                    content.setAttribute("class", "nodeContainer invisibleContent");
                 }
             }
             return node;
@@ -136,7 +138,7 @@
             })
         }
     </script>
-    <div id="tree"></div>
+    <ul id="tree" class="nodeContainer"></ul>
     <script language="javascript">
         loadTreeNodes(tree, "root.xml");
     </script>
