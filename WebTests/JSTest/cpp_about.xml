@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Nodes>
+  <Node>
+    <Name>Bjarne Stroustrup</Name>
+  </Node>
+  <Node>
+    <Name>Visual Studio</Name>
+  </Node>
+  <Node>
+    <Name>Clang++</Name>
+  </Node>
+  <Node>
+    <Name>G++ Sucks</Name>
+  </Node>
+</Nodes>

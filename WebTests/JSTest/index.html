@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>XMLHttpRequest Test</title>
+    <style type="text/css">
+        body {
+            font-family: 'Segoe UI';
+        }
+
+        .decorator {
+            float: left;
+            min-width: 1.2em;
+            display: block;
+            font-family: 'Consolas';
+            text-decoration: none;
+            color: #0026ff;
+            cursor: pointer;
+        }
+
+            .decorator:hover {
+                color: #ff5000;
+            }
+
+        .title {
+            float: left;
+            display: block;
+            text-decoration: none;
+            color: #0026ff;
+            cursor: pointer;
+        }
+
+            .title:hover {
+                text-decoration: underline;
+                color: #ff5000;
+            }
+
+        .visibleContent {
+            margin-left: 1.2em;
+        }
+
+        .invisibleContent {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <script language="javascript">
+        function request(url, onReady, onFail) {
+            var xhr = new XMLHttpRequest();
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState == XMLHttpRequest.DONE) {
+                    if (xhr.status == 200) {
+                        onReady(xhr);
+                    }
+                    else if (onFail) {
+                        onFail(xhr);
+                    }
+                }
+            }
+            xhr.open("GET", url, true);
+            xhr.send(null);
+        }
+
+        function dom(type, parent) {
+            var node = document.createElement(type);
+            if (parent) {
+                parent.appendChild(node);
+            }
+            return node;
+        }
+
+        function expandTreeNode(node) {
+            node.data_expanded = !node.data_expanded;
+            if (node.data_expanded) {
+                node.data_titleBar.data_decorator.firstChild.nodeValue = "-";
+                node.data_content.setAttribute("class", "visibleContent");
+            }
+            else {
+                node.data_titleBar.data_decorator.firstChild.nodeValue = "+";
+                node.data_content.setAttribute("class", "invisibleContent");
+            }
+
+            if (!node.data_loaded) {
+                node.data_loaded = true;
+                loadTreeNodes(node.data_content, node.data_reference);
+            }
+        }
+
+        function createTreeNode(name, reference) {
+            var node = dom("div");
+            node.data_reference = reference;
+            node.data_loaded = false;
+            node.data_expanded = false;
+            {
+                var titleBar = node.data_titleBar = dom("div", node);
+                {
+                    var decorator = titleBar.data_decorator = dom("div", titleBar);
+                    decorator.setAttribute("class", "decorator");
+                    if (reference != null) {
+                        decorator.appendChild(document.createTextNode("+"));
+                        decorator.onclick = function () { expandTreeNode(node); };
+                    }
+                    else {
+                        decorator.appendChild(document.createTextNode("\u00A0"));
+                    }
+
+                    var title = titleBar.data_title = dom("div", titleBar);
+                    title.appendChild(document.createTextNode(name));
+                    title.setAttribute("class", "title");
+                }
+
+                dom("div", node).setAttribute("style", "clear: both;");
+
+                if (reference != null) {
+                    var content = node.data_content = dom("div", node);
+                    content.setAttribute("class", "invisibleContent");
+                }
+            }
+            return node;
+        }
+
+        function loadTreeNodes(parent, url) {
+            request(url, function (xhr) {
+                var nodesXml = xhr.responseXML.getElementsByTagName("Nodes")[0];
+                var nodeXmls = nodesXml.getElementsByTagName("Node");
+
+                for (var i = 0; i < nodeXmls.length; i++) {
+                    var nodeXml = nodeXmls[i];
+                    var name = nodeXml.getElementsByTagName("Name")[0].firstChild.nodeValue;
+                    var referenceXmls = nodeXml.getElementsByTagName("Reference");
+                    var reference = referenceXmls.length == 0 ? null : referenceXmls[0].firstChild.nodeValue;
+
+                    var node = createTreeNode(name, reference);
+                    parent.appendChild(node);
+                }
+            })
+        }
+    </script>
+    <div id="tree"></div>
+    <script language="javascript">
+        loadTreeNodes(tree, "root.xml");
+    </script>
+</body>
+</html>

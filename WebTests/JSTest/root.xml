@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Nodes>
+  <Node>
+    <Name>C++</Name>
+    <Reference>cpp.xml</Reference>
+  </Node>
+  <Node>
+    <Name>C#</Name>
+    <Reference>csharp.xml</Reference>
+  </Node>
+  <Node>
+    <Name>F#</Name>
+    <Reference>fsharp.xml</Reference>
+  </Node>
+  <Node>
+    <Name>VB.NET</Name>
+    <Reference>vb.xml</Reference>
+  </Node>
+</Nodes>

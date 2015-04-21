@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Nodes>
+  <Node>
+    <Name>About F#</Name>
+  </Node>
+  <Node>
+    <Name>Using F#</Name>
+  </Node>
+  <Node>
+    <Name>F# Reference</Name>
+  </Node>
+</Nodes>
