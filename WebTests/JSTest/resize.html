@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Resize</title>
+    <style type="text/css">
+        body {
+            display:block;
+        }
+
+        .box {
+            display: block;
+            position: relative;
+            float: left;
+            clear: both;
+            border: 1px solid blue;
+        }
+
+        .resizer {
+            display: block;
+            width: 10px;
+            height: 10px;
+            position: absolute;
+            right: 1px;
+            bottom: 1px;
+            cursor: nwse-resize;
+            border: 1px solid red;
+            overflow: hidden;
+            text-align: center;
+            font-size: 14px;
+        }
+    </style>
+    <script language="javascript">
+        function getPx(px) {
+            return +px.substr(0, px.length - 2);
+        }
+
+        var bodyOnMouseMove = null;
+        var bodyOnMouseUp = null;
+
+        function trackMouse(node) {
+            bodyOnMouseMove = node.onmousemove;
+            bodyOnMouseUp = node.onmouseup;
+
+            node.onmousemove = null;
+            node.onmouseup = null;
+        }
+
+        function unTrackMouse(node) {
+            node.onmousemove = bodyOnMouseMove;
+            node.onmouseup = bodyOnMouseUp;
+
+            bodyOnMouseMove = null;
+            bodyOnMouseUp = null;
+        }
+
+        function bodyOnLoad() {
+            window.onmousemove = function (event) {
+                if (bodyOnMouseMove) {
+                    bodyOnMouseMove(event);
+                }
+            }
+
+            window.onmouseup = function (event) {
+                if (bodyOnMouseUp) {
+                    bodyOnMouseUp(event);
+                }
+            }
+        }
+
+        function installResizer(node) {
+            node.setAttribute("style", "min-width:100px; min-height:100px;");
+
+            var resizer = document.createElement("div");
+            resizer.setAttribute("class", "resizer");
+            node.appendChild(resizer);
+
+            var star = document.createTextNode("*");
+            resizer.appendChild(star);
+
+            var dragging = false;
+            var x = 0.0;
+            var y = 0.0;
+
+            resizer.onmousedown = function (event) {
+                dragging = true;
+                x = event.pageX;
+                y = event.pageY;
+                trackMouse(resizer);
+            };
+
+            resizer.onmousemove = function (event) {
+                if (dragging) {
+                    var dx = event.pageX - x;
+                    var dy = event.pageY - y;
+
+                    node.style.minWidth = getPx(node.style.minWidth) + dx + "px";
+                    node.style.minHeight = getPx(node.style.minHeight) + dy + "px";
+
+                    x = event.pageX;
+                    y = event.pageY;
+                }
+            };
+
+            resizer.onmouseup = function (event) {
+                dragging = false;
+                unTrackMouse(resizer);
+            };
+        }
+    </script>
+</head>
+<body onload="javascript:bodyOnLoad()">
+    <div id="blueBox" class="box"></div>
+    <script language="javascript">
+        installResizer(blueBox);
+
+        blueBox.onmousedown = function (event) {
+            var a = 0;
+        }
+    </script>
+</body>
+</html>
