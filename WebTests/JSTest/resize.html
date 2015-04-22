@@ -4,7 +4,7 @@
     <title>Resize</title>
     <style type="text/css">
         body {
-            display:block;
+            display: block;
         }
 
         .box {
@@ -38,33 +38,51 @@
         var bodyOnMouseUp = null;
 
         function trackMouse(node) {
-            bodyOnMouseMove = node.onmousemove;
-            bodyOnMouseUp = node.onmouseup;
-
-            node.onmousemove = null;
-            node.onmouseup = null;
+            bodyOnMouseMove = node.data_onMouseMove;
+            bodyOnMouseUp = node.data_onMouseUp;
+            detachMouseEvents(node, false);
         }
 
         function unTrackMouse(node) {
-            node.onmousemove = bodyOnMouseMove;
-            node.onmouseup = bodyOnMouseUp;
-
+            attachMouseEvents(node);
             bodyOnMouseMove = null;
             bodyOnMouseUp = null;
         }
 
+        function attachMouseEvents(node, onMouseDown, onMouseMove, onMouseUp) {
+            if (onMouseDown) node.data_onMouseDown = onMouseDown;
+            if (onMouseMove) node.data_onMouseMove = onMouseMove;
+            if (onMouseUp) node.data_onMouseUp = onMouseUp;
+
+            node.addEventListener("mousedown", node.data_onMouseDown, false);
+            node.addEventListener("mousemove", node.data_onMouseMove, false);
+            node.addEventListener("mouseup", node.data_onMouseUp, false);
+        }
+
+        function detachMouseEvents(node, removeHandler) {
+            node.removeEventListener("mousedown", node.data_onMouseDown, false);
+            node.removeEventListener("mousemove", node.data_onMouseMove, false);
+            node.removeEventListener("mouseup", node.data_onMouseUp, false);
+
+            if (removeHandler) {
+                node.data_onMouseDown = undefined;
+                node.data_onMouseMove = undefined;
+                node.data_onMouseUp = undefined;
+            }
+        }
+
         function bodyOnLoad() {
-            window.onmousemove = function (event) {
+            window.addEventListener("mousemove", function (event) {
                 if (bodyOnMouseMove) {
                     bodyOnMouseMove(event);
                 }
-            }
+            }, false);
 
-            window.onmouseup = function (event) {
+            window.addEventListener("mouseup", function (event) {
                 if (bodyOnMouseUp) {
                     bodyOnMouseUp(event);
                 }
-            }
+            }, false);
         }
 
         function installResizer(node) {
@@ -81,30 +99,31 @@
             var x = 0.0;
             var y = 0.0;
 
-            resizer.onmousedown = function (event) {
-                dragging = true;
-                x = event.pageX;
-                y = event.pageY;
-                trackMouse(resizer);
-            };
-
-            resizer.onmousemove = function (event) {
-                if (dragging) {
-                    var dx = event.pageX - x;
-                    var dy = event.pageY - y;
-
-                    node.style.minWidth = getPx(node.style.minWidth) + dx + "px";
-                    node.style.minHeight = getPx(node.style.minHeight) + dy + "px";
-
+            attachMouseEvents(
+                resizer,
+                function (event) {
+                    dragging = true;
                     x = event.pageX;
                     y = event.pageY;
-                }
-            };
+                    trackMouse(resizer);
+                },
+                function (event) {
+                    if (dragging) {
+                        var dx = event.pageX - x;
+                        var dy = event.pageY - y;
 
-            resizer.onmouseup = function (event) {
-                dragging = false;
-                unTrackMouse(resizer);
-            };
+                        node.style.minWidth = getPx(node.style.minWidth) + dx + "px";
+                        node.style.minHeight = getPx(node.style.minHeight) + dy + "px";
+
+                        x = event.pageX;
+                        y = event.pageY;
+                    }
+                },
+                function (event) {
+                    dragging = false;
+                    unTrackMouse(resizer);
+                }
+            );
         }
     </script>
 </head>
@@ -112,10 +131,6 @@
     <div id="blueBox" class="box"></div>
     <script language="javascript">
         installResizer(blueBox);
-
-        blueBox.onmousedown = function (event) {
-            var a = 0;
-        }
     </script>
 </body>
 </html>
