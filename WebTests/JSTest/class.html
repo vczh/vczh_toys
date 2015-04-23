@@ -33,8 +33,8 @@
 
             function CreateInternalReference(description) {
                 var internalReference = {};
+                internalReference.__proto__ = Class.prototype;
 
-                // copy all members to internalReference
                 for (var name in description) {
                     var member = description[name];
 
@@ -50,16 +50,6 @@
                 }
 
                 return internalReference;
-            }
-
-            function InjectInternalReference(internalReference, typeObject, externalReference) {
-                internalReference.GetType = function () {
-                    return typeObject;
-                }
-
-                internalReference.GetExternalReference = function () {
-                    return externalReference;
-                }
             }
 
             function CopyReferencableMember(target, source, memberName, memberValue) {
@@ -131,6 +121,16 @@
                             accumulatedBaseClasses,
                             accumulatedBaseReferences);
                     }
+                }
+            }
+
+            function InjectInternalReference(internalReference, typeObject, externalReference) {
+                internalReference.GetType = function () {
+                    return typeObject;
+                }
+
+                internalReference.GetExternalReference = function () {
+                    return externalReference;
                 }
             }
 
@@ -512,6 +512,54 @@
             assert(x.GetA() == C);
             assert(x.GetB() == C);
             assert(x.GetC() == C);
+        });
+    </script>
+
+    <script>
+        testCase("functions should overload by argument types", function () {
+            var A = Class({
+            });
+
+            var B = Class(A, {
+            });
+
+            var C = Class(A, {
+            });
+
+            var MyClass = Class({
+                Print:Private(function() {
+                    var result = "";
+                    for (var i in arguments) {
+                        if (i > 0) result += ", ";
+                        result += typeof (arguments[i]);
+                    }
+                    return result;
+                }),
+
+                Do: Public([
+                    [], function () {
+                        return "1: " + this.Print(arguments);
+                    },
+                    [Number, String, Boolean], function (a, b, c) {
+                        return "2: " + this.Print(arguments);
+                    },
+                    [Function], function (x) {
+                        return "3: " + this.Print(arguments);
+                    },
+                    [C], function (x) {
+                        return "4: " + this.Print(arguments);
+                    },
+                    [B], function (x) {
+                        return "5: " + this.Print(arguments);
+                    },
+                    [A], function (x) {
+                        return "6: " + this.Print(arguments);
+                    },
+                    [Object], function (x) {
+                        return "7: " + this.Print(arguments);
+                    },
+                ]),
+            });
         });
     </script>
 
