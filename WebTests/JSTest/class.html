@@ -35,7 +35,6 @@
             return function () {
                 // call the user defined constructor
                 var typeObject = arguments.callee;
-                var instance = new constructor();
 
                 // create the internalReference, which is the value of "this" in member functions
                 var internalReference = {};
@@ -46,8 +45,8 @@
                 }
 
                 // copy all members to internalReference
-                for (var name in instance) {
-                    var member = instance[name];
+                for (var name in constructor) {
+                    var member = constructor[name];
 
                     if (member instanceof __PrivateMember) {
                         internalReference[name] = member.value;
@@ -79,10 +78,10 @@
                 }
 
                 // copy all public member fields to externalReference
-                for (var name in instance) {
+                for (var name in constructor) {
                     (function () {
                         var memberName = name;
-                        var member = instance[memberName];
+                        var member = constructor[memberName];
 
                         if (member instanceof __PublicMember) {
                             if (typeof member.value == "function") {
@@ -129,9 +128,8 @@
 
     <script>
         testCase("create instance should success", function () {
-            var MyClass = Class(
-                function () {
-                });
+            var MyClass = Class({
+            });
 
             var x = new MyClass();
             assert(x.GetType() == MyClass);
@@ -140,11 +138,10 @@
 
     <script>
         testCase("fields cannot be deleted", function () {
-            var MyClass = Class(
-                function () {
-                    this.a = Public(0);
-                    this.b = Public(1);
-                });
+            var MyClass = Class({
+                a: Public(0),
+                b: Public(1),
+            });
 
             var x = new MyClass();
             delete x.GetType;
@@ -158,11 +155,10 @@
 
     <script>
         testCase("instances don't share fields", function () {
-            var MyClass = Class(
-                function () {
-                    this.a = Public(0);
-                    this.b = Public(1);
-                });
+            var MyClass = Class({
+                a: Public(0),
+                b: Public(1),
+            });
 
             var x = new MyClass();
             var y = new MyClass();
@@ -182,16 +178,15 @@
 
     <script>
         testCase("member function can access all members", function () {
-            var MyClass = Class(
-                function () {
-                    this.value = Public(0);
-                    this.GetValue = Public(function () {
-                        return this.value;
-                    });
-                    this.SetValue = Public(function (newValue) {
-                        this.value = newValue;
-                    });
-                });
+            var MyClass = Class({
+                value: Public(0),
+                GetValue: Public(function () {
+                    return this.value;
+                }),
+                SetValue: Public(function (newValue) {
+                    this.value = newValue;
+                }),
+            });
 
             var x = new MyClass();
             assert(x.value == 0);
@@ -209,16 +204,15 @@
 
     <script>
         testCase("protected members are not visible from outside", function () {
-            var MyClass = Class(
-                function () {
-                    this.value = Protected(0);
-                    this.GetValue = Public(function () {
-                        return this.value;
-                    });
-                    this.SetValue = Public(function (newValue) {
-                        this.value = newValue;
-                    });
-                });
+            var MyClass = Class({
+                value: Protected(0),
+                GetValue: Public(function () {
+                    return this.value;
+                }),
+                SetValue: Public(function (newValue) {
+                    this.value = newValue;
+                }),
+            });
 
             var x = new MyClass();
             assert(x.value == undefined);
@@ -231,6 +225,11 @@
             x.SetValue(2);
             assert(x.value == 1);
             assert(x.GetValue() == 2);
+        })
+    </script>
+
+    <script>
+        testCase("private members are not visible from derived classes", function () {
         })
     </script>
 </body>
