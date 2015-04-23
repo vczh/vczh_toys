@@ -418,7 +418,7 @@
     </script>
 
     <script>
-        testCase("deriving from child classes should success", function () {
+        testCase("deriving from a child class should success", function () {
             var A = Class({
                 DoA: Public(function (a, b) {
                     return a + b;
@@ -467,7 +467,51 @@
     </script>
 
     <script>
-        testCase("<multiple inheritance>", function () {
+        testCase("deriving from multiple classea should success", function () {
+            var A = Class({
+                DoA: Public(function (a, b) {
+                    return a + b;
+                }),
+                GetA: Public(function () {
+                    return this.GetType();
+                }),
+            });
+
+            var B = Class({
+                DoB: Public(function (a, b) {
+                    return a - b;
+                }),
+                GetB: Public(function () {
+                    return this.GetType();
+                }),
+            });
+
+            var C = Class(A, B, {
+                DoC: Public(function (a, b) {
+                    return a * b;
+                }),
+                GetC: Public(function () {
+                    return this.GetType();
+                }),
+            });
+
+            assert(A.IsAssignableFrom(A) == true);
+            assert(A.IsAssignableFrom(B) == false);
+            assert(A.IsAssignableFrom(C) == true);
+            assert(B.IsAssignableFrom(A) == false);
+            assert(B.IsAssignableFrom(B) == true);
+            assert(B.IsAssignableFrom(C) == true);
+            assert(C.IsAssignableFrom(A) == false);
+            assert(C.IsAssignableFrom(B) == false);
+            assert(C.IsAssignableFrom(C) == true);
+
+            var x = new C();
+            assert(x.DoA(1, 2) == 3);
+            assert(x.DoB(1, 2) == -1);
+            assert(x.DoC(1, 2) == 2);
+            assert(x.GetA() == C);
+            assert(x.GetB() == C);
+            assert(x.GetC() == C);
         });
     </script>
 
