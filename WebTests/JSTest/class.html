@@ -31,12 +31,12 @@
 
         function Class() {
 
-            function CreateInternalReference(constructor) {
+            function CreateInternalReference(description) {
                 var internalReference = {};
 
                 // copy all members to internalReference
-                for (var name in constructor) {
-                    var member = constructor[name];
+                for (var name in description) {
+                    var member = description[name];
 
                     if (member instanceof __PrivateMember) {
                         internalReference[name] = member.value;
@@ -87,11 +87,11 @@
                 }
             }
 
-            function CopyReferencableMembers(target, source, constructor, copyProtected) {
-                for (var name in constructor) {
+            function CopyReferencableMembers(target, source, description, copyProtected) {
+                for (var name in description) {
                     (function () {
                         var memberName = name;
-                        var member = constructor[memberName];
+                        var member = description[memberName];
 
                         if (member instanceof __ProtectedMember) {
                             if (copyProtected) {
@@ -109,26 +109,25 @@
             for (var i = 0; i < arguments.length - 1; i++) {
                 baseClasses[i] = arguments[i];
             }
-            var constructor = arguments[arguments.length - 1];
+            var description = arguments[arguments.length - 1];
 
             function Type() {
-                // call the user defined constructor
                 var typeObject = arguments.callee;
 
                 // create every internalReference, which is the value of "this" in member functions
                 var internalReferences = new Array(baseClasses.length + 1);
                 for (var i = 0; i <= baseClasses.length; i++) {
                     if (i == baseClasses.length) {
-                        internalReferences[i] = CreateInternalReference(constructor);
+                        internalReferences[i] = CreateInternalReference(description);
                     }
                     else {
-                        internalReferences[i] = CreateInternalReference(baseClasses[i].GetConstructor());
+                        internalReferences[i] = CreateInternalReference(baseClasses[i].GetDescription());
                     }
                 }
 
                 // copy all public and protected members to internalReference
                 for (var i = 0; i < baseClasses.length; i++) {
-                    CopyReferencableMembers(internalReferences[baseClasses.length], internalReferences[i], baseClasses[i].GetConstructor(), true);
+                    CopyReferencableMembers(internalReferences[baseClasses.length], internalReferences[i], baseClasses[i].GetDescription(), true);
                 }
 
                 // create the externalReference
@@ -153,10 +152,10 @@
                 // copy all public member fields to externalReference
                 for (var i in internalReferences) {
                     if (i == baseClasses.length) {
-                        CopyReferencableMembers(externalReference, internalReferences[i], constructor, false);
+                        CopyReferencableMembers(externalReference, internalReferences[i], description, false);
                     }
                     else {
-                        CopyReferencableMembers(externalReference, internalReferences[i], baseClasses[i].GetConstructor(), false);
+                        CopyReferencableMembers(externalReference, internalReferences[i], baseClasses[i].GetDescription(), false);
                     }
                 }
 
@@ -164,12 +163,12 @@
                 return externalReference;
             }
 
-            Object.defineProperty(Type, "GetConstructor", {
+            Object.defineProperty(Type, "GetDescription", {
                 configurable: false,
                 enumerable: true,
                 writable: false,
                 value: function () {
-                    return constructor;
+                    return description;
                 }
             });
             return Type;
@@ -375,6 +374,11 @@
     </script>
 
     <script>
+        testCase("<multiple inheritance>", function () {
+        });
+    </script>
+
+    <script>
         testCase("<constructor>", function () {
         });
     </script>
@@ -385,7 +389,17 @@
     </script>
 
     <script>
+        testCase("<virtual function in multiple inheritance>", function () {
+        });
+    </script>
+
+    <script>
         testCase("<virtual base class>", function () {
+        });
+    </script>
+
+    <script>
+        testCase("<constructor in virtual base class>", function () {
         });
     </script>
 </body>
