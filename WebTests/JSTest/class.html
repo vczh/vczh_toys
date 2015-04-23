@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Class</title>
+</head>
+<body>
+    <script>
+        function __PrivateMember(value) {
+            this.value = value;
+        }
+
+        function __ProtectedMember(value) {
+            this.value = value;
+        }
+
+        function __PublicMember(value) {
+            this.value = value;
+        }
+
+        function Private(value) {
+            return new __PrivateMember(value);
+        }
+
+        function Protected(value) {
+            return new __ProtectedMember(value);
+        }
+
+        function Public(value) {
+            return new __PublicMember(value);
+        }
+
+        function Class() {
+            var constructor = arguments[arguments.length - 1];
+
+            return function () {
+                // call the user defined constructor
+                var typeObject = arguments.callee;
+                var instance = new constructor();
+
+                // create the internalReference, which is the value of "this" in member functions
+                var internalReference = {};
+
+                // inject internalReference.GetType()
+                internalReference.GetType = function () {
+                    return typeObject;
+                }
+
+                // copy all members to internalReference
+                for (var name in instance) {
+                    var member = instance[name];
+
+                    if (member instanceof __PrivateMember) {
+                        internalReference[name] = member.value;
+                    }
+                    else if (member instanceof __ProtectedMember) {
+                        internalReference[name] = member.value;
+                    }
+                    else if (member instanceof __PublicMember) {
+                        internalReference[name] = member.value;
+                    }
+                }
+
+                // create the externalReference
+                var externalReference = {};
+
+                // inject externalReference.GetType()
+                Object.defineProperty(externalReference, "GetType", {
+                    configurable: false,
+                    enumerable: true,
+                    writable: false,
+                    value: function () {
+                        return typeObject;
+                    }
+                });
+
+                // inject internalReference.GetExternalReference()
+                internalReference.GetExternalReference = function () {
+                    return externalReference;
+                }
+
+                // copy all public member fields to externalReference
+                for (var name in instance) {
+                    (function () {
+                        var memberName = name;
+                        var member = instance[memberName];
+
+                        if (member instanceof __PublicMember) {
+                            if (typeof member.value == "function") {
+                                Object.defineProperty(externalReference, memberName, {
+                                    configurable: false,
+                                    enumerable: true,
+                                    writable: false,
+                                    value: function () {
+                                        return member.value.apply(internalReference, arguments);
+                                    }
+                                });
+                            }
+                            else {
+                                Object.defineProperty(externalReference, memberName, {
+                                    configurable: false,
+                                    enumerable: true,
+                                    get: function () {
+                                        return internalReference[memberName];
+                                    },
+                                    set: function (value) {
+                                        internalReference[memberName] = value;
+                                    }
+                                });
+                            }
+                        }
+                    })();
+                }
+
+                // return the externalReference
+                return externalReference;
+            }
+        }
+    </script>
+    <script>
+        function assert(code) {
+            if (!code) throw new Error("Fuck");
+        }
+
+        function testCase(name, code) {
+            console.debug("Running: " + name);
+            code();
+        }
+    </script>
+
+    <script>
+        testCase("create instance should success", function () {
+            var MyClass = Class(
+                function () {
+                });
+
+            var x = new MyClass();
+            assert(x.GetType() == MyClass);
+        });
+    </script>
+
+    <script>
+        testCase("fields cannot be deleted", function () {
+            var MyClass = Class(
+                function () {
+                    this.a = Public(0);
+                    this.b = Public(1);
+                });
+
+            var x = new MyClass();
+            delete x.GetType;
+            delete x.a;
+            delete x.b;
+            assert(x.GetType() == MyClass);
+            assert(x.a == 0);
+            assert(x.b == 1);
+        });
+    </script>
+
+    <script>
+        testCase("instances don't share fields", function () {
+            var MyClass = Class(
+                function () {
+                    this.a = Public(0);
+                    this.b = Public(1);
+                });
+
+            var x = new MyClass();
+            var y = new MyClass();
+            assert(x.a == 0);
+            assert(x.b == 1);
+            assert(y.a == 0);
+            assert(y.b == 1);
+
+            x.a = 2;
+            y.a = 3;
+            assert(x.a == 2);
+            assert(x.b == 1);
+            assert(y.a == 3);
+            assert(y.b == 1);
+        });
+    </script>
+
+    <script>
+        testCase("member function can access all members", function () {
+            var MyClass = Class(
+                function () {
+                    this.value = Public(0);
+                    this.GetValue = Public(function () {
+                        return this.value;
+                    });
+                    this.SetValue = Public(function (newValue) {
+                        this.value = newValue;
+                    });
+                });
+
+            var x = new MyClass();
+            assert(x.value == 0);
+            assert(x.GetValue() == 0);
+
+            x.value = 1;
+            assert(x.value == 1);
+            assert(x.GetValue() == 1);
+
+            x.SetValue(2);
+            assert(x.value == 2);
+            assert(x.GetValue() == 2);
+        })
+    </script>
+
+    <script>
+        testCase("protected members are not visible from outside", function () {
+            var MyClass = Class(
+                function () {
+                    this.value = Protected(0);
+                    this.GetValue = Public(function () {
+                        return this.value;
+                    });
+                    this.SetValue = Public(function (newValue) {
+                        this.value = newValue;
+                    });
+                });
+
+            var x = new MyClass();
+            assert(x.value == undefined);
+            assert(x.GetValue() == 0);
+
+            x.value = 1;
+            assert(x.value == 1);
+            assert(x.GetValue() == 0);
+
+            x.SetValue(2);
+            assert(x.value == 1);
+            assert(x.GetValue() == 2);
+        })
+    </script>
+</body>
+</html>
