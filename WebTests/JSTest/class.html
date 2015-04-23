@@ -230,6 +230,82 @@
 
     <script>
         testCase("private members are not visible from derived classes", function () {
+            var BaseClass = Class({
+                privateMember: Private(1),
+                protectedMember: Protected(2),
+                publicMember: Public(3),
+
+                PrivateFunctionInternal: Private(function () {
+                    return this.privateMember;
+                }),
+
+                ProtectedFunctionInternal: Protected(function () {
+                    return this.protectedMember + this.privateMember;
+                }),
+
+                PublicFunctionInternal: Public(function () {
+                    return this.publicMember + this.protectedMember + this.privateMember;
+                }),
+
+                PrivateFunctionBase: Private(function () {
+                    return this.PrivateFunctionInternal();
+                }),
+
+                ProtectedFunctionBase: Protected(function () {
+                    return this.ProtectedFunctionInternal();
+                }),
+
+                PublicFunctionBase: Public(function () {
+                    return this.PublicFunctionInternal();
+                }),
+            });
+
+            var DerivedClass = Class(BaseClass, {
+                PrivateFunction1: Public(function () {
+                    return this.PrivateFunctionBase == undefined ? 0 : this.PrivateFunctionBase();
+                }),
+
+                ProtectedFunction1: Public(function () {
+                    return this.ProtectedFunctionBase == undefined ? 0 : this.ProtectedFunctionBase();
+                }),
+
+                PublicFunction1: Public(function () {
+                    return this.PublicFunctionBase == undefined ? 0 : this.PublicFunctionBase();
+                }),
+
+                PrivateFunction2: Public(function () {
+                    return this.privateMember == undefined ? 0 : this.privateMember;
+                }),
+
+                ProtectedFunction2: Public(function () {
+                    return this.protectedMember == undefined ? 0 : protectedMember;
+                }),
+
+                PublicFunction2: Public(function () {
+                    return this.publicMember == undefined ? 0 : this.publicMember;
+                }),
+            });
+
+            var x = new DerivedClass();
+            assert(x.privateMember == undefined);
+            assert(x.protectedMember == undefined);
+            assert(x.publicMember == 2);
+
+            assert(x.PrivateFunctionInternal == undefined);
+            assert(x.ProtectedFunctionInternal == undefined);
+            assert(x.PublicFunctionInternal() == 6);
+
+            assert(x.PrivateFunctionBase == undefined);
+            assert(x.ProtectedFunctionBase == undefined);
+            assert(x.PublicFunctionBase() == 6);
+
+            assert(x.PrivateFunction1 == undefined);
+            assert(x.ProtectedFunction1 == undefined);
+            assert(x.PublicFunction1() == 6);
+
+            assert(x.PrivateFunction2 == undefined);
+            assert(x.ProtectedFunction2 == undefined);
+            assert(x.PublicFunction2() == 3);
         })
     </script>
 </body>
