@@ -105,9 +105,38 @@
                 }
             }
 
-            var baseClasses = new Array(arguments.length - 1);
+            function CreateCompleteInternalReference(type, accumulatedBaseClasses, accumulatedBaseReferences) {
+                var description = type.GetDescription();
+                var baseClasses = type.GetBaseClasses();
+
+                for (var i = 0; i <= baseClasses.length; i++) {
+                    if (i == baseClasses.length) {
+                        var internalReference = CreateInternalReference(description);
+
+                        for (var j = 0; j < accumulatedBaseClasses.length; j++) {
+                            CopyReferencableMembers(
+                                internalReference,
+                                accumulatedBaseReferences[j],
+                                accumulatedBaseClasses[j].GetDescription(),
+                                true);
+                        }
+
+                        accumulatedBaseClasses.push(type);
+                        accumulatedBaseReferences.push(internalReference);
+                        return internalReference;
+                    }
+                    else {
+                        CreateCompleteInternalReference(
+                            baseClasses[i],
+                            accumulatedBaseClasses,
+                            accumulatedBaseReferences);
+                    }
+                }
+            }
+
+            var directBaseClasses = new Array(arguments.length - 1);
             for (var i = 0; i < arguments.length - 1; i++) {
-                baseClasses[i] = arguments[i];
+                directBaseClasses[i] = arguments[i];
             }
             var description = arguments[arguments.length - 1];
 
@@ -115,20 +144,12 @@
                 var typeObject = arguments.callee;
 
                 // create every internalReference, which is the value of "this" in member functions
-                var internalReferences = new Array(baseClasses.length + 1);
-                for (var i = 0; i <= baseClasses.length; i++) {
-                    if (i == baseClasses.length) {
-                        internalReferences[i] = CreateInternalReference(description);
-                    }
-                    else {
-                        internalReferences[i] = CreateInternalReference(baseClasses[i].GetDescription());
-                    }
-                }
-
-                // copy all public and protected members to internalReference
-                for (var i = 0; i < baseClasses.length; i++) {
-                    CopyReferencableMembers(internalReferences[baseClasses.length], internalReferences[i], baseClasses[i].GetDescription(), true);
-                }
+                var accumulatedBaseClasses = [];
+                var accumulatedBaseReferences = [];
+                var internalReference = CreateCompleteInternalReference(
+                    typeObject,
+                    accumulatedBaseClasses,
+                    accumulatedBaseReferences);
 
                 // create the externalReference
                 var externalReference = {};
@@ -145,18 +166,17 @@
 
                 // inject internalReference.GetType()
                 // inject internalReference.GetExternalReference()
-                for (var i in internalReferences) {
-                    InjectInternalReference(internalReferences[i], typeObject, externalReference);
+                for (var i in accumulatedBaseReferences) {
+                    InjectInternalReference(accumulatedBaseReferences[i], typeObject, externalReference);
                 }
 
                 // copy all public member fields to externalReference
-                for (var i in internalReferences) {
-                    if (i == baseClasses.length) {
-                        CopyReferencableMembers(externalReference, internalReferences[i], description, false);
-                    }
-                    else {
-                        CopyReferencableMembers(externalReference, internalReferences[i], baseClasses[i].GetDescription(), false);
-                    }
+                for (var i in accumulatedBaseReferences) {
+                    CopyReferencableMembers(
+                        externalReference,
+                        accumulatedBaseReferences[i],
+                        accumulatedBaseClasses[i].GetDescription(),
+                        false);
                 }
 
                 // return the externalReference
@@ -169,6 +189,35 @@
                 writable: false,
                 value: function () {
                     return description;
+                }
+            });
+
+            Object.defineProperty(Type, "GetBaseClasses", {
+                configurable: false,
+                enumerable: true,
+                writable: false,
+                value: function () {
+                    return directBaseClasses;
+                }
+            });
+
+            Object.defineProperty(Type, "IsAssignableFrom", {
+                configurable: false,
+                enumerable: true,
+                writable: false,
+                value: function (type) {
+                    if (type == Type) {
+                        return true;
+                    }
+                    else {
+                        var baseClasses = type.GetBaseClasses();
+                        for (var i in baseClasses) {
+                            if (Type.IsAssignableFrom(baseClasses[i])) {
+                                return true;
+                            }
+                        }
+                        return false;
+                    }
                 }
             });
             return Type;
@@ -369,7 +418,51 @@
     </script>
 
     <script>
-        testCase("<multi-level inheritance>", function () {
+        testCase("deriving from child classes should success", function () {
+            var A = Class({
+                DoA: Public(function (a, b) {
+                    return a + b;
+                }),
+                GetA: Public(function () {
+                    return this.GetType();
+                }),
+            });
+
+            var B = Class(A, {
+                DoB: Public(function (a, b) {
+                    return a - b;
+                }),
+                GetB: Public(function () {
+                    return this.GetType();
+                }),
+            });
+
+            var C = Class(B, {
+                DoC: Public(function (a, b) {
+                    return a * b;
+                }),
+                GetC: Public(function () {
+                    return this.GetType();
+                }),
+            });
+
+            assert(A.IsAssignableFrom(A) == true);
+            assert(A.IsAssignableFrom(B) == true);
+            assert(A.IsAssignableFrom(C) == true);
+            assert(B.IsAssignableFrom(A) == false);
+            assert(B.IsAssignableFrom(B) == true);
+            assert(B.IsAssignableFrom(C) == true);
+            assert(C.IsAssignableFrom(A) == false);
+            assert(C.IsAssignableFrom(B) == false);
+            assert(C.IsAssignableFrom(C) == true);
+
+            var x = new C();
+            assert(x.DoA(1, 2) == 3);
+            assert(x.DoB(1, 2) == -1);
+            assert(x.DoC(1, 2) == 2);
+            assert(x.GetA() == C);
+            assert(x.GetB() == C);
+            assert(x.GetC() == C);
         });
     </script>
 
@@ -400,6 +493,16 @@
 
     <script>
         testCase("<constructor in virtual base class>", function () {
+        });
+    </script>
+
+    <script>
+        testCase("<properties>", function () {
+        });
+    </script>
+
+    <script>
+        testCase("<events>", function () {
         });
     </script>
 </body>
