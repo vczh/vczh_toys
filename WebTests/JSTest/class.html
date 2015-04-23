@@ -536,7 +536,7 @@
                     return result;
                 }),
 
-                Do: Public([
+                Do: Public.Overload(
                     [], function () {
                         return "1: " + this.Print(arguments);
                     },
@@ -557,8 +557,8 @@
                     },
                     [Object], function (x) {
                         return "7: " + this.Print(arguments);
-                    },
-                ]),
+                    }
+                ),
             });
         });
     </script>
