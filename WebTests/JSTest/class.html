@@ -30,19 +30,9 @@
         }
 
         function Class() {
-            var constructor = arguments[arguments.length - 1];
 
-            return function () {
-                // call the user defined constructor
-                var typeObject = arguments.callee;
-
-                // create the internalReference, which is the value of "this" in member functions
+            function CreateInternalReference(constructor) {
                 var internalReference = {};
-
-                // inject internalReference.GetType()
-                internalReference.GetType = function () {
-                    return typeObject;
-                }
 
                 // copy all members to internalReference
                 for (var name in constructor) {
@@ -59,25 +49,20 @@
                     }
                 }
 
-                // create the externalReference
-                var externalReference = {};
+                return internalReference;
+            }
 
-                // inject externalReference.GetType()
-                Object.defineProperty(externalReference, "GetType", {
-                    configurable: false,
-                    enumerable: true,
-                    writable: false,
-                    value: function () {
-                        return typeObject;
-                    }
-                });
+            function InjectInternalReference(internalReference, typeObject, externalReference) {
+                internalReference.GetType = function () {
+                    return typeObject;
+                }
 
-                // inject internalReference.GetExternalReference()
                 internalReference.GetExternalReference = function () {
                     return externalReference;
                 }
+            }
 
-                // copy all public member fields to externalReference
+            function AddConstructorToExternalReference(externalReference, internalReference, constructor) {
                 for (var name in constructor) {
                     (function () {
                         var memberName = name;
@@ -109,10 +94,71 @@
                         }
                     })();
                 }
+            }
+
+            var baseClasses = new Array(arguments.length - 1);
+            for (var i = 0; i < arguments.length - 1; i++) {
+                baseClasses[i] = arguments[i];
+            }
+            var constructor = arguments[arguments.length - 1];
+
+            function Type() {
+                // call the user defined constructor
+                var typeObject = arguments.callee;
+
+                // create every internalReference, which is the value of "this" in member functions
+                var internalReferences = new Array(baseClasses.length + 1);
+                for (var i = 0; i <= baseClasses.length; i++) {
+                    if (i == baseClasses.length) {
+                        internalReferences[i] = CreateInternalReference(constructor);
+                    }
+                    else {
+                        internalReferences[i] = CreateInternalReference(baseClasses[i].GetConstructor());
+                    }
+                }
+
+                // create the externalReference
+                var externalReference = {};
+
+                // inject externalReference.GetType()
+                Object.defineProperty(externalReference, "GetType", {
+                    configurable: false,
+                    enumerable: true,
+                    writable: false,
+                    value: function () {
+                        return typeObject;
+                    }
+                });
+
+                // inject internalReference.GetType()
+                // inject internalReference.GetExternalReference()
+                for (var i in internalReferences) {
+                    InjectInternalReference(internalReferences[i], typeObject, externalReference);
+                }
+
+                // copy all public member fields to externalReference
+                for (var i in internalReferences) {
+                    if (i == baseClasses.length) {
+                        AddConstructorToExternalReference(externalReference, internalReferences[i], constructor);
+                    }
+                    else {
+                        AddConstructorToExternalReference(externalReference, internalReferences[i], baseClasses[i].GetConstructor());
+                    }
+                }
 
                 // return the externalReference
                 return externalReference;
             }
+
+            Object.defineProperty(Type, "GetConstructor", {
+                configurable: false,
+                enumerable: true,
+                writable: false,
+                value: function () {
+                    return constructor;
+                }
+            });
+            return Type;
         }
     </script>
     <script>
@@ -289,7 +335,7 @@
             var x = new DerivedClass();
             assert(x.privateMember == undefined);
             assert(x.protectedMember == undefined);
-            assert(x.publicMember == 2);
+            assert(x.publicMember == 3);
 
             assert(x.PrivateFunctionInternal == undefined);
             assert(x.ProtectedFunctionInternal == undefined);
@@ -299,14 +345,34 @@
             assert(x.ProtectedFunctionBase == undefined);
             assert(x.PublicFunctionBase() == 6);
 
-            assert(x.PrivateFunction1 == undefined);
-            assert(x.ProtectedFunction1 == undefined);
+            assert(x.PrivateFunction1() == 0);
+            assert(x.ProtectedFunction1() == 3);
             assert(x.PublicFunction1() == 6);
 
-            assert(x.PrivateFunction2 == undefined);
-            assert(x.ProtectedFunction2 == undefined);
+            assert(x.PrivateFunction2() == 0);
+            assert(x.ProtectedFunction2() == 2);
             assert(x.PublicFunction2() == 3);
         })
+    </script>
+
+    <script>
+        testCase("<multi-level inheritance>", function () {
+        });
+    </script>
+
+    <script>
+        testCase("<constructor>", function () {
+        });
+    </script>
+
+    <script>
+        testCase("<virtual function>", function () {
+        });
+    </script>
+
+    <script>
+        testCase("<virtual base class>", function () {
+        });
     </script>
 </body>
 </html>
