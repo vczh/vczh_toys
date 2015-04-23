@@ -62,35 +62,44 @@
                 }
             }
 
-            function AddConstructorToExternalReference(externalReference, internalReference, constructor) {
+            function CopyReferencableMember(target, source, memberName, memberValue) {
+                if (typeof memberValue == "function") {
+                    Object.defineProperty(target, memberName, {
+                        configurable: false,
+                        enumerable: true,
+                        writable: false,
+                        value: function () {
+                            return memberValue.apply(source, arguments);
+                        }
+                    });
+                }
+                else {
+                    Object.defineProperty(target, memberName, {
+                        configurable: false,
+                        enumerable: true,
+                        get: function () {
+                            return source[memberName];
+                        },
+                        set: function (value) {
+                            source[memberName] = value;
+                        }
+                    });
+                }
+            }
+
+            function CopyReferencableMembers(target, source, constructor, copyProtected) {
                 for (var name in constructor) {
                     (function () {
                         var memberName = name;
                         var member = constructor[memberName];
 
-                        if (member instanceof __PublicMember) {
-                            if (typeof member.value == "function") {
-                                Object.defineProperty(externalReference, memberName, {
-                                    configurable: false,
-                                    enumerable: true,
-                                    writable: false,
-                                    value: function () {
-                                        return member.value.apply(internalReference, arguments);
-                                    }
-                                });
+                        if (member instanceof __ProtectedMember) {
+                            if (copyProtected) {
+                                CopyReferencableMember(target, source, memberName, member.value);
                             }
-                            else {
-                                Object.defineProperty(externalReference, memberName, {
-                                    configurable: false,
-                                    enumerable: true,
-                                    get: function () {
-                                        return internalReference[memberName];
-                                    },
-                                    set: function (value) {
-                                        internalReference[memberName] = value;
-                                    }
-                                });
-                            }
+                        }
+                        else if (member instanceof __PublicMember) {
+                            CopyReferencableMember(target, source, memberName, member.value);
                         }
                     })();
                 }
@@ -117,6 +126,11 @@
                     }
                 }
 
+                // copy all public and protected members to internalReference
+                for (var i = 0; i < baseClasses.length; i++) {
+                    CopyReferencableMembers(internalReferences[baseClasses.length], internalReferences[i], baseClasses[i].GetConstructor(), true);
+                }
+
                 // create the externalReference
                 var externalReference = {};
 
@@ -139,10 +153,10 @@
                 // copy all public member fields to externalReference
                 for (var i in internalReferences) {
                     if (i == baseClasses.length) {
-                        AddConstructorToExternalReference(externalReference, internalReferences[i], constructor);
+                        CopyReferencableMembers(externalReference, internalReferences[i], constructor, false);
                     }
                     else {
-                        AddConstructorToExternalReference(externalReference, internalReferences[i], baseClasses[i].GetConstructor());
+                        CopyReferencableMembers(externalReference, internalReferences[i], baseClasses[i].GetConstructor(), false);
                     }
                 }
 
@@ -324,7 +338,7 @@
                 }),
 
                 ProtectedFunction2: Public(function () {
-                    return this.protectedMember == undefined ? 0 : protectedMember;
+                    return this.protectedMember == undefined ? 0 : this.protectedMember;
                 }),
 
                 PublicFunction2: Public(function () {
