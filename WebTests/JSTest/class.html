@@ -309,8 +309,8 @@
                     }
                 });
 
-                // inject internalReference.GetType()
-                // inject internalReference.GetExternalReference()
+                // inject internalReference.__GetType()
+                // inject internalReference.__GetExternalReference()
                 for (var i in accumulatedBaseReferences) {
                     InjectInternalReference(accumulatedBaseReferences[i], typeObject, externalReference);
                 }
@@ -356,26 +356,40 @@
             }
 
             var flattenedDescription = {};
-            function AddFlattenedMember(name, member, addPrivateMember) {
-                if (name != "__Constructor" && (addPrivateMember || !(member instanceof __PrivateMember))) {
-                    if (flattenedDescription.hasOwnProperty(name)) {
-                        throw new Error("Cannot define or inherit multiple members using the same name \"" + name + "\".");
+            function AddFlattenedMember(name, member) {
+
+                if (member.value instanceof __OverrideMember) {
+                    return;
+                }
+
+                if (member.DeclaringType != Type) {
+                    if (name == "__Constructor") {
+                        return;
                     }
-                    else {
-                        flattenedDescription[name] = member;
+
+                    if (member instanceof __PrivateMember) {
+                        return;
+                    }
+
+                    if (flattenedDescription.hasOwnProperty(name)) {
+                        if (!description.hasOwnProperty(name)) {
+                            throw new Error("Cannot inherit multiple members of the same name \"" + name + "\" without defining a new one.");
+                        }
                     }
                 }
+
+                flattenedDescription[name] = member;
             }
 
             for (var i in directBaseClasses) {
                 var baseClass = directBaseClasses[i];
                 var flattened = baseClass.GetFlattenedDescription();
                 for (var j in flattened) {
-                    AddFlattenedMember(j, flattened[j], false);
+                    AddFlattenedMember(j, flattened[j]);
                 }
             }
             for (var j in description) {
-                AddFlattenedMember(j, description[j], true);
+                AddFlattenedMember(j, description[j]);
             }
 
             Object.defineProperty(Type, "GetDescription", {
@@ -979,7 +993,7 @@
     </script>
 
     <script>
-        testCase("<cannot inherit multiple members of the same name without define a new one>", function () {
+        testCase("<cannot inherit multiple members of the same name without defining a new one>", function () {
         });
     </script>
 </body>
