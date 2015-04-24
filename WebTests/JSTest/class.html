@@ -5,17 +5,29 @@
 </head>
 <body>
     <script>
+        function __MemberBase() {
+        }
+        Object.defineProperty(__MemberBase.prototype, "DeclaringType", {
+            configurable: false,
+            enumerable: true,
+            writable: true,
+            value: null,
+        });
+
         function __PrivateMember(value) {
             this.value = value;
         }
+        __PrivateMember.prototype.__proto__ = __MemberBase.prototype;
 
         function __ProtectedMember(value) {
             this.value = value;
         }
+        __ProtectedMember.prototype.__proto__ = __MemberBase.prototype;
 
         function __PublicMember(value) {
             this.value = value;
         }
+        __PublicMember.prototype.__proto__ = __MemberBase.prototype;
 
         function __BuildOverloadingFunctions() {
             if (arguments.length % 2 != 0) {
@@ -284,6 +296,52 @@
                 return externalReference;
             }
 
+            for (var name in description) {
+                description[name].DeclaringType = Type;
+            }
+
+            var flattenedBaseClasses = [];
+            function AddFlattenedBaseClass(type) {
+                if (flattenedBaseClasses.indexOf(type) == -1) {
+                    flattenedBaseClasses.push(type);
+                }
+                else {
+                    throw new Error("Cannot non-virtually inherit from a type multiple times.");
+                }
+            }
+
+            for (var i in directBaseClasses) {
+                var baseClass = directBaseClasses[i];
+                var baseFlattened = baseClass.GetFlattenedBaseClasses();
+                for (var j in baseFlattened) {
+                    AddFlattenedBaseClass(baseFlattened[j]);
+                }
+                AddFlattenedBaseClass(baseClass);
+            }
+
+            var flattenedDescription = {};
+            function AddFlattenedMember(name, member, addPrivateMember) {
+                if (name != "__Constructor" && (addPrivateMember || !(member instanceof __PrivateMember))) {
+                    if (flattenedDescription.hasOwnProperty(name)) {
+                        throw new Error("Cannot define or inherit multiple members using the same name \"" + name + "\".");
+                    }
+                    else {
+                        flattenedDescription[name] = member;
+                    }
+                }
+            }
+
+            for (var i in directBaseClasses) {
+                var baseClass = directBaseClasses[i];
+                var flattened = baseClass.GetFlattenedDescription();
+                for (var j in flattened) {
+                    AddFlattenedMember(j, flattened[j], false);
+                }
+            }
+            for (var j in description) {
+                AddFlattenedMember(j, description[j], true);
+            }
+
             Object.defineProperty(Type, "GetDescription", {
                 configurable: false,
                 enumerable: true,
@@ -293,12 +351,30 @@
                 }
             });
 
+            Object.defineProperty(Type, "GetFlattenedDescription", {
+                configurable: false,
+                enumerable: true,
+                writable: false,
+                value: function () {
+                    return flattenedDescription;
+                }
+            });
+
             Object.defineProperty(Type, "GetBaseClasses", {
                 configurable: false,
                 enumerable: true,
                 writable: false,
                 value: function () {
                     return directBaseClasses;
+                }
+            });
+
+            Object.defineProperty(Type, "GetFlattenedBaseClasses", {
+                configurable: false,
+                enumerable: true,
+                writable: false,
+                value: function () {
+                    return flattenedBaseClasses;
                 }
             });
 
@@ -333,7 +409,9 @@
             this.__GetExternalReference()
 
             Type.GetDescription()
+            Type.GetFlattenedDescription()
             Type.GetBaseClasses()
+            Type.GetFlattenedBaseClasses()
             Type.IsAssignableFrom(type)
 
             Class(type1, type2, ... {
