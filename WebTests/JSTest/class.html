@@ -160,21 +160,23 @@
                 }
             }
 
-            function CopyReferencableMembers(target, source, description, copyProtected) {
+            function CopyReferencableMembers(target, source, description, forInternalReference) {
                 for (var name in description) {
-                    (function () {
-                        var memberName = name;
-                        var member = description[memberName];
+                    if (!forInternalReference || name != "__Constructor") {
+                        (function () {
+                            var memberName = name;
+                            var member = description[memberName];
 
-                        if (member instanceof __ProtectedMember) {
-                            if (copyProtected) {
+                            if (member instanceof __ProtectedMember) {
+                                if (forInternalReference) {
+                                    CopyReferencableMember(target, source, memberName, member.value);
+                                }
+                            }
+                            else if (member instanceof __PublicMember) {
                                 CopyReferencableMember(target, source, memberName, member.value);
                             }
-                        }
-                        else if (member instanceof __PublicMember) {
-                            CopyReferencableMember(target, source, memberName, member.value);
-                        }
-                    })();
+                        })();
+                    }
                 }
             }
 
@@ -264,6 +266,9 @@
 
                 // return the externalReference
                 externalReference.__proto__ = typeObject.prototype;
+                if (internalReference.hasOwnProperty("__Constructor")) {
+                    internalReference.__Constructor.apply(internalReference, arguments);
+                }
                 return externalReference;
             }
 
@@ -662,7 +667,31 @@
     </script>
 
     <script>
-        testCase("<constructor>", function () {
+        testCase("constructor should be called", function () {
+            var MyClass = Class({
+                value: Private(null),
+                Get: Public(function () {
+                    return this.value;
+                }),
+                __Constructor: Public.Overload(
+                    [Number], function () {
+                        this.value = "number";
+                    },
+                    [String], function () {
+                        this.value = "string";
+                    }
+                ),
+            });
+
+            var x = new MyClass(1);
+            var y = new MyClass("2");
+            assert(x.Get() == "number");
+            assert(y.Get() == "string");
+        });
+    </script>
+
+    <script>
+        testCase("<constructor in base classes>", function () {
         });
     </script>
 
