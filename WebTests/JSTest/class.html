@@ -454,15 +454,15 @@
 
         /*
         API:
-            this.__GetType()
-            this.__GetBase(type)
-            this.__GetExternalReference()
+            this.__GetType()                            // Get the real type that creates this object.
+            this.__GetBase(type)                        // Get the internal reference of a base type.
+            this.__GetExternalReference()               // Get the external reference of this instance, for passing the value of "this" out of the class.
 
-            Type.GetDescription()
-            Type.GetFlattenedDescription()
-            Type.GetBaseClasses()
-            Type.GetFlattenedBaseClasses()
-            Type.IsAssignableFrom(type)
+            Type.GetDescription()                       // Get all declared members in this type
+            Type.GetFlattenedDescription()              // Get all potentially visible members in this type
+            Type.GetBaseClasses()                       // Get all direct base classes of this type
+            Type.GetFlattenedBaseClasses()              // Get all direct or indirect base classes of this type
+            Type.IsAssignableFrom(type)                 // Returns true if "type" is or inherits from "Type"
 
             Class(type1, type2, ... {
                 Member: (Public|Protected|Private) (value | function),
