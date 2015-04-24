@@ -29,6 +29,14 @@
         }
         __PublicMember.prototype.__proto__ = __MemberBase.prototype;
 
+        function __VirtualMember(value) {
+            this.value = value;
+        }
+
+        function __OverrideMember(value) {
+            this.value = value;
+        }
+
         function __BuildOverloadingFunctions() {
             if (arguments.length % 2 != 0) {
                 throw new Error("Arguments for Overload should be typeList1, func1, typeList2, func2, ...");
@@ -97,18 +105,40 @@
             }
         }
 
-        function __DefineOverload(accessor) {
-            Object.defineProperty(accessor, "Overload", {
+        function __DefineSubDecorator(accessor, name, redirect) {
+            Object.defineProperty(accessor, name, {
                 configurable: false,
                 enumerable: true,
                 writable: false,
                 value: function () {
-                    return accessor(__BuildOverloadingFunctions.apply(null, arguments));
+                    return accessor(redirect.apply(null, arguments));
                 }
             });
         }
 
-        // Abstract, Virtual, Override
+        function __DefineOverload(accessor) {
+            __DefineSubDecorator(accessor, "Overload", __BuildOverloadingFunctions);
+        }
+
+        function __DefineVirtual(accessor) {
+            __DefineSubDecorator(accessor, "Virtual", function (x) {
+                return new __VirtualMember(x);
+            });
+        }
+
+        function __DefineOverride(accessor) {
+            __DefineSubDecorator(accessor, "Override", function (x) {
+                return new __OverrideMember(x);
+            });
+        }
+
+        function __DefineAbstract(accessor) {
+            __DefineSubDecorator(accessor, "Abstract", function () {
+                return new __VirtualMember(function () {
+                    throw new Error("Cannot call an abstract function.");
+                });
+            });
+        }
 
         function Private(value) {
             return new __PrivateMember(value);
@@ -119,11 +149,17 @@
             return new __ProtectedMember(value);
         }
         __DefineOverload(Protected);
+        __DefineVirtual(Protected);
+        __DefineOverride(Protected);
+        __DefineAbstract(Protected);
 
         function Public(value) {
             return new __PublicMember(value);
         }
         __DefineOverload(Public);
+        __DefineVirtual(Public);
+        __DefineOverride(Public);
+        __DefineAbstract(Public);
 
         function Class() {
 
@@ -416,8 +452,8 @@
 
             Class(type1, type2, ... {
                 Member: (Public|Protected|Private) (value | function),
-                Member: (Public|Protected|Private).(Virtual|Override) (function),
                 Member: (Public|Protected|Private).Overload(typeList1, function1, typeList2, function2, ...);
+                Member: (Public|Protected).(Virtual|Override) (function),
                 Member: (Public|Protected).Abstract();
                 Member: Public.Event();
                 Member: Public.Property({
@@ -857,7 +893,7 @@
                 })
             });
 
-            var B = Class({
+            var B = Class(A, {
                 GetX: Protected.Override(function () {
                     return "U";
                 }),
@@ -874,7 +910,7 @@
     </script>
 
     <script>
-        testCase("Abstract should not be called and should be able to override in child classes.", function () {
+        testCase("Abstract function should not be called and should be able to override in child classes.", function () {
             var A = Class({
                 GetX: Protected.Abstract(),
                 GetY: Protected(function () {
@@ -885,7 +921,7 @@
                 })
             });
 
-            var B = Class({
+            var B = Class(A, {
                 GetX: Protected.Override(function () {
                     return "U";
                 }),
