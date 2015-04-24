@@ -5,11 +5,41 @@
     <script>
         function __MemberBase() {
         }
+        Object.defineProperty(__MemberBase, "NORMAL", {
+            configurable: false,
+            enumerable: true,
+            writable: false,
+            value: 1,
+        });
+        Object.defineProperty(__MemberBase, "VIRTUAL", {
+            configurable: false,
+            enumerable: true,
+            writable: false,
+            value: 2,
+        });
+        Object.defineProperty(__MemberBase, "OVERRIDE", {
+            configurable: false,
+            enumerable: true,
+            writable: false,
+            value: 3,
+        });
         Object.defineProperty(__MemberBase.prototype, "DeclaringType", {
             configurable: false,
             enumerable: true,
             writable: true,
             value: null,
+        });
+        Object.defineProperty(__MemberBase.prototype, "Virtual", {
+            configurable: false,
+            enumerable: true,
+            writable: true,
+            value: __MemberBase.NORMAL,
+        });
+        Object.defineProperty(__MemberBase.prototype, "New", {
+            configurable: false,
+            enumerable: true,
+            writable: true,
+            value: false,
         });
 
         function __PrivateMember(value) {
@@ -26,14 +56,6 @@
             this.value = value;
         }
         __PublicMember.prototype.__proto__ = __MemberBase.prototype;
-
-        function __VirtualMember(value) {
-            this.value = value;
-        }
-
-        function __OverrideMember(value) {
-            this.value = value;
-        }
 
         function __BuildOverloadingFunctions() {
             if (arguments.length % 2 != 0) {
@@ -103,13 +125,26 @@
             }
         }
 
-        function __DefineSubDecorator(accessor, name, redirect) {
+        function __DefineDecorator(accessor, name, decorator) {
+            Object.defineProperty(accessor, name, {
+                configurable: false,
+                enumerable: true,
+                writable: false,
+                value: function (value) {
+                    var member = accessor(value);
+                    decorator(member, value);
+                    return member;
+                }
+            });
+        }
+
+        function __DefineSubDecorator(accessor, name, decorator) {
             Object.defineProperty(accessor, name, {
                 configurable: false,
                 enumerable: true,
                 writable: false,
                 value: function () {
-                    return accessor(redirect.apply(null, arguments));
+                    return accessor(decorator.apply(null, arguments));
                 }
             });
         }
@@ -118,23 +153,37 @@
             __DefineSubDecorator(accessor, "Overload", __BuildOverloadingFunctions);
         }
 
+        function __DefineNew(accessor) {
+            __DefineDecorator(accessor, "New", function (member) {
+                member.New = true;
+            });
+        }
+
         function __DefineVirtual(accessor) {
-            __DefineSubDecorator(accessor, "Virtual", function (x) {
-                return new __VirtualMember(x);
+            __DefineDecorator(accessor, "Virtual", function (member) {
+                member.Virtual = __MemberBase.VIRTUAL;
+            });
+        }
+
+        function __DefineNewVirtual(accessor) {
+            __DefineDecorator(accessor, "NewVirtual", function (member) {
+                member.New = true;
+                member.Virtual = __MemberBase.VIRTUAL;
             });
         }
 
         function __DefineOverride(accessor) {
-            __DefineSubDecorator(accessor, "Override", function (x) {
-                return new __OverrideMember(x);
+            __DefineDecorator(accessor, "Override", function (member) {
+                member.Virtual = __MemberBase.OVERRIDE;
             });
         }
 
         function __DefineAbstract(accessor) {
-            __DefineSubDecorator(accessor, "Abstract", function () {
-                return new __VirtualMember(function () {
+            __DefineDecorator(accessor, "Abstract", function (member) {
+                member.Virtual = __MemberBase.VIRTUAL;
+                member.value = function () {
                     throw new Error("Cannot call an abstract function.");
-                });
+                }
             });
         }
 
@@ -147,21 +196,26 @@
             return new __ProtectedMember(value);
         }
         __DefineOverload(Protected);
+        __DefineNew(Protected);
         __DefineVirtual(Protected);
-        __DefineOverride(Protected);
+        __DefineNewVirtual(Protected);
         __DefineAbstract(Protected);
+        __DefineOverride(Protected);
 
         function Public(value) {
             return new __PublicMember(value);
         }
         __DefineOverload(Public);
+        __DefineNew(Public);
         __DefineVirtual(Public);
-        __DefineOverride(Public);
+        __DefineNewVirtual(Public);
         __DefineAbstract(Public);
+        __DefineOverride(Public);
 
-        function Class() {
+        function Class(fullName) {
 
             function CreateInternalReference(description) {
+                // create an internal reference from a type description and copy all members
                 var internalReference = {};
 
                 for (var name in description) {
@@ -181,7 +235,14 @@
                 return internalReference;
             }
 
-            function CopyReferencableMember(target, source, memberName, memberValue) {
+            function CopyReferencableMember(target, source, memberName, memberValue, forceReplace) {
+                // copy a closured member from one internal reference to another
+                if (target.hasOwnProperty(memberName)) {
+                    if (!forceReplace) {
+                        return;
+                    }
+                }
+
                 if (typeof memberValue == "function") {
                     Object.defineProperty(target, memberName, {
                         configurable: false,
@@ -207,6 +268,7 @@
             }
 
             function CopyReferencableMembers(target, source, description, forInternalReference) {
+                // copy all closured members from one internal reference to another
                 for (var name in description) {
                     if (name != "__Constructor") {
                         (function () {
@@ -215,37 +277,74 @@
 
                             if (member instanceof __ProtectedMember) {
                                 if (forInternalReference) {
-                                    CopyReferencableMember(target, source, memberName, member.value);
+                                    CopyReferencableMember(target, source, memberName, member.value, false);
                                 }
                             }
                             else if (member instanceof __PublicMember) {
-                                CopyReferencableMember(target, source, memberName, member.value);
+                                CopyReferencableMember(target, source, memberName, member.value, false);
                             }
                         })();
                     }
                 }
             }
 
+            function OverrideVirtualFunction(source, memberName, memberValue, targetTypes, accumulatedBaseClasses, accumulatedBaseReferences) {
+                // override a virtual functions in base internal references
+                for (var i in targetTypes) {
+                    var targetType = targetTypes[i];
+                    var target = accumulatedBaseReferences[accumulatedBaseClasses.indexOf(targetType)];
+                    var targetDescription = targetType.Description;
+                    var targetMember = targetDescription[memberName];
+                    if (targetMember != undefined) {
+                        if (targetMember.Virtual == __MemberBase.VIRTUAL) {
+                            CopyReferencableMember(target, source, memberName, memberValue, true);
+                        }
+                        if (targetMember.New == true) {
+                            continue;
+                        }
+                    }
+                    OverrideVirtualFunction(source, memberName, memberValue, targetType.BaseClasses, accumulatedBaseClasses, accumulatedBaseReferences);
+                }
+            }
+
+            function OverrideVirtualFunctions(source, sourceType, accumulatedBaseClasses, accumulatedBaseReferences) {
+                // override every virtual functions in base internal references
+                var description = sourceType.Description;
+                for (var name in description) {
+                    var member = description[name];
+                    if (member.Virtual == __MemberBase.OVERRIDE) {
+                        OverrideVirtualFunction(source, name, source[name], sourceType.BaseClasses, accumulatedBaseClasses, accumulatedBaseReferences);
+                    }
+                }
+            }
+
             function CreateCompleteInternalReference(type, accumulatedBaseClasses, accumulatedBaseReferences) {
-                var description = type.GetDescription();
-                var baseClasses = type.GetBaseClasses();
+                // create an internal reference from a type with inherited members
+                var description = type.Description;
+                var baseClasses = type.BaseClasses;
                 var baseInstances = new Array(baseClasses.length);
 
                 for (var i = 0; i <= baseClasses.length; i++) {
                     if (i == baseClasses.length) {
+                        // create the internal reference for the current type
                         var internalReference = CreateInternalReference(description);
 
+                        // override virtual functions in base internal references
+                        OverrideVirtualFunctions(internalReference, type, baseClasses, baseInstances);
+
+                        // inherit members from base classes
                         for (var j = 0; j < accumulatedBaseClasses.length; j++) {
                             CopyReferencableMembers(
                                 internalReference,
                                 accumulatedBaseReferences[j],
-                                accumulatedBaseClasses[j].GetDescription(),
+                                accumulatedBaseClasses[j].Description,
                                 true);
                         }
 
                         accumulatedBaseClasses.push(type);
                         accumulatedBaseReferences.push(internalReference);
 
+                        // implement __GetBase
                         internalReference.__GetBase = function (baseType) {
                             for (var k in baseClasses) {
                                 if (baseClasses[k] == baseType) {
@@ -258,6 +357,7 @@
                         return internalReference;
                     }
                     else {
+                        // create a complete internal reference for a base class
                         var baseInstance = CreateCompleteInternalReference(
                             baseClasses[i],
                             accumulatedBaseClasses,
@@ -268,6 +368,7 @@
             }
 
             function InjectInternalReference(internalReference, typeObject, externalReference) {
+                // implement __GetType and __GetExternalReference
                 internalReference.__GetType = function () {
                     return typeObject;
                 }
@@ -277,9 +378,9 @@
                 }
             }
 
-            var directBaseClasses = new Array(arguments.length - 1);
-            for (var i = 0; i < arguments.length - 1; i++) {
-                directBaseClasses[i] = arguments[i];
+            var directBaseClasses = new Array(arguments.length - 2);
+            for (var i = 1; i < arguments.length - 1; i++) {
+                directBaseClasses[i - 1] = arguments[i];
             }
             var description = arguments[arguments.length - 1];
 
@@ -318,7 +419,7 @@
                     CopyReferencableMembers(
                         externalReference,
                         accumulatedBaseReferences[i],
-                        accumulatedBaseClasses[i].GetDescription(),
+                        accumulatedBaseClasses[i].Description,
                         false);
                 }
 
@@ -346,7 +447,7 @@
 
             for (var i in directBaseClasses) {
                 var baseClass = directBaseClasses[i];
-                var baseFlattened = baseClass.GetFlattenedBaseClasses();
+                var baseFlattened = baseClass.FlattenedBaseClasses;
                 for (var j in baseFlattened) {
                     AddFlattenedBaseClass(baseFlattened[j]);
                 }
@@ -356,7 +457,7 @@
             var flattenedDescription = {};
             function AddFlattenedMember(name, member) {
 
-                if (member.value instanceof __OverrideMember) {
+                if (member.Virtual == __MemberBase.OVERRIDE) {
                     return;
                 }
 
@@ -381,7 +482,7 @@
 
             for (var i in directBaseClasses) {
                 var baseClass = directBaseClasses[i];
-                var flattened = baseClass.GetFlattenedDescription();
+                var flattened = baseClass.FlattenedDescription;
                 for (var j in flattened) {
                     AddFlattenedMember(j, flattened[j]);
                 }
@@ -390,40 +491,39 @@
                 AddFlattenedMember(j, description[j]);
             }
 
-            Object.defineProperty(Type, "GetDescription", {
+            Object.defineProperty(Type, "FullName", {
                 configurable: false,
                 enumerable: true,
                 writable: false,
-                value: function () {
-                    return description;
-                }
+                value: fullName,
             });
 
-            Object.defineProperty(Type, "GetFlattenedDescription", {
+            Object.defineProperty(Type, "Description", {
                 configurable: false,
                 enumerable: true,
                 writable: false,
-                value: function () {
-                    return flattenedDescription;
-                }
+                value: description,
             });
 
-            Object.defineProperty(Type, "GetBaseClasses", {
+            Object.defineProperty(Type, "FlattenedDescription", {
                 configurable: false,
                 enumerable: true,
                 writable: false,
-                value: function () {
-                    return directBaseClasses;
-                }
+                value: flattenedDescription,
             });
 
-            Object.defineProperty(Type, "GetFlattenedBaseClasses", {
+            Object.defineProperty(Type, "BaseClasses", {
                 configurable: false,
                 enumerable: true,
                 writable: false,
-                value: function () {
-                    return flattenedBaseClasses;
-                }
+                value: directBaseClasses,
+            });
+
+            Object.defineProperty(Type, "FlattenedBaseClasses", {
+                configurable: false,
+                enumerable: true,
+                writable: false,
+                value: flattenedBaseClasses,
             });
 
             Object.defineProperty(Type, "IsAssignableFrom", {
@@ -435,7 +535,7 @@
                         return true;
                     }
                     else {
-                        var baseClasses = type.GetBaseClasses();
+                        var baseClasses = type.BaseClasses;
                         for (var i in baseClasses) {
                             if (Type.IsAssignableFrom(baseClasses[i])) {
                                 return true;
@@ -456,16 +556,17 @@
             this.__GetBase(type)                        // Get the internal reference of a base type.
             this.__GetExternalReference()               // Get the external reference of this instance, for passing the value of "this" out of the class.
 
-            Type.GetDescription()                       // Get all declared members in this type
-            Type.GetFlattenedDescription()              // Get all potentially visible members in this type
-            Type.GetBaseClasses()                       // Get all direct base classes of this type
-            Type.GetFlattenedBaseClasses()              // Get all direct or indirect base classes of this type
+            Type.Name                                   // Get the full name
+            Type.Description                            // Get all declared members in this type
+            Type.FlattenedDescription                   // Get all potentially visible members in this type
+            Type.BaseClasses                            // Get all direct base classes of this type
+            Type.FlattenedBaseClasses                   // Get all direct or indirect base classes of this type
             Type.IsAssignableFrom(type)                 // Returns true if "type" is or inherits from "Type"
 
-            Class(type1, type2, ... {
+            Class(fullName, type1, type2, ... {
                 Member: (Public|Protected|Private) (value | function),
                 Member: (Public|Protected|Private).Overload(typeList1, function1, typeList2, function2, ...);
-                Member: (Public|Protected).(Virtual|Override) (function),
+                Member: (Public|Protected).(New|Virtual|NewVirtual|Override) (function),
                 Member: (Public|Protected).Abstract();
                 Member: Public.Event();
                 Member: Public.Property({
@@ -568,7 +669,7 @@
 
     <script>
         testCase("create instance should success", function () {
-            var MyClass = Class({
+            var MyClass = Class("MyClass", {
             });
 
             var x = new MyClass();
@@ -578,7 +679,7 @@
 
     <script>
         testCase("fields cannot be deleted", function () {
-            var MyClass = Class({
+            var MyClass = Class("MyClass", {
                 a: Public(0),
                 b: Public(1),
             });
@@ -595,7 +696,7 @@
 
     <script>
         testCase("instances don't share fields", function () {
-            var MyClass = Class({
+            var MyClass = Class("MyClass", {
                 a: Public(0),
                 b: Public(1),
             });
@@ -618,7 +719,7 @@
 
     <script>
         testCase("member function can access all members", function () {
-            var MyClass = Class({
+            var MyClass = Class("MyClass", {
                 value: Public(0),
                 GetValue: Public(function () {
                     return this.value;
@@ -644,7 +745,7 @@
 
     <script>
         testCase("protected members are not visible from outside", function () {
-            var MyClass = Class({
+            var MyClass = Class("MyClass", {
                 value: Protected(0),
                 GetValue: Public(function () {
                     return this.value;
@@ -670,7 +771,7 @@
 
     <script>
         testCase("private members are not visible from derived classes", function () {
-            var BaseClass = Class({
+            var BaseClass = Class("BaseClass", {
                 privateMember: Private(1),
                 protectedMember: Protected(2),
                 publicMember: Public(3),
@@ -700,7 +801,7 @@
                 }),
             });
 
-            var DerivedClass = Class(BaseClass, {
+            var DerivedClass = Class("DerivedClass", BaseClass, {
                 PrivateFunction1: Public(function () {
                     return this.PrivateFunctionBase == undefined ? 0 : this.PrivateFunctionBase();
                 }),
@@ -751,7 +852,7 @@
 
     <script>
         testCase("deriving from a child class should success", function () {
-            var A = Class({
+            var A = Class("A", {
                 DoA: Public(function (a, b) {
                     return a + b;
                 }),
@@ -760,7 +861,7 @@
                 }),
             });
 
-            var B = Class(A, {
+            var B = Class("B", A, {
                 DoB: Public(function (a, b) {
                     return a - b;
                 }),
@@ -769,7 +870,7 @@
                 }),
             });
 
-            var C = Class(B, {
+            var C = Class("C", B, {
                 DoC: Public(function (a, b) {
                     return a * b;
                 }),
@@ -800,7 +901,7 @@
 
     <script>
         testCase("deriving from multiple classea should success", function () {
-            var A = Class({
+            var A = Class("A", {
                 DoA: Public(function (a, b) {
                     return a + b;
                 }),
@@ -809,7 +910,7 @@
                 }),
             });
 
-            var B = Class({
+            var B = Class("B", {
                 DoB: Public(function (a, b) {
                     return a - b;
                 }),
@@ -818,7 +919,7 @@
                 }),
             });
 
-            var C = Class(A, B, {
+            var C = Class("C", A, B, {
                 DoC: Public(function (a, b) {
                     return a * b;
                 }),
@@ -849,16 +950,16 @@
 
     <script>
         testCase("functions should overload by argument types", function () {
-            var A = Class({
+            var A = Class("A", {
             });
 
-            var B = Class(A, {
+            var B = Class("B", A, {
             });
 
-            var C = Class(A, {
+            var C = Class("C", A, {
             });
 
-            var MyClass = Class({
+            var MyClass = Class("MyClass", {
                 Print: Private(function (args) {
                     var result = "";
                     for (var i in args) {
@@ -909,7 +1010,7 @@
 
     <script>
         testCase("constructor should be called", function () {
-            var MyClass = Class({
+            var MyClass = Class("MyClass", {
                 value: Private(null),
                 Get: Public(function () {
                     return this.value;
@@ -933,7 +1034,7 @@
 
     <script>
         testCase("constructors in base classes can be called by child class", function () {
-            var A = Class({
+            var A = Class("A", {
                 value: Private(null),
                 GetA: Public(function () {
                     return this.value;
@@ -943,7 +1044,7 @@
                 })
             });
 
-            var B = Class({
+            var B = Class("B", {
                 value: Private(null),
                 GetB: Public(function () {
                     return this.value;
@@ -953,7 +1054,7 @@
                 })
             });
 
-            var C = Class(A, B, {
+            var C = Class("C", A, B, {
                 Get: Public(function () {
                     return this.GetA() + this.GetB();
                 }),
@@ -970,7 +1071,7 @@
 
     <script>
         testCase("Virtual function should be able to override in child classes", function () {
-            var A = Class({
+            var A = Class("A", {
                 GetX: Protected.Virtual(function () {
                     return "X";
                 }),
@@ -982,7 +1083,7 @@
                 })
             });
 
-            var B = Class(A, {
+            var B = Class("B", A, {
                 GetX: Protected.Override(function () {
                     return "U";
                 }),
@@ -1000,7 +1101,7 @@
 
     <script>
         testCase("Abstract function should not be called and should be able to override in child classes.", function () {
-            var A = Class({
+            var A = Class("A", {
                 GetX: Protected.Abstract(),
                 GetY: Protected(function () {
                     return "Y";
@@ -1010,7 +1111,7 @@
                 })
             });
 
-            var B = Class(A, {
+            var B = Class("B", A, {
                 GetX: Protected.Override(function () {
                     return "U";
                 }),
@@ -1029,6 +1130,12 @@
                 assert(ex.message == "Cannot call an abstract function.");
             }
             assert(b.GetZ() == "U, Y");
+        });
+    </script>
+
+    <script>
+        testCase("<new and new virtual>", function () {
+            emptyCase();
         });
     </script>
 
