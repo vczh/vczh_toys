@@ -844,7 +844,7 @@
     </script>
 
     <script>
-        testCase("<virtual function>", function () {
+        testCase("Virtual function should be able to override in child classes", function () {
             var A = Class({
                 GetX: Protected.Virtual(function () {
                     return "X";
@@ -874,7 +874,36 @@
     </script>
 
     <script>
-        testCase("<abstract function>", function () {
+        testCase("Abstract should not be called and should be able to override in child classes.", function () {
+            var A = Class({
+                GetX: Protected.Abstract(),
+                GetY: Protected(function () {
+                    return "Y";
+                }),
+                GetZ: Public(function () {
+                    return this.GetX() + ", " + this.GetY();
+                })
+            });
+
+            var B = Class({
+                GetX: Protected.Override(function () {
+                    return "U";
+                }),
+                GetY: Protected(function () {
+                    return "V";
+                }),
+            });
+
+            var a = new A();
+            var b = new B();
+            try {
+                a.GetZ();
+                assert(false);
+            }
+            catch (ex) {
+                assert(ex.message == "Cannot call an abstract function.");
+            }
+            assert(b.GetZ() == "U, Y");
         });
     </script>
 
@@ -905,6 +934,16 @@
 
     <script>
         testCase("<hidden member in base classes>", function () {
+        });
+    </script>
+
+    <script>
+        testCase("<cannot non-virtually inherit a class multiple times>", function () {
+        });
+    </script>
+
+    <script>
+        testCase("<cannot inherit multiple members of the same name without define a new one>", function () {
         });
     </script>
 </body>
