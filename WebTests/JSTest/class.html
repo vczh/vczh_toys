@@ -41,19 +41,25 @@
             writable: true,
             value: false,
         });
+        Object.defineProperty(__MemberBase.prototype, "Value", {
+            configurable: false,
+            enumerable: true,
+            writable: true,
+            value: null,
+        });
 
         function __PrivateMember(value) {
-            this.value = value;
+            this.Value = value;
         }
         __PrivateMember.prototype.__proto__ = __MemberBase.prototype;
 
         function __ProtectedMember(value) {
-            this.value = value;
+            this.Value = value;
         }
         __ProtectedMember.prototype.__proto__ = __MemberBase.prototype;
 
         function __PublicMember(value) {
-            this.value = value;
+            this.Value = value;
         }
         __PublicMember.prototype.__proto__ = __MemberBase.prototype;
 
@@ -181,7 +187,7 @@
         function __DefineAbstract(accessor) {
             __DefineDecorator(accessor, "Abstract", function (member) {
                 member.Virtual = __MemberBase.VIRTUAL;
-                member.value = function () {
+                member.Value = function () {
                     throw new Error("Cannot call an abstract function.");
                 }
             });
@@ -221,21 +227,22 @@
                 for (var name in description) {
                     var member = description[name];
 
-                    if (member instanceof __PrivateMember) {
-                        internalReference[name] = member.value;
-                    }
-                    else if (member instanceof __ProtectedMember) {
-                        internalReference[name] = member.value;
-                    }
-                    else if (member instanceof __PublicMember) {
-                        internalReference[name] = member.value;
+                    if (member instanceof __PrivateMember ||
+                        member instanceof __ProtectedMember ||
+                        member instanceof __PublicMember) {
+                        Object.defineProperty(internalReference, name, {
+                            configurable: member.Virtual != __MemberBase.NORMAL,
+                            enumerable: true,
+                            writable: typeof member.Value != "function",
+                            value: member.Value,
+                        });
                     }
                 }
 
                 return internalReference;
             }
 
-            function CopyReferencableMember(target, source, memberName, memberValue, forceReplace) {
+            function CopyReferencableMember(target, source, memberName, member, forceReplace) {
                 // copy a closured member from one internal reference to another
                 if (target.hasOwnProperty(memberName)) {
                     if (!forceReplace) {
@@ -243,13 +250,13 @@
                     }
                 }
 
-                if (typeof memberValue == "function") {
+                if (typeof member.Value == "function") {
                     Object.defineProperty(target, memberName, {
-                        configurable: false,
+                        configurable: member.Virtual != __MemberBase.NORMAL,
                         enumerable: true,
                         writable: false,
                         value: function () {
-                            return memberValue.apply(source, arguments);
+                            return member.Value.apply(source, arguments);
                         }
                     });
                 }
@@ -277,18 +284,18 @@
 
                             if (member instanceof __ProtectedMember) {
                                 if (forInternalReference) {
-                                    CopyReferencableMember(target, source, memberName, member.value, false);
+                                    CopyReferencableMember(target, source, memberName, member, false);
                                 }
                             }
                             else if (member instanceof __PublicMember) {
-                                CopyReferencableMember(target, source, memberName, member.value, false);
+                                CopyReferencableMember(target, source, memberName, member, false);
                             }
                         })();
                     }
                 }
             }
 
-            function OverrideVirtualFunction(source, memberName, memberValue, targetTypes, accumulatedBaseClasses, accumulatedBaseReferences) {
+            function OverrideVirtualFunction(source, memberName, member, targetTypes, accumulatedBaseClasses, accumulatedBaseReferences) {
                 // override a virtual functions in base internal references
                 for (var i in targetTypes) {
                     var targetType = targetTypes[i];
@@ -296,14 +303,14 @@
                     var targetDescription = targetType.Description;
                     var targetMember = targetDescription[memberName];
                     if (targetMember != undefined) {
-                        if (targetMember.Virtual == __MemberBase.VIRTUAL) {
-                            CopyReferencableMember(target, source, memberName, memberValue, true);
+                        if (targetMember.Virtual == __MemberBase.VIRTUAL || targetMember.Virtual == __MemberBase.OVERRIDE) {
+                            CopyReferencableMember(target, source, memberName, member, true);
                         }
                         if (targetMember.New == true) {
                             continue;
                         }
                     }
-                    OverrideVirtualFunction(source, memberName, memberValue, targetType.BaseClasses, accumulatedBaseClasses, accumulatedBaseReferences);
+                    OverrideVirtualFunction(source, memberName, member, targetType.BaseClasses, accumulatedBaseClasses, accumulatedBaseReferences);
                 }
             }
 
@@ -313,7 +320,7 @@
                 for (var name in description) {
                     var member = description[name];
                     if (member.Virtual == __MemberBase.OVERRIDE) {
-                        OverrideVirtualFunction(source, name, source[name], sourceType.BaseClasses, accumulatedBaseClasses, accumulatedBaseReferences);
+                        OverrideVirtualFunction(source, name, member, sourceType.BaseClasses, accumulatedBaseClasses, accumulatedBaseReferences);
                     }
                 }
             }
@@ -330,7 +337,7 @@
                         var internalReference = CreateInternalReference(description);
 
                         // override virtual functions in base internal references
-                        OverrideVirtualFunctions(internalReference, type, baseClasses, baseInstances);
+                        OverrideVirtualFunctions(internalReference, type, accumulatedBaseClasses, accumulatedBaseReferences);
 
                         // inherit members from base classes
                         for (var j = 0; j < accumulatedBaseClasses.length; j++) {
@@ -597,6 +604,7 @@
             div.appendChild(document.createTextNode(name));
             document.body.appendChild(div);
 
+            //code();
             try {
                 code();
                 div.setAttribute("style", "color: green;");
@@ -1134,8 +1142,61 @@
     </script>
 
     <script>
-        testCase("<new and new virtual>", function () {
-            emptyCase();
+        testCase("New function will hide the virtual function in base classes", function () {
+            var A = Class("A", {
+                GetX: Protected.Virtual(function () {
+                    return "X";
+                }),
+                GetY: Protected.Virtual(function () {
+                    return "Y";
+                }),
+                GetZ: Protected.Virtual(function () {
+                    return "Z";
+                }),
+                GetA: Public(function () {
+                    return this.GetX() + ", " + this.GetY() + ", " + this.GetZ();
+                }),
+            });
+
+            var B = Class("B", A, {
+                GetX: Protected.Override(function () {
+                    return "U";
+                }),
+                GetY: Protected.New(function () {
+                    return "V";
+                }),
+                GetZ: Protected.NewVirtual(function () {
+                    return "W";
+                }),
+                GetB: Public(function () {
+                    return this.GetX() + ", " + this.GetY() + ", " + this.GetZ();
+                }),
+            });
+
+            var C = Class("C", B, {
+                GetX: Protected.Override(function () {
+                    return "A";
+                }),
+                GetY: Protected(function () {
+                    return "B";
+                }),
+                GetZ: Protected.Override(function () {
+                    return "C";
+                }),
+                GetC: Public(function () {
+                    return this.GetX() + ", " + this.GetY() + ", " + this.GetZ();
+                }),
+            });
+
+            var a = new A();
+            var b = new B();
+            var c = new C();
+            assert(a.GetA() == "X, Y, Z");
+            assert(b.GetA() == "U, Y, Z");
+            assert(b.GetB() == "U, V, W");
+            assert(c.GetA() == "A, Y, Z");
+            assert(c.GetB() == "A, V, C");
+            assert(c.GetC() == "A, B, C");
         });
     </script>
 
