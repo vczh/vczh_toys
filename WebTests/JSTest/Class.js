@@ -596,7 +596,20 @@ function Class(fullName) {
 
     // set __MemberBase.DeclaringType
     for (var name in description) {
-        description[name].DeclaringType = Type;
+        var member = description[name];
+        member.DeclaringType = Type;
+
+        if (member instanceof __Property) {
+            if (member.GetterName == null) {
+                member.GetterName = "Get" + name;
+            }
+            if (!member.Readonly && member.SetterName == null) {
+                member.SetterName = "Set" + name;
+            }
+            if (member.HasEvent && member.EventName == null) {
+                member.EventName = name + "Changed";
+            }
+        }
     }
 
     // calculate Type.FlattenedBaseClasses

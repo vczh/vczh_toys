@@ -678,6 +678,30 @@
 
             var x = new MyClass();
 
+            assert(x.GetType().Description.A.Readonly == true);
+            assert(x.GetType().Description.A.HasEvent == false);
+            assert(x.GetType().Description.A.GetterName == "GetA");
+            assert(x.GetType().Description.A.SetterName == null);
+            assert(x.GetType().Description.A.EventName == null);
+
+            assert(x.GetType().Description.B.Readonly == true);
+            assert(x.GetType().Description.B.HasEvent == true);
+            assert(x.GetType().Description.B.GetterName == "GetB");
+            assert(x.GetType().Description.B.SetterName == null);
+            assert(x.GetType().Description.B.EventName == "BChanged");
+
+            assert(x.GetType().Description.C.Readonly == false);
+            assert(x.GetType().Description.C.HasEvent == false);
+            assert(x.GetType().Description.C.GetterName == "GetC");
+            assert(x.GetType().Description.C.SetterName == "SetC");
+            assert(x.GetType().Description.C.EventName == null);
+
+            assert(x.GetType().Description.D.Readonly == false);
+            assert(x.GetType().Description.D.HasEvent == true);
+            assert(x.GetType().Description.D.GetterName == "GetD");
+            assert(x.GetType().Description.D.SetterName == "SetD");
+            assert(x.GetType().Description.D.EventName == "DChanged");
+
             var values = [];
             x.BChanged.Attach(function () {
                 values.push("B");
