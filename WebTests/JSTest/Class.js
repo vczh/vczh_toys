@@ -143,6 +143,40 @@ function __Event() {
     });
 }
 
+function __Property(func) {
+    this.Function = func;
+}
+Object.defineProperty(__Property.prototype, "Readonly", {
+    configurable: false,
+    enumerable: true,
+    writable: true,
+    value: false,
+});
+Object.defineProperty(__Property.prototype, "HasEvent", {
+    configurable: false,
+    enumerable: true,
+    writable: true,
+    value: false,
+});
+Object.defineProperty(__Property.prototype, "GetterName", {
+    configurable: false,
+    enumerable: true,
+    writable: true,
+    value: null,
+});
+Object.defineProperty(__Property.prototype, "SetterName", {
+    configurable: false,
+    enumerable: true,
+    writable: true,
+    value: null,
+});
+Object.defineProperty(__Property.prototype, "EventName", {
+    configurable: false,
+    enumerable: true,
+    writable: true,
+    value: null,
+});
+
 function __BuildOverloadingFunctions() {
     if (arguments.length % 2 != 0) {
         throw new Error("Arguments for Overload should be typeList1, func1, typeList2, func2, ...");
@@ -275,8 +309,48 @@ function __DefineAbstract(accessor) {
 
 function __DefineEvent(accessor) {
     __DefineDecorator(accessor, "Event", function (member) {
-        member.Virtual = __MemberBase.VIRTUAL;
         member.Value = new __Event();
+    });
+}
+
+function __DefineProperty(accessor) {
+    __DefineDecorator(accessor, "Property", function (member, value) {
+        member.Virtual = __MemberBase.VIRTUAL;
+        member.Value = new __Property();
+
+        if (!value.hasOwnProperty("getterName") && value.hasOwnProperty("setterName")) {
+            throw new Error("Getter of the property should be set if setter ia set.");
+        }
+
+        if (value.hasOwnProperty("readonly")) {
+            member.Value.Readonly = value.readonly;
+            if (!value.readonly && value.hasOwnProperty("setterName")) {
+                throw new Error("Readonly event cannot have a setter.");
+            }
+        }
+        else {
+            member.value.Readonly = value.hasOwnProperty("getterName") && !value.hasOwnProperty("setterName");
+        }
+
+        if (value.hasOwnProperty("hasEvent")) {
+            member.value.HasEvent = value.hasEvent;
+            if (!value.hasEvent && value.hasOwnProperty("eventName")) {
+                throw new Error("Non-trigger property cannot have an event.");
+            }
+        }
+        else {
+            member.value.HasEvent = value.hasOwnProperty("eventName");
+        }
+
+        if (value.hasOwnProperty("getterName")) {
+            member.value.GetterName = value.getterName;
+        }
+        if (value.hasOwnProperty("setterName")) {
+            member.value.SetterName = value.setterName;
+        }
+        if (value.hasOwnProperty("eventName")) {
+            member.value.EventName = value.eventName;
+        }
     });
 }
 
@@ -305,6 +379,7 @@ __DefineNewVirtual(Public);
 __DefineAbstract(Public);
 __DefineOverride(Public);
 __DefineEvent(Public);
+__DefineProperty(Public);
 
 function Class(fullName) {
 
