@@ -17,25 +17,106 @@
             this.value = value;
         }
 
+        function __BuildOverloadingFunctions() {
+            if (arguments.length % 2 != 0) {
+                throw new Error("Arguments for Overload should be typeList1, func1, typeList2, func2, ...");
+            }
+
+            var functionCount = Math.floor(arguments.length / 2);
+            var typeLists = new Array(functionCount);
+            var funcs = new Array(functionCount);
+            for (var i = 0; i < functionCount; i++) {
+                typeLists[i] = arguments[i * 2];
+                funcs[i] = arguments[i * 2 + 1];
+            }
+
+            return function () {
+                for (var i in typeLists) {
+                    var typeList = typeLists[i];
+                    if (arguments.length != typeList.length) continue;
+
+                    var matched = true;
+                    for (var j in typeList) {
+                        if (!matched) break;
+                        var arg = arguments[j];
+
+                        var type = typeList[j];
+                        if (type == Number) {
+                            matched = typeof (arg) == "number";
+                        }
+                        else if (type == Boolean) {
+                            matched = typeof (arg) == "boolean";
+                        }
+                        else if (type == String) {
+                            matched = typeof (arg) == "string";
+                        }
+                        else if (type == Array) {
+                            matched = arg instanceof Array;
+                        }
+                        else if (type == Function) {
+                            matched = typeof (arg) == "function";
+                        }
+                        else if (type == Object) {
+                            matched = typeof (arg) == "object";
+                        }
+                        else if (arg == undefined) {
+                            matched = false;
+                        }
+                        else if (arg != null) {
+                            if (type.prototype.__proto__ == Class) {
+                                if (arg instanceof Class) {
+                                    matched = type.IsAssignableFrom(arg.GetType());
+                                }
+                                else {
+                                    matched = false;
+                                }
+                            }
+                            else {
+                                matched = arg instanceof type;
+                            }
+                        }
+                    }
+
+                    if (matched) {
+                        return funcs[i].apply(this, arguments);
+                    }
+                }
+                throw new Error("Cannot find a overloading function that matches the arguments.");
+            }
+        }
+
+        function __DefineOverload(accessor) {
+            Object.defineProperty(accessor, "Overload", {
+                configurable: false,
+                enumerable: true,
+                writable: false,
+                value: function () {
+                    return accessor(__BuildOverloadingFunctions.apply(null, arguments));
+                }
+            });
+        }
+
         // Overload, Abstract, Virtual, Override
 
         function Private(value) {
             return new __PrivateMember(value);
         }
+        __DefineOverload(Private);
 
         function Protected(value) {
             return new __ProtectedMember(value);
         }
+        __DefineOverload(Protected);
 
         function Public(value) {
             return new __PublicMember(value);
         }
+        __DefineOverload(Public);
 
         function Class() {
 
             function CreateInternalReference(description) {
                 var internalReference = {};
-                internalReference.__proto__ = Class.prototype;
 
                 for (var name in description) {
                     var member = description[name];
@@ -182,6 +263,7 @@
                 }
 
                 // return the externalReference
+                externalReference.__proto__ = typeObject.prototype;
                 return externalReference;
             }
 
@@ -222,6 +304,8 @@
                     }
                 }
             });
+
+            Type.prototype.__proto__ = Class.prototype;
             return Type;
         }
     </script>
@@ -529,11 +613,11 @@
             });
 
             var MyClass = Class({
-                Print:Private(function() {
+                Print: Private(function (args) {
                     var result = "";
-                    for (var i in arguments) {
+                    for (var i in args) {
                         if (i > 0) result += ", ";
-                        result += typeof (arguments[i]);
+                        result += typeof (args[i]);
                     }
                     return result;
                 }),
@@ -562,6 +646,18 @@
                     }
                 ),
             });
+
+            var a = new A();
+            var b = new B();
+            var c = new C();
+            var x = new MyClass();
+            assert(x.Do() == "1: ");
+            assert(x.Do(1, "2", true) == "2: number, string, boolean");
+            assert(x.Do(function () { }) == "3: function");
+            assert(x.Do(c) == "4: object");
+            assert(x.Do(b) == "5: object");
+            assert(x.Do(a) == "6: object");
+            assert(x.Do(null) == "7: object");
         });
     </script>
 
