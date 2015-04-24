@@ -162,7 +162,7 @@
 
             function CopyReferencableMembers(target, source, description, forInternalReference) {
                 for (var name in description) {
-                    if (!forInternalReference || name != "__Constructor") {
+                    if (name != "__Constructor") {
                         (function () {
                             var memberName = name;
                             var member = description[memberName];
@@ -691,7 +691,37 @@
     </script>
 
     <script>
-        testCase("<constructor in base classes>", function () {
+        testCase("constructors in base classes can be called by child class", function () {
+            var A = Class({
+                value: Private(null),
+                GetA: Public(function () {
+                    return this.value;
+                }),
+                __Constructor: Public(function (x) {
+                    this.value = x;
+                })
+            });
+
+            var B = Class({
+                value: Private(null),
+                GetB: Public(function () {
+                    return this.value;
+                }),
+                __Constructor: Public(function (x) {
+                    this.value = x;
+                })
+            });
+
+            var C = Class(A, B, {
+                Get: Public(function () {
+                    return this.GetA() + this.GetB();
+                }),
+                __Constructor: Public(function (x, y) {
+                })
+            })
+
+            var c = new C(1, 2);
+            assert(c.Get() == 3);
         });
     </script>
 
@@ -711,7 +741,7 @@
     </script>
 
     <script>
-        testCase("<constructor in virtual base class>", function () {
+        testCase("<constructor in virtual base classes>", function () {
         });
     </script>
 
@@ -722,6 +752,11 @@
 
     <script>
         testCase("<events>", function () {
+        });
+    </script>
+
+    <script>
+        testCase("<hidden member in base classes>", function () {
         });
     </script>
 </body>
