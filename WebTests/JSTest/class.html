@@ -2,8 +2,6 @@
 <html>
 <head>
     <title>Class</title>
-</head>
-<body>
     <script>
         function __MemberBase() {
         }
@@ -480,14 +478,91 @@
             });
         */
     </script>
+</head>
+<body style="font-family: 'Segoe UI'; font-size: 14px;">
     <script>
         function assert(code) {
             if (!code) throw new Error("Fuck");
         }
 
+        var __passedCases = 0;
+        var __failedCases = 0;
+        var __emptyCases = 0;
+
         function testCase(name, code) {
             console.debug("Running: " + name);
-            code();
+
+            var div = document.createElement("div");
+            div.appendChild(document.createTextNode(name));
+            document.body.appendChild(div);
+
+            try {
+                code();
+                div.setAttribute("style", "color: green;");
+                __passedCases++;
+            }
+            catch (ex) {
+                if (ex.message == "<EMPTY CASE>") {
+                    div.setAttribute("style", "color: purple;");
+                    __emptyCases++;
+                }
+                else {
+                    div.setAttribute("style", "color: red;");
+                    __failedCases++;
+                    throw ex;
+                }
+            }
+        }
+
+        function emptyCase() {
+            throw new Error("<EMPTY CASE>");
+        }
+
+        function summaryTest() {
+            var container = document.createElement("div");
+            container.setAttribute("style", "margin-top: 1.5em;");
+            {
+                var div = document.createElement("div");
+                div.appendChild(document.createTextNode("=================================================="));
+                div.setAttribute("style", "color: gray;");
+                container.appendChild(div);
+            }
+            {
+                var div = document.createElement("div");
+                div.appendChild(document.createTextNode("Passed: " + __passedCases));
+                div.setAttribute("style", "color: green; float: left");
+                container.appendChild(div);
+            }
+            {
+                var div = document.createElement("div");
+                div.appendChild(document.createTextNode("\u00A0"));
+                div.setAttribute("style", "min-width: 4em; float: left");
+                container.appendChild(div);
+            }
+            {
+                var div = document.createElement("div");
+                div.appendChild(document.createTextNode("Failed: " + __failedCases));
+                div.setAttribute("style", "color: red; float: left");
+                container.appendChild(div);
+            }
+            {
+                var div = document.createElement("div");
+                div.appendChild(document.createTextNode("\u00A0"));
+                div.setAttribute("style", "min-width: 4em; float: left");
+                container.appendChild(div);
+            }
+            {
+                var div = document.createElement("div");
+                div.appendChild(document.createTextNode("Empty: " + __emptyCases));
+                div.setAttribute("style", "color: purple; float: left");
+                container.appendChild(div);
+            }
+            {
+                var div = document.createElement("div");
+                div.setAttribute("style", "claer: both");
+                container.appendChild(div);
+            }
+            document.body.appendChild(container);
         }
     </script>
 
@@ -959,42 +1034,53 @@
 
     <script>
         testCase("<virtual function in multiple inheritance>", function () {
+            emptyCase();
         });
     </script>
 
     <script>
         testCase("<virtual base class>", function () {
+            emptyCase();
         });
     </script>
 
     <script>
         testCase("<constructor in virtual base classes>", function () {
+            emptyCase();
         });
     </script>
 
     <script>
         testCase("<properties>", function () {
+            emptyCase();
         });
     </script>
 
     <script>
         testCase("<events>", function () {
+            emptyCase();
         });
     </script>
 
     <script>
         testCase("<hidden member in base classes>", function () {
+            emptyCase();
         });
     </script>
 
     <script>
         testCase("<cannot non-virtually inherit a class multiple times>", function () {
+            emptyCase();
         });
     </script>
 
     <script>
         testCase("<cannot inherit multiple members of the same name without defining a new one>", function () {
+            emptyCase();
         });
+    </script>
+    <script>
+        summaryTest();
     </script>
 </body>
 </html>
