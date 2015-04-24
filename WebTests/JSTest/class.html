@@ -337,10 +337,18 @@
             Type.IsAssignableFrom(type)
 
             Class(type1, type2, ... {
-                member: (Public|Protected|Private) (value | function),
-                member: (Public|Protected|Private)[.(Virtual|Override)] (function),
-                member: (Public|Protected|Private).Overload(typeList1, function1, typeList2, function2, ...);
-                member: (Public|Protected).Abstract();
+                Member: (Public|Protected|Private) (value | function),
+                Member: (Public|Protected|Private)[.(Virtual|Override)] (function),
+                Member: (Public|Protected|Private).Overload(typeList1, function1, typeList2, function2, ...);
+                Member: (Public|Protected).Abstract();
+                Member: Public.Event();
+                Member: Public.Property({
+                    readonly: true | false,             // (optional, false)
+                    hasEvent: true | false,             // (optional, false)
+                    getterName: "GetterNameToOverride", // (optional, "GetMember")
+                    setterName: "SetterNameToOverride", // (optional, "SetMember")      implies readonly: false
+                    eventName: "EventNameToOverride",   // (optional, "MemberChanged")  implies hasEvent: true
+                }),
             });
         */
     </script>
