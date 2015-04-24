@@ -210,11 +210,11 @@
             }
 
             function InjectInternalReference(internalReference, typeObject, externalReference) {
-                internalReference.GetType = function () {
+                internalReference.__GetType = function () {
                     return typeObject;
                 }
 
-                internalReference.GetExternalReference = function () {
+                internalReference.__GetExternalReference = function () {
                     return externalReference;
                 }
             }
@@ -240,7 +240,7 @@
                 var externalReference = {};
 
                 // inject externalReference.GetType()
-                Object.defineProperty(externalReference, "GetType", {
+                Object.defineProperty(externalReference, "__GetType", {
                     configurable: false,
                     enumerable: true,
                     writable: false,
@@ -331,7 +331,7 @@
             });
 
             var x = new MyClass();
-            assert(x.GetType() == MyClass);
+            assert(x.__GetType() == MyClass);
         });
     </script>
 
@@ -346,7 +346,7 @@
             delete x.GetType;
             delete x.a;
             delete x.b;
-            assert(x.GetType() == MyClass);
+            assert(x.__GetType() == MyClass);
             assert(x.a == 0);
             assert(x.b == 1);
         });
@@ -515,7 +515,7 @@
                     return a + b;
                 }),
                 GetA: Public(function () {
-                    return this.GetType();
+                    return this.__GetType();
                 }),
             });
 
@@ -524,7 +524,7 @@
                     return a - b;
                 }),
                 GetB: Public(function () {
-                    return this.GetType();
+                    return this.__GetType();
                 }),
             });
 
@@ -533,7 +533,7 @@
                     return a * b;
                 }),
                 GetC: Public(function () {
-                    return this.GetType();
+                    return this.__GetType();
                 }),
             });
 
@@ -564,7 +564,7 @@
                     return a + b;
                 }),
                 GetA: Public(function () {
-                    return this.GetType();
+                    return this.__GetType();
                 }),
             });
 
@@ -573,7 +573,7 @@
                     return a - b;
                 }),
                 GetB: Public(function () {
-                    return this.GetType();
+                    return this.__GetType();
                 }),
             });
 
@@ -582,7 +582,7 @@
                     return a * b;
                 }),
                 GetC: Public(function () {
-                    return this.GetType();
+                    return this.__GetType();
                 }),
             });
 
