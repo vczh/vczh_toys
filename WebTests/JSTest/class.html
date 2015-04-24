@@ -845,6 +845,36 @@
 
     <script>
         testCase("<virtual function>", function () {
+            var A = Class({
+                GetX: Protected.Virtual(function () {
+                    return "X";
+                }),
+                GetY: Protected(function () {
+                    return "Y";
+                }),
+                GetZ: Public(function () {
+                    return this.GetX() + ", " + this.GetY();
+                })
+            });
+
+            var B = Class({
+                GetX: Protected.Override(function () {
+                    return "U";
+                }),
+                GetY: Protected(function () {
+                    return "V";
+                }),
+            });
+
+            var a = new A();
+            var b = new B();
+            assert(a.GetZ() == "X, Y");
+            assert(b.GetZ() == "U, Y");
+        });
+    </script>
+
+    <script>
+        testCase("<abstract function>", function () {
         });
     </script>
 
