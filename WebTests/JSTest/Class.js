@@ -329,27 +329,27 @@ function __DefineProperty(accessor) {
             }
         }
         else {
-            member.value.Readonly = value.hasOwnProperty("getterName") && !value.hasOwnProperty("setterName");
+            member.Value.Readonly = value.hasOwnProperty("getterName") && !value.hasOwnProperty("setterName");
         }
 
         if (value.hasOwnProperty("hasEvent")) {
-            member.value.HasEvent = value.hasEvent;
+            member.Value.HasEvent = value.hasEvent;
             if (!value.hasEvent && value.hasOwnProperty("eventName")) {
                 throw new Error("Non-trigger property cannot have an event.");
             }
         }
         else {
-            member.value.HasEvent = value.hasOwnProperty("eventName");
+            member.Value.HasEvent = value.hasOwnProperty("eventName");
         }
 
         if (value.hasOwnProperty("getterName")) {
-            member.value.GetterName = value.getterName;
+            member.Value.GetterName = value.getterName;
         }
         if (value.hasOwnProperty("setterName")) {
-            member.value.SetterName = value.setterName;
+            member.Value.SetterName = value.setterName;
         }
         if (value.hasOwnProperty("eventName")) {
-            member.value.EventName = value.eventName;
+            member.Value.EventName = value.eventName;
         }
     });
 }
@@ -596,18 +596,23 @@ function Class(fullName) {
 
     // set __MemberBase.DeclaringType
     for (var name in description) {
+        if (name.substring(0, 2) == "__" && name != "__Constructor") {
+            throw new Error("Member name cannot start with \"__\" except \"__Constructor\".");
+        }
+
         var member = description[name];
         member.DeclaringType = Type;
 
-        if (member instanceof __Property) {
-            if (member.GetterName == null) {
-                member.GetterName = "Get" + name;
+        var value = member.Value;
+        if (value instanceof __Property) {
+            if (value.GetterName == null) {
+                value.GetterName = "Get" + name;
             }
-            if (!member.Readonly && member.SetterName == null) {
-                member.SetterName = "Set" + name;
+            if (!value.Readonly && value.SetterName == null) {
+                value.SetterName = "Set" + name;
             }
-            if (member.HasEvent && member.EventName == null) {
-                member.EventName = name + "Changed";
+            if (value.HasEvent && value.EventName == null) {
+                value.EventName = name + "Changed";
             }
         }
     }

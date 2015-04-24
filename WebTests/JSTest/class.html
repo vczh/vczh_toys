@@ -678,29 +678,29 @@
 
             var x = new MyClass();
 
-            assert(x.GetType().Description.A.Readonly == true);
-            assert(x.GetType().Description.A.HasEvent == false);
-            assert(x.GetType().Description.A.GetterName == "GetA");
-            assert(x.GetType().Description.A.SetterName == null);
-            assert(x.GetType().Description.A.EventName == null);
+            assert(x.__GetType().Description.A.Value.Readonly == true);
+            assert(x.__GetType().Description.A.Value.HasEvent == false);
+            assert(x.__GetType().Description.A.Value.GetterName == "GetA");
+            assert(x.__GetType().Description.A.Value.SetterName == null);
+            assert(x.__GetType().Description.A.Value.EventName == null);
 
-            assert(x.GetType().Description.B.Readonly == true);
-            assert(x.GetType().Description.B.HasEvent == true);
-            assert(x.GetType().Description.B.GetterName == "GetB");
-            assert(x.GetType().Description.B.SetterName == null);
-            assert(x.GetType().Description.B.EventName == "BChanged");
+            assert(x.__GetType().Description.B.Value.Readonly == true);
+            assert(x.__GetType().Description.B.Value.HasEvent == true);
+            assert(x.__GetType().Description.B.Value.GetterName == "GetB");
+            assert(x.__GetType().Description.B.Value.SetterName == null);
+            assert(x.__GetType().Description.B.Value.EventName == "BChanged");
 
-            assert(x.GetType().Description.C.Readonly == false);
-            assert(x.GetType().Description.C.HasEvent == false);
-            assert(x.GetType().Description.C.GetterName == "GetC");
-            assert(x.GetType().Description.C.SetterName == "SetC");
-            assert(x.GetType().Description.C.EventName == null);
+            assert(x.__GetType().Description.C.Value.Readonly == false);
+            assert(x.__GetType().Description.C.Value.HasEvent == false);
+            assert(x.__GetType().Description.C.Value.GetterName == "GetC");
+            assert(x.__GetType().Description.C.Value.SetterName == "SetC");
+            assert(x.__GetType().Description.C.Value.EventName == null);
 
-            assert(x.GetType().Description.D.Readonly == false);
-            assert(x.GetType().Description.D.HasEvent == true);
-            assert(x.GetType().Description.D.GetterName == "GetD");
-            assert(x.GetType().Description.D.SetterName == "SetD");
-            assert(x.GetType().Description.D.EventName == "DChanged");
+            assert(x.__GetType().Description.D.Value.Readonly == false);
+            assert(x.__GetType().Description.D.Value.HasEvent == true);
+            assert(x.__GetType().Description.D.Value.GetterName == "GetD");
+            assert(x.__GetType().Description.D.Value.SetterName == "SetD");
+            assert(x.__GetType().Description.D.Value.EventName == "DChanged");
 
             var values = [];
             x.BChanged.Attach(function () {
