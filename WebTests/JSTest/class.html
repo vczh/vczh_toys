@@ -625,8 +625,81 @@
     </script>
 
     <script>
-        testCase("<properties>", function () {
-            emptyCase();
+        testCase("properties should be able to read and write if correctly configured", function () {
+            var MyClass = Class("MyClass", {
+                a: Private(0),
+                b: Private(0),
+                c: Private(0),
+                d: Private(0),
+
+                GetA: Protected(function () { return this.a; }),
+                GetB: Protected(function () { return this.b; }),
+                GetC: Protected(function () { return this.c; }),
+                GetD: Protected(function () { return this.d; }),
+
+                SetA: Public(function (value) {
+                    this.a = value;
+                }),
+                SetB: Public(function (value) {
+                    if (this.b != value) {
+                        this.b = value;
+                        this.BChanged.Execute();
+                    }
+                }),
+                SetC: Protected(function (value) {
+                    this.c = value;
+                }),
+                SetD: Protected(function (value) {
+                    if (this.d != value) {
+                        this.d = value;
+                        this.DChanged.Execute();
+                    }
+                }),
+
+                BChanged: Public.Event(),
+                DChanged: Public.Event(),
+
+                A: Public.Property({
+                    readonly: true,
+                }),
+
+                B: Public.Property({
+                    readonly: true,
+                    hasEvent: true,
+                }),
+
+                C: Public.Property({
+                }),
+
+                D: Public.Property({
+                    hasEvent: true,
+                }),
+            });
+
+            var x = new MyClass();
+
+            var values = [];
+            x.BChanged.Attach(function () {
+                values.push("B");
+            });
+            x.DChanged.Attach(function () {
+                values.push("D");
+            });
+
+            assert(x.A == 0);
+            assert(x.B == 0);
+            assert(x.C == 0);
+            assert(x.D == 0);
+
+            x.SetA(1);
+            x.SetB(2);
+            x.C = 3;
+            x.D = 4;
+            assert(x.A == 1);
+            assert(x.B == 2);
+            assert(x.C == 3);
+            assert(x.D == 4);
+            assert(values.join(", ") == "B, D");
         });
     </script>
 
