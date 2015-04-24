@@ -393,12 +393,31 @@ function Class(fullName) {
             if (member instanceof __PrivateMember ||
                 member instanceof __ProtectedMember ||
                 member instanceof __PublicMember) {
-                Object.defineProperty(internalReference, name, {
-                    configurable: member.Virtual != __MemberBase.NORMAL,
-                    enumerable: true,
-                    writable: typeof member.Value != "function" && !(member.Value instanceof __Event),
-                    value: member.Value,
-                });
+                if (member.Value instanceof __Property) {
+                    (function () {
+                        var getterName = member.Value.GetterName;
+                        var setterName = member.Value.SetterName;
+
+                        Object.defineProperty(internalReference, name, {
+                            configurable: false,
+                            enumerable: true,
+                            get: function () {
+                                return internalReference[getterName].apply(internalReference, []);
+                            },
+                            set: member.Value.Readonly ? undefined : function (value) {
+                                internalReference[setterName].apply(internalReference, [value]);
+                            },
+                        });
+                    })();
+                }
+                else {
+                    Object.defineProperty(internalReference, name, {
+                        configurable: member.Virtual != __MemberBase.NORMAL,
+                        enumerable: true,
+                        writable: typeof member.Value != "function" && !(member.Value instanceof __Event),
+                        value: member.Value,
+                    });
+                }
             }
         }
 
@@ -424,13 +443,14 @@ function Class(fullName) {
             });
         }
         else {
+            var readonly = member.Value instanceof __Property && member.Value.Readonly;
             Object.defineProperty(target, memberName, {
                 configurable: false,
                 enumerable: true,
                 get: function () {
                     return source[memberName];
                 },
-                set: function (value) {
+                set: readonly ? undefined : function (value) {
                     source[memberName] = value;
                 }
             });
