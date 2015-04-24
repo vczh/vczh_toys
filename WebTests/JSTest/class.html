@@ -410,7 +410,7 @@
     </script>
 
     <script>
-        testCase("Virtual function should be able to override in child classes", function () {
+        testCase("virtual function should be able to override in child classes", function () {
             var A = Class("A", {
                 GetX: Protected.Virtual(function () {
                     return "X";
@@ -440,7 +440,7 @@
     </script>
 
     <script>
-        testCase("Abstract function should not be called and should be able to override in child classes.", function () {
+        testCase("abstract function should not be called and should be able to override in child classes.", function () {
             var A = Class("A", {
                 GetX: Protected.Abstract(),
                 GetY: Protected(function () {
@@ -474,7 +474,7 @@
     </script>
 
     <script>
-        testCase("New function will hide the virtual function in base classes", function () {
+        testCase("new function will hide the virtual function in base classes", function () {
             var A = Class("A", {
                 GetX: Protected.Virtual(function () {
                     return "X";
@@ -533,7 +533,7 @@
     </script>
 
     <script>
-        testCase("Virtual functions of the same name in different base classes should be able to override in child classes", function () {
+        testCase("virtual functions of the same name in different base classes should be able to override in child classes", function () {
             var A = Class("A", {
                 Get: Public.Virtual(function () {
                     return "A";
@@ -728,6 +728,7 @@
     </script>
 
     <script>
+        testCase("<calling hidden member in base classes inside and outside classes>", function () {
             emptyCase();
         });
     </script>
