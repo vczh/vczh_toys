@@ -96,7 +96,7 @@
             });
         }
 
-        // Overload, Abstract, Virtual, Override
+        // Abstract, Virtual, Override
 
         function Private(value) {
             return new __PrivateMember(value);
@@ -183,6 +183,7 @@
             function CreateCompleteInternalReference(type, accumulatedBaseClasses, accumulatedBaseReferences) {
                 var description = type.GetDescription();
                 var baseClasses = type.GetBaseClasses();
+                var baseInstances = new Array(baseClasses.length);
 
                 for (var i = 0; i <= baseClasses.length; i++) {
                     if (i == baseClasses.length) {
@@ -198,13 +199,24 @@
 
                         accumulatedBaseClasses.push(type);
                         accumulatedBaseReferences.push(internalReference);
+
+                        internalReference.__GetBase = function (baseType) {
+                            for (var k in baseClasses) {
+                                if (baseClasses[k] == baseType) {
+                                    return baseInstances[k];
+                                }
+                            }
+                            return undefined;
+                        }
+
                         return internalReference;
                     }
                     else {
-                        CreateCompleteInternalReference(
+                        var baseInstance = CreateCompleteInternalReference(
                             baseClasses[i],
                             accumulatedBaseClasses,
                             accumulatedBaseReferences);
+                        baseInstances[i] = baseInstance;
                     }
                 }
             }
@@ -313,6 +325,24 @@
             Type.prototype.__proto__ = Class.prototype;
             return Type;
         }
+
+        /*
+        API:
+            this.__GetType()
+            this.__GetBase(type)
+            this.__GetExternalReference()
+
+            Type.GetDescription()
+            Type.GetBaseClasses()
+            Type.IsAssignableFrom(type)
+
+            Class(type1, type2, ... {
+                member: (Public|Protected|Private) (value | function),
+                member: (Public|Protected|Private)[.(Virtual|Override)] (function),
+                member: (Public|Protected|Private).Overload(typeList1, function1, typeList2, function2, ...);
+                member: (Public|Protected).Abstract();
+            });
+        */
     </script>
     <script>
         function assert(code) {
@@ -717,6 +747,8 @@
                     return this.GetA() + this.GetB();
                 }),
                 __Constructor: Public(function (x, y) {
+                    this.__GetBase(A).__Constructor(x);
+                    this.__GetBase(B).__Constructor(y);
                 })
             })
 
