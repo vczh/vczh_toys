@@ -11,6 +11,10 @@ API:
     Type.FlattenedBaseClasses                   // Get all direct or indirect base classes of this type
     Type.IsAssignableFrom(childType)            // Returns true if "childType" is or inherits from "Type"
 
+    handler = Event.Attach(xxx);
+    Event.Detach(handler);
+    Event.Execute(...);
+
     Class(fullName, type1, Virtual(type2), ... {
         Member: (Public|Protected|Private) (value | function),
         Member: (Public|Protected|Private).Overload(typeList1, function1, typeList2, function2, ...);
@@ -86,6 +90,58 @@ function __PublicMember(value) {
     this.Value = value;
 }
 __PublicMember.prototype.__proto__ = __MemberBase.prototype;
+
+function __EventHandler(func) {
+    this.Function = func;
+}
+Object.defineProperty(__EventHandler.prototype, "Function", {
+    configurable: false,
+    enumerable: true,
+    writable: true,
+    value: null,
+});
+
+function __Event() {
+    var handlers = [];
+
+    Object.defineProperty(this, "Attach", {
+        configurable: false,
+        enumerable: false,
+        writable: false,
+        value: function (func) {
+            if (typeof func != "function") {
+                throw new Error("Only functions can be attached to an event.");
+            }
+            var handler = new __EventHandler(func);
+            handlers.push(handler);
+            return handler;
+        }
+    });
+
+    Object.defineProperty(this, "Detach", {
+        configurable: false,
+        enumerable: false,
+        writable: false,
+        value: function (handler) {
+            var index = handlers.indexOf(handler);
+            if (index == -1) {
+                throw new Error("Only handlers that created by this event can detach.");
+            }
+            handlers.splice(index, 1);
+        }
+    });
+
+    Object.defineProperty(this, "Execute", {
+        configurable: false,
+        enumerable: false,
+        writable: false,
+        value: function () {
+            for (var i in handlers) {
+                handlers[i].Function.apply(null, arguments);
+            }
+        }
+    });
+}
 
 function __BuildOverloadingFunctions() {
     if (arguments.length % 2 != 0) {
@@ -217,6 +273,13 @@ function __DefineAbstract(accessor) {
     });
 }
 
+function __DefineEvent(accessor) {
+    __DefineDecorator(accessor, "Event", function (member) {
+        member.Virtual = __MemberBase.VIRTUAL;
+        member.Value = new __Event();
+    });
+}
+
 function Private(value) {
     return new __PrivateMember(value);
 }
@@ -241,6 +304,7 @@ __DefineVirtual(Public);
 __DefineNewVirtual(Public);
 __DefineAbstract(Public);
 __DefineOverride(Public);
+__DefineEvent(Public);
 
 function Class(fullName) {
 
@@ -257,7 +321,7 @@ function Class(fullName) {
                 Object.defineProperty(internalReference, name, {
                     configurable: member.Virtual != __MemberBase.NORMAL,
                     enumerable: true,
-                    writable: typeof member.Value != "function",
+                    writable: typeof member.Value != "function" && !(member.Value instanceof __Event),
                     value: member.Value,
                 });
             }
@@ -518,17 +582,25 @@ function Class(fullName) {
     for (var i in description) {
         var member = description[i];
         var flattenedMember = flattenedDescription[i];
-        if (member.Virtual == __MemberBase.OVERRIDE) {
-            if (flattenedMember == undefined) {
+
+        if (flattenedMember == undefined) {
+            if (member.Virtual == __MemberBase.OVERRIDE) {
                 throw new Error("Cannot find virtual function \"" + i + "\" to override.");
             }
-            else if (flattenedMember.Virtual == __MemberBase.NORMAL) {
-                throw new Error("Cannot override non-virtual function \"" + i + "\".");
-            }
         }
-        else if (!member.New) {
-            if (flattenedMember != undefined && flattenedMember.Virtual != __MemberBase.NORMAL) {
-                throw new Error("Cannot hide virtual function \"" + i + "\" without overriding.");
+        else {
+            if (flattenedMember.Value instanceof __Event) {
+                throw new Error("Cannot hide event \"" + i + "\".");
+            }
+            else if (member.Virtual == __MemberBase.OVERRIDE) {
+                if (flattenedMember.Virtual == __MemberBase.NORMAL) {
+                    throw new Error("Cannot override non-virtual function \"" + i + "\".");
+                }
+            }
+            else if (!member.New) {
+                if (flattenedMember.Virtual != __MemberBase.NORMAL) {
+                    throw new Error("Cannot hide virtual function \"" + i + "\" without overriding.");
+                }
             }
         }
     }

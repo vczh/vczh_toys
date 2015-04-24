@@ -590,13 +590,42 @@
     </script>
 
     <script>
-        testCase("<properties>", function () {
-            emptyCase();
+        testCase("events should be able to attach, detach and execute", function () {
+            var MyClass = Class("MyClass", {
+                Event: Public.Event(),
+            });
+
+            var x = new MyClass();
+            x.Event = undefined;
+            assert(x.Event instanceof __Event);
+
+            var values = [];
+
+            var a = x.Event.Attach(function (v) {
+                values.push("a:" + v);
+            });
+            var b = x.Event.Attach(function (v) {
+                values.push("b:" + v);
+            });
+
+            assert(a instanceof __EventHandler);
+            assert(b instanceof __EventHandler);
+
+            x.Event.Execute(1);
+            assert(values.join(", ") == "a:1, b:1");
+
+            x.Event.Detach(a);
+            x.Event.Execute(2);
+            assert(values.join(", ") == "a:1, b:1, b:2");
+
+            x.Event.Detach(b);
+            x.Event.Execute(2);
+            assert(values.join(", ") == "a:1, b:1, b:2");
         });
     </script>
 
     <script>
-        testCase("<events>", function () {
+        testCase("<properties>", function () {
             emptyCase();
         });
     </script>
@@ -741,6 +770,36 @@
             }
             catch (ex) {
                 assert(ex.message == "Cannot hide virtual function \"Get\" without overriding.");
+            }
+        });
+    </script>
+
+    <script>
+        testCase("cannot hide events", function () {
+            try {
+                var A = Class("A", {
+                    Event: Public.Event(),
+                });
+                var B = Class("B", A, {
+                    Event: Public.Event(),
+                });
+                assert(false);
+            }
+            catch (ex) {
+                assert(ex.message == "Cannot hide event \"Event\".");
+            }
+
+            try {
+                var A = Class("A", {
+                    Event: Public.Event(),
+                });
+                var B = Class("B", A, {
+                    Event: Public(0),
+                });
+                assert(false);
+            }
+            catch (ex) {
+                assert(ex.message == "Cannot hide event \"Event\".");
             }
         });
     </script>
