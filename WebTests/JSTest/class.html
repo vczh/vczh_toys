@@ -431,17 +431,19 @@
                 return externalReference;
             }
 
+            // set __MemberBase.DeclaringType
             for (var name in description) {
                 description[name].DeclaringType = Type;
             }
 
+            // calculate Type.FlattenedBaseClasses
             var flattenedBaseClasses = [];
             function AddFlattenedBaseClass(type) {
                 if (flattenedBaseClasses.indexOf(type) == -1) {
                     flattenedBaseClasses.push(type);
                 }
                 else {
-                    throw new Error("Cannot non-virtually inherit from a type multiple times.");
+                    throw new Error("Cannot non-virtually inherit from type \"" + type.FullName + "\" multiple times.");
                 }
             }
 
@@ -454,6 +456,7 @@
                 AddFlattenedBaseClass(baseClass);
             }
 
+            // calculate Type.FlattenedDescription
             var flattenedDescription = {};
             function AddFlattenedMember(name, member) {
 
@@ -487,10 +490,30 @@
                     AddFlattenedMember(j, flattened[j]);
                 }
             }
+
+            for (var i in description) {
+                var member = description[i];
+                var flattenedMember = flattenedDescription[i];
+                if (member.Virtual == __MemberBase.OVERRIDE) {
+                    if (flattenedMember == undefined) {
+                        throw new Error("Cannot find virtual function \"" + i + "\" to override.");
+                    }
+                    else if (flattenedMember.Virtual == __MemberBase.NORMAL) {
+                        throw new Error("Cannot override non-virtual function \"" + i + "\".");
+                    }
+                }
+                else if (!member.New) {
+                    if (flattenedMember != undefined && flattenedMember.Virtual != __MemberBase.NORMAL) {
+                        throw new Error("Cannot hide virtual function \"" + i + "\" without overriding.");
+                    }
+                }
+            }
+
             for (var j in description) {
                 AddFlattenedMember(j, description[j]);
             }
 
+            // Type.FullName
             Object.defineProperty(Type, "FullName", {
                 configurable: false,
                 enumerable: true,
@@ -498,6 +521,7 @@
                 value: fullName,
             });
 
+            // Type.Description
             Object.defineProperty(Type, "Description", {
                 configurable: false,
                 enumerable: true,
@@ -505,6 +529,7 @@
                 value: description,
             });
 
+            // Type.FlattenedDescription
             Object.defineProperty(Type, "FlattenedDescription", {
                 configurable: false,
                 enumerable: true,
@@ -512,6 +537,7 @@
                 value: flattenedDescription,
             });
 
+            // Type.BaseClasses
             Object.defineProperty(Type, "BaseClasses", {
                 configurable: false,
                 enumerable: true,
@@ -519,6 +545,7 @@
                 value: directBaseClasses,
             });
 
+            // Type.FlattenedBaseClasses
             Object.defineProperty(Type, "FlattenedBaseClasses", {
                 configurable: false,
                 enumerable: true,
@@ -526,16 +553,17 @@
                 value: flattenedBaseClasses,
             });
 
+            // Type.IsAssignableFrom(childType)
             Object.defineProperty(Type, "IsAssignableFrom", {
                 configurable: false,
                 enumerable: true,
                 writable: false,
-                value: function (type) {
-                    if (type == Type) {
+                value: function (childType) {
+                    if (childType == Type) {
                         return true;
                     }
                     else {
-                        var baseClasses = type.BaseClasses;
+                        var baseClasses = childType.BaseClasses;
                         for (var i in baseClasses) {
                             if (Type.IsAssignableFrom(baseClasses[i])) {
                                 return true;
@@ -561,7 +589,7 @@
             Type.FlattenedDescription                   // Get all potentially visible members in this type
             Type.BaseClasses                            // Get all direct base classes of this type
             Type.FlattenedBaseClasses                   // Get all direct or indirect base classes of this type
-            Type.IsAssignableFrom(type)                 // Returns true if "type" is or inherits from "Type"
+            Type.IsAssignableFrom(childType)            // Returns true if "childType" is or inherits from "Type"
 
             Class(fullName, type1, type2, ... {
                 Member: (Public|Protected|Private) (value | function),
@@ -597,7 +625,6 @@
             div.appendChild(document.createTextNode(name));
             document.body.appendChild(div);
 
-            //code();
             try {
                 code();
                 div.setAttribute("style", "color: green;");
@@ -611,7 +638,7 @@
                 else {
                     div.setAttribute("style", "color: red;");
                     __failedCases++;
-                    throw ex;
+                    code();
                 }
             }
         }
@@ -1269,26 +1296,140 @@
     </script>
 
     <script>
-        testCase("<cannot non-virtually inherit a class multiple times>", function () {
-            emptyCase();
+        testCase("cannot non-virtually inherit a class multiple times", function () {
+            try {
+                var A = Class("A", {});
+                var B = Class("B", A, {});
+                var C = Class("C", A, {});
+                var D = Class("D", B, C, {});
+                assert(false);
+            }
+            catch (ex) {
+                assert(ex.message == "Cannot non-virtually inherit from type \"A\" multiple times.");
+            }
         });
     </script>
 
     <script>
-        testCase("<cannot inherit multiple members of the same name without defining a new one>", function () {
-            emptyCase();
+        testCase("cannot inherit multiple members of the same name without defining a new one", function () {
+            try {
+                var A = Class("A", {
+                    Get: Public(function () {
+                    })
+                });
+                var B = Class("B", {
+                    Get: Public(function () {
+                    })
+                });
+                var C = Class("C", A, B, {});
+                assert(false);
+            }
+            catch (ex) {
+                assert(ex.message == "Cannot inherit multiple members of the same name \"Get\" without defining a new one.");
+            }
+
+            try {
+                var A = Class("A", {
+                    Get: Protected(function () {
+                    })
+                });
+                var B = Class("B", {
+                    Get: Protected(function () {
+                    })
+                });
+                var C = Class("C", A, B, {});
+            }
+            catch (ex) {
+                assert(ex.message == "Cannot inherit multiple members of the same name \"Get\" without defining a new one.");
+            }
+
+
+            var A = Class("A", {
+                Get: Private(function () {
+                })
+            });
+            var B = Class("B", {
+                Get: Private(function () {
+                })
+            });
+            var C = Class("C", A, B, {});
         });
     </script>
 
     <script>
-        testCase("<Cannot override non-virtual functions>", function () {
-            emptyCase();
+        testCase("cannot override non-virtual functions", function () {
+            try {
+                var A = Class("A", {
+                });
+                var B = Class("B", A, {
+                    Get: Public.Override(function () { })
+                });
+                assert(false);
+            }
+            catch (ex) {
+                assert(ex.message == "Cannot find virtual function \"Get\" to override.");
+            }
+
+            try {
+                var A = Class("A", {
+                    Get: Public(function () { })
+                });
+                var B = Class("B", A, {
+                    Get: Public.Override(function () { })
+                });
+                assert(false);
+            }
+            catch (ex) {
+                assert(ex.message == "Cannot override non-virtual function \"Get\".");
+            }
+
+            try {
+                var A = Class("A", {
+                    Get: Public.Virtual(function () { })
+                });
+                var B = Class("B", A, {
+                    Get: Public.New(function () { })
+                });
+                var C = Class("C", B, {
+                    Get: Public.Override(function () { })
+                });
+                assert(false);
+            }
+            catch (ex) {
+                assert(ex.message == "Cannot override non-virtual function \"Get\".");
+            }
         });
     </script>
 
     <script>
-        testCase("<Cannot hide a virtual function without overriding>", function () {
-            emptyCase();
+        testCase("cannot hide a virtual function without overriding", function () {
+            try {
+                var A = Class("A", {
+                    Get: Public.Virtual(function () { })
+                });
+                var B = Class("B", A, {
+                    Get: Public(function () { })
+                });
+                assert(false);
+            }
+            catch (ex) {
+                assert(ex.message == "Cannot hide virtual function \"Get\" without overriding.");
+            }
+
+            try {
+                var A = Class("A", {
+                    Get: Public(function () { })
+                });
+                var B = Class("B", A, {
+                    Get: Public.NewVirtual(function () { })
+                });
+                var C = Class("C", B, {
+                    Get: Public(function () { })
+                });
+            }
+            catch (ex) {
+                assert(ex.message == "Cannot hide virtual function \"Get\" without overriding.");
+            }
         });
     </script>
 
