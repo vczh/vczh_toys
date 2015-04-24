@@ -329,7 +329,6 @@
                 // create an internal reference from a type with inherited members
                 var description = type.Description;
                 var baseClasses = type.BaseClasses;
-                var baseInstances = new Array(baseClasses.length);
 
                 for (var i = 0; i <= baseClasses.length; i++) {
                     if (i == baseClasses.length) {
@@ -353,12 +352,7 @@
 
                         // implement __GetBase
                         internalReference.__GetBase = function (baseType) {
-                            for (var k in baseClasses) {
-                                if (baseClasses[k] == baseType) {
-                                    return baseInstances[k];
-                                }
-                            }
-                            return undefined;
+                            return accumulatedBaseReferences[accumulatedBaseClasses.indexOf(baseType)];
                         }
 
                         return internalReference;
@@ -369,7 +363,6 @@
                             baseClasses[i],
                             accumulatedBaseClasses,
                             accumulatedBaseReferences);
-                        baseInstances[i] = baseInstance;
                     }
                 }
             }
@@ -1201,8 +1194,47 @@
     </script>
 
     <script>
-        testCase("<virtual function in multiple inheritance>", function () {
-            emptyCase();
+        testCase("Virtual functions of the same name in different base classes should be able to override in child classes", function () {
+            var A = Class("A", {
+                Get: Public.Virtual(function () {
+                    return "A";
+                }),
+                GetA: Public(function () {
+                    return this.Get();
+                }),
+            });
+
+            var B = Class("B", {
+                Get: Public.Virtual(function () {
+                    return "B";
+                }),
+                GetB: Public(function () {
+                    return this.Get();
+                }),
+            });
+
+            var C = Class("C", A, B, {
+                Get: Public.Override(function () {
+                    return "C";
+                })
+            });
+
+            var D = Class("D", C, {
+                Get: Public.Override(function () {
+                    return "D";
+                })
+            });
+
+            var a = new A();
+            var b = new B();
+            var c = new C();
+            var d = new D();
+            assert(a.GetA() == "A");
+            assert(b.GetB() == "B");
+            assert(c.GetA() == "C");
+            assert(c.GetB() == "C");
+            assert(d.GetA() == "D");
+            assert(d.GetB() == "D");
         });
     </script>
 
