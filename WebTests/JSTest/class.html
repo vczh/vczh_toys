@@ -728,8 +728,38 @@
     </script>
 
     <script>
-        testCase("<calling hidden member in base classes inside and outside classes>", function () {
-            emptyCase();
+        testCase("hidden members should be able to call inside or outside classes>", function () {
+            var A = Class("A", {
+                GetX: Public(function () {
+                    return "X";
+                }),
+                GetY: Public.Virtual(function () {
+                    return "Y";
+                }),
+            });
+
+            var B = Class("B", A, {
+                GetX: Public(function () {
+                    return "A";
+                }),
+            });
+
+            var C = Class("C", B, {
+                GetY: Public.Override(function () {
+                    return "B";
+                }),
+
+                Get: Public(function () {
+                    var a = this.__Scope(A);
+                    var b = this.__Scope(B);
+                    return this.GetX() + ", " + this.GetY() +
+                        ", " + a.GetX() + ", " + a.GetY() +
+                        ", " + b.GetX() + ", " + b.GetY();
+                }),
+            });
+
+            var c = new C();
+            assert(c.Get() == "A, B, X, Y, A, Y");
         });
     </script>
 
@@ -897,6 +927,40 @@
             }
             catch (ex) {
                 assert(ex.message == "Cannot hide event \"Event\".");
+            }
+        });
+    </script>
+
+    <script>
+        testCase("all constructors should be exactly called once", function () {
+            try {
+                var A = Class("A", {
+                    __Constructor: Public(function () { })
+                });
+                var B = Class("B", A, {
+                });
+                new B();
+                assert(false);
+            }
+            catch (ex) {
+                assert(ex.message == "The constructor of type \"A\" has never been executed.");
+            }
+
+            try {
+                var A = Class("A", {
+                    __Constructor: Public(function () { })
+                });
+                var B = Class("B", A, {
+                    __Constructor: Public(function () {
+                        this.__InitBase(A, []);
+                        this.__InitBase(A, []);
+                    })
+                });
+                new B();
+                assert(false);
+            }
+            catch (ex) {
+                assert(ex.message == "The constructor of type \"A\" has already been executed.");
             }
         });
     </script>

@@ -7,7 +7,7 @@ API:
 
     obj.__Type                                  // Get the real type that creates this object.
 
-    Type.Name                                   // Get the full name
+    Type.FullName                               // Get the full name
     Type.Description                            // Get all declared members in this type
     Type.FlattenedDescription                   // Get all potentially visible members in this type
     Type.BaseClasses                            // Get all direct base classes of this type
@@ -599,21 +599,22 @@ function Class(fullName) {
                 writable: false,
                 value: function (type, args) {
                     if (typeObject.BaseClasses.indexOf(type) == -1) {
-                        throw new Error("Type \"" + typeObject.Name + "\" does not directly inherit from \"" + type.Name + "\".");
+                        throw new Error("Type \"" + typeObject.FullName + "\" does not directly inherit from \"" + type.FullName + "\".");
                     }
 
                     var index = accumulatedBaseClasses.indexOf(type);
                     baseRef = accumulatedBaseReferences[index];
                     ctor = baseRef.__Constructor;
                     if (ctor == undefined) {
-                        throw new Error("Type\"" + type.Name + "\" does not have a constructor.");
+                        throw new Error("Type\"" + type.FullName + "\" does not have a constructor.");
                     }
 
                     if (initBaseFlags[index] == true) {
-                        throw new Error("The constructor of type\"" + type.Name + "\" has already been executed.");
+                        throw new Error("The constructor of type \"" + type.FullName + "\" has already been executed.");
                     }
                     else {
                         ctor.apply(baseRef, args);
+                        initBaseFlags[index] = true;
                     }
                 },
             });
@@ -651,6 +652,9 @@ function Class(fullName) {
 
         // inject API into references
         initBaseFlags = new Array(accumulatedBaseClasses.length - 1);
+        for (var i = 0; i < accumulatedBaseClasses.length - 1; i++) {
+            initBaseFlags[i] = false;
+        }
         InjectObjects(externalReference, typeObject, accumulatedBaseClasses, accumulatedBaseReferences, initBaseFlags);
 
         // call the constructor
@@ -662,9 +666,9 @@ function Class(fullName) {
         // check is there any constructor is not called
         for (var i in initBaseFlags) {
             var ref = accumulatedBaseReferences[i];
-            if (ref.__Constructor != undefined && initBaseFlags[i] == undefined) {
+            if (ref.__Constructor != undefined && initBaseFlags[i] == false) {
                 var refType = accumulatedBaseClasses[i];
-                throw new Error("The constructor of type\"" + refType.Name + "\" has never been executed.");
+                throw new Error("The constructor of type \"" + refType.FullName + "\" has never been executed.");
             }
         }
 
