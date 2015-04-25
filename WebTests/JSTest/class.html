@@ -13,7 +13,7 @@
             });
 
             var x = new MyClass();
-            assert(x.__GetType() == MyClass);
+            assert(x.__Type == MyClass);
         });
     </script>
 
@@ -28,7 +28,7 @@
             delete x.GetType;
             delete x.a;
             delete x.b;
-            assert(x.__GetType() == MyClass);
+            assert(x.__Type == MyClass);
             assert(x.a == 0);
             assert(x.b == 1);
         });
@@ -197,7 +197,7 @@
                     return a + b;
                 }),
                 GetA: Public(function () {
-                    return this.__GetType();
+                    return this.__Type;
                 }),
             });
 
@@ -206,7 +206,7 @@
                     return a - b;
                 }),
                 GetB: Public(function () {
-                    return this.__GetType();
+                    return this.__Type;
                 }),
             });
 
@@ -215,7 +215,7 @@
                     return a * b;
                 }),
                 GetC: Public(function () {
-                    return this.__GetType();
+                    return this.__Type;
                 }),
             });
 
@@ -246,7 +246,7 @@
                     return a + b;
                 }),
                 GetA: Public(function () {
-                    return this.__GetType();
+                    return this.__Type;
                 }),
             });
 
@@ -255,7 +255,7 @@
                     return a - b;
                 }),
                 GetB: Public(function () {
-                    return this.__GetType();
+                    return this.__Type;
                 }),
             });
 
@@ -264,7 +264,7 @@
                     return a * b;
                 }),
                 GetC: Public(function () {
-                    return this.__GetType();
+                    return this.__Type;
                 }),
             });
 
@@ -399,8 +399,8 @@
                     return this.GetA() + this.GetB();
                 }),
                 __Constructor: Public(function (x, y) {
-                    this.__GetBase(A).__Constructor(x);
-                    this.__GetBase(B).__Constructor(y);
+                    this.__InitBase(A, [x]);
+                    this.__InitBase(B, [y]);
                 })
             })
 
@@ -678,29 +678,29 @@
 
             var x = new MyClass();
 
-            assert(x.__GetType().Description.A.Value.Readonly == true);
-            assert(x.__GetType().Description.A.Value.HasEvent == false);
-            assert(x.__GetType().Description.A.Value.GetterName == "GetA");
-            assert(x.__GetType().Description.A.Value.SetterName == null);
-            assert(x.__GetType().Description.A.Value.EventName == null);
+            assert(x.__Type.Description.A.Value.Readonly == true);
+            assert(x.__Type.Description.A.Value.HasEvent == false);
+            assert(x.__Type.Description.A.Value.GetterName == "GetA");
+            assert(x.__Type.Description.A.Value.SetterName == null);
+            assert(x.__Type.Description.A.Value.EventName == null);
 
-            assert(x.__GetType().Description.B.Value.Readonly == true);
-            assert(x.__GetType().Description.B.Value.HasEvent == true);
-            assert(x.__GetType().Description.B.Value.GetterName == "GetB");
-            assert(x.__GetType().Description.B.Value.SetterName == null);
-            assert(x.__GetType().Description.B.Value.EventName == "BChanged");
+            assert(x.__Type.Description.B.Value.Readonly == true);
+            assert(x.__Type.Description.B.Value.HasEvent == true);
+            assert(x.__Type.Description.B.Value.GetterName == "GetB");
+            assert(x.__Type.Description.B.Value.SetterName == null);
+            assert(x.__Type.Description.B.Value.EventName == "BChanged");
 
-            assert(x.__GetType().Description.C.Value.Readonly == false);
-            assert(x.__GetType().Description.C.Value.HasEvent == false);
-            assert(x.__GetType().Description.C.Value.GetterName == "GetC");
-            assert(x.__GetType().Description.C.Value.SetterName == "SetC");
-            assert(x.__GetType().Description.C.Value.EventName == null);
+            assert(x.__Type.Description.C.Value.Readonly == false);
+            assert(x.__Type.Description.C.Value.HasEvent == false);
+            assert(x.__Type.Description.C.Value.GetterName == "GetC");
+            assert(x.__Type.Description.C.Value.SetterName == "SetC");
+            assert(x.__Type.Description.C.Value.EventName == null);
 
-            assert(x.__GetType().Description.D.Value.Readonly == false);
-            assert(x.__GetType().Description.D.Value.HasEvent == true);
-            assert(x.__GetType().Description.D.Value.GetterName == "GetD");
-            assert(x.__GetType().Description.D.Value.SetterName == "SetD");
-            assert(x.__GetType().Description.D.Value.EventName == "DChanged");
+            assert(x.__Type.Description.D.Value.Readonly == false);
+            assert(x.__Type.Description.D.Value.HasEvent == true);
+            assert(x.__Type.Description.D.Value.GetterName == "GetD");
+            assert(x.__Type.Description.D.Value.SetterName == "SetD");
+            assert(x.__Type.Description.D.Value.EventName == "DChanged");
 
             var values = [];
             x.BChanged.Attach(function () {

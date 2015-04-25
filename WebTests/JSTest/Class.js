@@ -1,8 +1,11 @@
 /*
 API:
-    this.__GetType()                            // Get the real type that creates this object.
-    this.__GetBase(type)                        // Get the internal reference of a base type.
-    this.__GetExternalReference()               // Get the external reference of this instance, for passing the value of "this" out of the class.
+    this.__Type                                 // Get the real type that creates this object.
+    this.__ExternalReference                    // Get the external reference of this instance, for passing the value of "this" out of the class.
+    this.__Scope(type)                          // Get the scope object of a base class.
+    this.__InitBase(type, [arguments])          // Call the constructor of the base class.
+
+    obj.__Type                                  // Get the real type that creates this object.
 
     Type.Name                                   // Get the full name
     Type.Description                            // Get all declared members in this type
@@ -550,14 +553,70 @@ function Class(fullName) {
         }
     }
 
-    function InjectInternalReference(internalReference, typeObject, externalReference) {
-        // implement __GetType and __GetExternalReference
-        internalReference.__GetType = function () {
-            return typeObject;
-        }
+    function InjectObjects(externalReference, typeObject, accumulatedBaseClasses, accumulatedBaseReferences, initBaseFlags) {
+        // externalReference.__Type
+        Object.defineProperty(externalReference, "__Type", {
+            configurable: false,
+            enumerable: true,
+            writable: false,
+            value: typeObject,
+        });
 
-        internalReference.__GetExternalReference = function () {
-            return externalReference;
+        for (var i in accumulatedBaseReferences) {
+            var refType = accumulatedBaseClasses[i];
+            var ref = accumulatedBaseReferences[i];
+
+            // this.__Type
+            Object.defineProperty(ref, "__Type", {
+                configurable: false,
+                enumerable: true,
+                writable: false,
+                value: typeObject,
+            });
+
+            // this.__ExternalReference
+            Object.defineProperty(ref, "__ExternalReference", {
+                configurable: false,
+                enumerable: true,
+                writable: false,
+                value: externalReference,
+            });
+
+            // this.__Scope(type)
+            Object.defineProperty(ref, "__Scope", {
+                configurable: false,
+                enumerable: true,
+                writable: false,
+                value: function (type) {
+                    return undefined;
+                },
+            });
+
+            // this.__InitBase(type)
+            Object.defineProperty(ref, "__InitBase", {
+                configurable: true,
+                enumerable: true,
+                writable: false,
+                value: function (type, args) {
+                    if (typeObject.BaseClasses.indexOf(type) == -1) {
+                        throw new Error("Type \"" + typeObject.Name + "\" does not directly inherit from \"" + type.Name + "\".");
+                    }
+
+                    var index = accumulatedBaseClasses.indexOf(type);
+                    baseRef = accumulatedBaseReferences[index];
+                    ctor = baseRef.__Constructor;
+                    if (ctor == undefined) {
+                        throw new Error("Type\"" + type.Name + "\" does not have a constructor.");
+                    }
+
+                    if (initBaseFlags[index] == true) {
+                        throw new Error("The constructor of type\"" + type.Name + "\" has already been executed.");
+                    }
+                    else {
+                        ctor.apply(baseRef, args);
+                    }
+                },
+            });
         }
     }
 
@@ -581,22 +640,6 @@ function Class(fullName) {
         // create the externalReference
         var externalReference = {};
 
-        // inject externalReference.GetType()
-        Object.defineProperty(externalReference, "__GetType", {
-            configurable: false,
-            enumerable: true,
-            writable: false,
-            value: function () {
-                return typeObject;
-            }
-        });
-
-        // inject internalReference.__GetType()
-        // inject internalReference.__GetExternalReference()
-        for (var i in accumulatedBaseReferences) {
-            InjectInternalReference(accumulatedBaseReferences[i], typeObject, externalReference);
-        }
-
         // copy all public member fields to externalReference
         for (var i in accumulatedBaseReferences) {
             CopyReferencableMembers(
@@ -606,11 +649,31 @@ function Class(fullName) {
                 false);
         }
 
-        // return the externalReference
+        // inject API into references
+        initBaseFlags = new Array(accumulatedBaseClasses.length - 1);
+        InjectObjects(externalReference, typeObject, accumulatedBaseClasses, accumulatedBaseReferences, initBaseFlags);
+
+        // call the constructor
         externalReference.__proto__ = typeObject.prototype;
         if (internalReference.hasOwnProperty("__Constructor")) {
             internalReference.__Constructor.apply(internalReference, arguments);
         }
+
+        // check is there any constructor is not called
+        for (var i in initBaseFlags) {
+            var ref = accumulatedBaseReferences[i];
+            if (ref.__Constructor != undefined && initBaseFlags[i] == undefined) {
+                var refType = accumulatedBaseClasses[i];
+                throw new Error("The constructor of type\"" + refType.Name + "\" has never been executed.");
+            }
+        }
+
+        // delete every __InitBase so that this function can only be called when constructing the object
+        for (var i in accumulatedBaseReferences) {
+            delete accumulatedBaseReferences[i].__InitBase;
+        }
+
+        // return the created object
         return externalReference;
     }
 
