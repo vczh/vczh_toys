@@ -51,6 +51,7 @@ API:
         <VirtualType>   Virtual;
         bool            New;
         object          Value;
+        __MemberBase[]  HiddenMembers;
     }
 
     class __PrivateMember : __MemberBase {}
@@ -59,6 +60,12 @@ API:
 */
 
 function __MemberBase() {
+    this.DeclaringType = null;
+    this.Virtual = __MemberBase.NORMAL;
+    this.New = false;
+    this.Value = null;
+    this.HiddenMembers = [];
+    Object.seal(this);
 }
 Object.defineProperty(__MemberBase, "NORMAL", {
     configurable: false,
@@ -78,55 +85,29 @@ Object.defineProperty(__MemberBase, "OVERRIDE", {
     writable: false,
     value: 3,
 });
-Object.defineProperty(__MemberBase.prototype, "DeclaringType", {
-    configurable: false,
-    enumerable: true,
-    writable: true,
-    value: null,
-});
-Object.defineProperty(__MemberBase.prototype, "Virtual", {
-    configurable: false,
-    enumerable: true,
-    writable: true,
-    value: __MemberBase.NORMAL,
-});
-Object.defineProperty(__MemberBase.prototype, "New", {
-    configurable: false,
-    enumerable: true,
-    writable: true,
-    value: false,
-});
-Object.defineProperty(__MemberBase.prototype, "Value", {
-    configurable: false,
-    enumerable: true,
-    writable: true,
-    value: null,
-});
 
 function __PrivateMember(value) {
+    __MemberBase.call(this);
     this.Value = value;
 }
 __PrivateMember.prototype.__proto__ = __MemberBase.prototype;
 
 function __ProtectedMember(value) {
+    __MemberBase.call(this);
     this.Value = value;
 }
 __ProtectedMember.prototype.__proto__ = __MemberBase.prototype;
 
 function __PublicMember(value) {
+    __MemberBase.call(this);
     this.Value = value;
 }
 __PublicMember.prototype.__proto__ = __MemberBase.prototype;
 
 function __EventHandler(func) {
     this.Function = func;
+    Object.seal(this);
 }
-Object.defineProperty(__EventHandler.prototype, "Function", {
-    configurable: false,
-    enumerable: true,
-    writable: true,
-    value: null,
-});
 
 function __Event() {
     var handlers = [];
@@ -168,41 +149,18 @@ function __Event() {
             }
         }
     });
+
+    Object.seal(this);
 }
 
-function __Property(func) {
-    this.Function = func;
+function __Property() {
+    this.Readonly = false;
+    this.HasEvent = false;
+    this.GetterName = null;
+    this.SetterName = null;
+    this.EventName = null;
+    Object.seal(this);
 }
-Object.defineProperty(__Property.prototype, "Readonly", {
-    configurable: false,
-    enumerable: true,
-    writable: true,
-    value: false,
-});
-Object.defineProperty(__Property.prototype, "HasEvent", {
-    configurable: false,
-    enumerable: true,
-    writable: true,
-    value: false,
-});
-Object.defineProperty(__Property.prototype, "GetterName", {
-    configurable: false,
-    enumerable: true,
-    writable: true,
-    value: null,
-});
-Object.defineProperty(__Property.prototype, "SetterName", {
-    configurable: false,
-    enumerable: true,
-    writable: true,
-    value: null,
-});
-Object.defineProperty(__Property.prototype, "EventName", {
-    configurable: false,
-    enumerable: true,
-    writable: true,
-    value: null,
-});
 
 function __BuildOverloadingFunctions() {
     if (arguments.length % 2 != 0) {
@@ -280,6 +238,11 @@ function __DefineDecorator(accessor, name, decorator) {
         value: function (value) {
             var member = accessor(value);
             decorator(member, value);
+            if (typeof member.Value != "function") {
+                if (member.Virtual != __MemberBase.NORMAL) {
+                    throw new Error("Only function member can be virtual or override.");
+                }
+            }
             return member;
         }
     });
@@ -342,7 +305,6 @@ function __DefineEvent(accessor) {
 
 function __DefineProperty(accessor) {
     __DefineDecorator(accessor, "Property", function (member, value) {
-        member.Virtual = __MemberBase.VIRTUAL;
         member.Value = new __Property();
 
         if (!value.hasOwnProperty("getterName") && value.hasOwnProperty("setterName")) {
@@ -414,6 +376,8 @@ function Class(fullName) {
         // create an internal reference from a type description and copy all members
         var description = typeObject.Description;
         var internalReference = {};
+
+        // this.__ScopeType
         internalReference.__ScopeType = typeObject;
 
         for (var name in description) {
@@ -453,7 +417,7 @@ function Class(fullName) {
         return internalReference;
     }
 
-    function CopyReferencableMember(target, source, memberName, member, forceReplace, forInternalReference) {
+    function CopyReferencableMember(target, source, memberName, member, forceReplace) {
         // copy a closured member from one internal reference to another
         if (target.hasOwnProperty(memberName)) {
             if (!forceReplace) {
@@ -463,7 +427,7 @@ function Class(fullName) {
 
         if (typeof member.Value == "function") {
             Object.defineProperty(target, memberName, {
-                configurable: forInternalReference,
+                configurable: true,
                 enumerable: true,
                 writable: false,
                 value: function () {
@@ -474,7 +438,7 @@ function Class(fullName) {
         else {
             var readonly = member.Value instanceof __Property && member.Value.Readonly;
             Object.defineProperty(target, memberName, {
-                configurable: forInternalReference,
+                configurable: true,
                 enumerable: true,
                 get: function () {
                     return source[memberName];
@@ -496,11 +460,11 @@ function Class(fullName) {
 
                     if (member instanceof __ProtectedMember) {
                         if (forInternalReference) {
-                            CopyReferencableMember(target, source, memberName, member, false, forInternalReference);
+                            CopyReferencableMember(target, source, memberName, member, false);
                         }
                     }
                     else if (member instanceof __PublicMember) {
-                        CopyReferencableMember(target, source, memberName, member, false, forInternalReference);
+                        CopyReferencableMember(target, source, memberName, member, false);
                     }
                 })();
             }
@@ -582,7 +546,22 @@ function Class(fullName) {
     function InjectObjects(externalReference, typeObject, accumulated, initBaseFlags) {
 
         function GetScope(type, isDynamic, isInternal) {
-            throw new Error("Not implemented.");
+            if (isDynamic) {
+                if (isInternal) {
+                    throw new Error("Not implemented.");
+                }
+                else {
+                    throw new Error("Not implemented.");
+                }
+            }
+            else {
+                if (isInternal) {
+                    throw new Error("Not implemented.");
+                }
+                else {
+                    throw new Error("Not implemented.");
+                }
+            }
         }
 
         // externalReference.__Type
@@ -735,6 +714,10 @@ function Class(fullName) {
         }
 
         // return the created object
+        for (var i in accumulated) {
+            Object.seal(accumulated[i]);
+        }
+        Object.seal(externalReference);
         return externalReference;
     }
 
@@ -793,71 +776,74 @@ function Class(fullName) {
     }
 
     // calculate Type.FlattenedDescription
-    var flattenedDescription = {};
-    function AddFlattenedMember(name, member) {
-
-        if (member.Virtual == __MemberBase.OVERRIDE) {
-            return;
-        }
-
-        if (member.DeclaringType != Type) {
-            if (name == "__Constructor") {
-                return;
-            }
-
-            if (member instanceof __PrivateMember) {
-                return;
-            }
-
-            if (flattenedDescription.hasOwnProperty(name)) {
-                if (!description.hasOwnProperty(name)) {
-                    throw new Error("Type \"" + fullName + "\" cannot inherit multiple members of the same name \"" + name + "\" without defining a new one.");
-                }
-            }
-        }
-
-        flattenedDescription[name] = member;
-    }
+    var flattenedDescription = Object.create(description);
 
     for (var i in directBaseClasses) {
         var baseClass = directBaseClasses[i];
         var flattened = baseClass.FlattenedDescription;
-        for (var j in flattened) {
-            AddFlattenedMember(j, flattened[j]);
+        for (var name in flattened) {
+            var member = description[name];
+            var baseMember = flattened[name];
+
+            if (name == "__Constructor") {
+                continue;
+            }
+
+            if (baseMember instanceof __PrivateMember) {
+                continue;
+            }
+
+            if (member == undefined) {
+                if (flattenedDescription[name] != undefined) {
+                    throw new Error("Type \"" + fullName + "\" cannot inherit multiple members of the same name \"" + name + "\" without defining a new one.");
+                }
+                flattenedDescription[name] = baseMember;
+            }
+            else {
+                member.HiddenMembers.push(baseMember);
+            }
         }
     }
 
     for (var i in description) {
         var member = description[i];
-        var flattenedMember = flattenedDescription[i];
 
-        if (flattenedMember == undefined) {
-            if (member.Virtual == __MemberBase.OVERRIDE) {
+        for (var j in member.HiddenMembers) {
+            var hiddenMember = member.HiddenMembers[j];
+            if (hiddenMember.Value instanceof __Event) {
+                throw new Error("Type \"" + fullName + "\" cannot hide event \"" + i + "\".");
+            }
+        }
+
+        if (member.Virtual == __MemberBase.OVERRIDE) {
+            if (member.HiddenMembers.length == 0) {
                 throw new Error("Type \"" + fullName + "\" cannot find virtual function \"" + i + "\" to override.");
+            }
+            else {
+                for (var j in member.HiddenMembers) {
+                    var hiddenMember = member.HiddenMembers[j];
+                    if (hiddenMember.Virtual == __MemberBase.NORMAL) {
+                        throw new Error("Type \"" + fullName + "\" cannot override non-virtual function \"" + i + "\".");
+                    }
+                }
+            }
+        }
+        else if (member.New) {
+            if (member.HiddenMembers.length == 0) {
+                throw new Error("Type \"" + fullName + "\" cannot define a new member \"" + i + "\" without hiding anything.");
             }
         }
         else {
-            if (flattenedMember.Value instanceof __Event) {
-                throw new Error("Type \"" + fullName + "\" cannot hide event \"" + i + "\".");
-            }
-            else if (member.Virtual == __MemberBase.OVERRIDE) {
-                if (flattenedMember.Virtual == __MemberBase.NORMAL) {
-                    throw new Error("Type \"" + fullName + "\" cannot override non-virtual function \"" + i + "\".");
-                }
-            }
-            else if (!member.New) {
-                if (flattenedMember.Virtual == __MemberBase.NORMAL) {
-                    throw new Error("Type \"" + fullName + "\" cannot hide function \"" + i + "\" without new.");
+            for (var j in member.HiddenMembers) {
+                var hiddenMember = member.HiddenMembers[j];
+                if (hiddenMember.Virtual == __MemberBase.NORMAL) {
+                    throw new Error("Type \"" + fullName + "\" cannot hide member \"" + i + "\" without new.");
                 }
                 else {
                     throw new Error("Type \"" + fullName + "\" cannot hide virtual function \"" + i + "\" without overriding.");
                 }
             }
         }
-    }
-
-    for (var j in description) {
-        AddFlattenedMember(j, description[j]);
     }
 
     // Type.FullName

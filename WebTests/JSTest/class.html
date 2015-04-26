@@ -99,12 +99,8 @@
             assert(x.value == undefined);
             assert(x.GetValue() == 0);
 
-            x.value = 1;
-            assert(x.value == 1);
-            assert(x.GetValue() == 0);
-
             x.SetValue(2);
-            assert(x.value == 1);
+            assert(x.value == undefined);
             assert(x.GetValue() == 2);
         })
     </script>
@@ -728,7 +724,7 @@
     </script>
 
     <script>
-        testCase("hidden members should be able to call inside or outside classes>", function () {
+        testCase("hidden members should be able to call inside or outside classes", function () {
             var A = Class("A", {
                 GetX: Public(function () {
                     return "X";
