@@ -1,6 +1,7 @@
 /*
 API:
     this.__Type                                 // Get the real type that creates this object.
+    this.__ScopeType                            // Get the scope type that creates this object.
     this.__ExternalReference                    // Get the external reference of this instance, for passing the value of "this" out of the class.
     this.__Dynamic(type)                        // Get the dynamic scope object of a base class.
     this.__Static(type)                         // Get the static scope object of a base class.
@@ -409,9 +410,11 @@ __DefineProperty(Public);
 
 function Class(fullName) {
 
-    function CreateInternalReference(description) {
+    function CreateInternalReference(typeObject) {
         // create an internal reference from a type description and copy all members
+        var description = typeObject.Description;
         var internalReference = {};
+        internalReference.__ScopeType = typeObject;
 
         for (var name in description) {
             var member = description[name];
@@ -504,11 +507,11 @@ function Class(fullName) {
         }
     }
 
-    function OverrideVirtualFunction(source, memberName, member, targetTypes, accumulatedBaseClasses, accumulatedBaseReferences) {
+    function OverrideVirtualFunction(source, memberName, member, targetTypes, accumulated) {
         // override a virtual functions in base internal references
         for (var i in targetTypes) {
             var targetType = targetTypes[i];
-            var target = accumulatedBaseReferences[accumulatedBaseClasses.indexOf(targetType)];
+            var target = accumulated[targetType.FullName];
             var targetDescription = targetType.Description;
             var targetMember = targetDescription[memberName];
             if (targetMember != undefined) {
@@ -519,22 +522,22 @@ function Class(fullName) {
                     continue;
                 }
             }
-            OverrideVirtualFunction(source, memberName, member, targetType.BaseClasses, accumulatedBaseClasses, accumulatedBaseReferences);
+            OverrideVirtualFunction(source, memberName, member, targetType.BaseClasses, accumulated);
         }
     }
 
-    function OverrideVirtualFunctions(source, sourceType, accumulatedBaseClasses, accumulatedBaseReferences) {
+    function OverrideVirtualFunctions(source, sourceType, accumulated) {
         // override every virtual functions in base internal references
         var description = sourceType.Description;
         for (var name in description) {
             var member = description[name];
             if (member.Virtual == __MemberBase.OVERRIDE) {
-                OverrideVirtualFunction(source, name, member, sourceType.BaseClasses, accumulatedBaseClasses, accumulatedBaseReferences);
+                OverrideVirtualFunction(source, name, member, sourceType.BaseClasses, accumulated);
             }
         }
     }
 
-    function CreateCompleteInternalReference(type, accumulatedBaseClasses, accumulatedBaseReferences) {
+    function CreateCompleteInternalReference(type, accumulated) {
         // create an internal reference from a type with inherited members
         var description = type.Description;
         var baseClasses = type.BaseClasses;
@@ -543,10 +546,10 @@ function Class(fullName) {
         for (var i = 0; i <= baseClasses.length; i++) {
             if (i == baseClasses.length) {
                 // create the internal reference for the current type
-                var internalReference = CreateInternalReference(description);
+                var internalReference = CreateInternalReference(type);
 
                 // override virtual functions in base internal references
-                OverrideVirtualFunctions(internalReference, type, accumulatedBaseClasses, accumulatedBaseReferences);
+                OverrideVirtualFunctions(internalReference, type, accumulated);
 
                 // inherit members from base classes
                 for (var j = 0; j < baseClasses.length; j++) {
@@ -557,12 +560,11 @@ function Class(fullName) {
                         true);
                 }
 
-                accumulatedBaseClasses.push(type);
-                accumulatedBaseReferences.push(internalReference);
+                accumulated[type.FullName] = internalReference;
 
                 // implement __GetBase
                 internalReference.__GetBase = function (baseType) {
-                    return accumulatedBaseReferences[accumulatedBaseClasses.indexOf(baseType)];
+                    return accumulated[baseType.FullName];
                 }
 
                 return internalReference;
@@ -571,14 +573,13 @@ function Class(fullName) {
                 // create a complete internal reference for a base class
                 var baseInstance = CreateCompleteInternalReference(
                     baseClasses[i],
-                    accumulatedBaseClasses,
-                    accumulatedBaseReferences);
+                    accumulated);
                 baseInstances[i] = baseInstance;
             }
         }
     }
 
-    function InjectObjects(externalReference, typeObject, accumulatedBaseClasses, accumulatedBaseReferences, initBaseFlags) {
+    function InjectObjects(externalReference, typeObject, accumulated, initBaseFlags) {
 
         function GetScope(type, isDynamic, isInternal) {
             throw new Error("Not implemented.");
@@ -612,9 +613,9 @@ function Class(fullName) {
             },
         });
 
-        for (var i in accumulatedBaseReferences) {
-            var refType = accumulatedBaseClasses[i];
-            var ref = accumulatedBaseReferences[i];
+        for (var i in accumulated) {
+            var ref = accumulated[i];
+            var refType = ref.__ScopeType;
 
             // this.__Type
             Object.defineProperty(ref, "__Type", {
@@ -662,19 +663,18 @@ function Class(fullName) {
                         throw new Error("Type \"" + refType.FullName + "\" does not directly inherit from \"" + type.FullName + "\".");
                     }
 
-                    var index = accumulatedBaseClasses.indexOf(type);
-                    baseRef = accumulatedBaseReferences[index];
+                    baseRef = accumulated[type.FullName];
                     ctor = baseRef.__Constructor;
                     if (ctor == undefined) {
                         throw new Error("Type\"" + type.FullName + "\" does not have a constructor.");
                     }
 
-                    if (initBaseFlags[index] == true) {
+                    if (initBaseFlags[type.FullName] != undefined) {
                         throw new Error("The constructor of type \"" + type.FullName + "\" has already been executed.");
                     }
                     else {
                         ctor.apply(baseRef, args);
-                        initBaseFlags[index] = true;
+                        initBaseFlags[type.FullName] = type;
                     }
                 },
             });
@@ -691,31 +691,27 @@ function Class(fullName) {
         var typeObject = arguments.callee;
 
         // create every internalReference, which is the value of "this" in member functions
-        var accumulatedBaseClasses = [];
-        var accumulatedBaseReferences = [];
+        var accumulated = {};
         var internalReference = CreateCompleteInternalReference(
             typeObject,
-            accumulatedBaseClasses,
-            accumulatedBaseReferences);
+            accumulated);
 
         // create the externalReference
         var externalReference = {};
 
         // copy all public member fields to externalReference
-        for (var i in accumulatedBaseReferences) {
+        for (var i in accumulated) {
+            var ref = accumulated[i];
             CopyReferencableMembers(
                 externalReference,
-                accumulatedBaseReferences[i],
-                accumulatedBaseClasses[i].Description,
+                ref,
+                ref.__ScopeType.Description,
                 false);
         }
 
         // inject API into references
-        initBaseFlags = new Array(accumulatedBaseClasses.length - 1);
-        for (var i = 0; i < accumulatedBaseClasses.length - 1; i++) {
-            initBaseFlags[i] = false;
-        }
-        InjectObjects(externalReference, typeObject, accumulatedBaseClasses, accumulatedBaseReferences, initBaseFlags);
+        initBaseFlags = {};
+        InjectObjects(externalReference, typeObject, accumulated, initBaseFlags);
 
         // call the constructor
         externalReference.__proto__ = typeObject.prototype;
@@ -724,17 +720,18 @@ function Class(fullName) {
         }
 
         // check is there any constructor is not called
-        for (var i in initBaseFlags) {
-            var ref = accumulatedBaseReferences[i];
-            if (ref.__Constructor != undefined && initBaseFlags[i] == false) {
-                var refType = accumulatedBaseClasses[i];
-                throw new Error("The constructor of type \"" + refType.FullName + "\" has never been executed.");
+        for (var i in accumulated) {
+            var ref = accumulated[i];
+            if (ref != internalReference) {
+                if (ref.__Constructor != undefined && initBaseFlags[i] == undefined) {
+                    throw new Error("The constructor of type \"" + ref.__ScopeType.FullName + "\" has never been executed.");
+                }
             }
         }
 
         // delete every __InitBase so that this function can only be called when constructing the object
-        for (var i in accumulatedBaseReferences) {
-            delete accumulatedBaseReferences[i].__InitBase;
+        for (var i in accumulated) {
+            delete accumulated[i].__InitBase;
         }
 
         // return the created object
