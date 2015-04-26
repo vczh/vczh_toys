@@ -31,7 +31,7 @@ function testCase(name, code) {
         __passedCases++;
     }
     catch (ex) {
-        if (ex.message == "<EMPTY CASE>") {
+        if (ex.message === "<EMPTY CASE>") {
             div.setAttribute("style", "color: purple;");
             __emptyCases++;
         }

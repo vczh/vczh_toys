@@ -136,7 +136,7 @@ function __Event() {
         enumerable: true,
         writable: false,
         value: function (func) {
-            if (typeof func != "function") {
+            if (typeof func !== "function") {
                 throw new Error("Only functions can be attached to an event.");
             }
             var handler = new __EventHandler(func);
@@ -151,7 +151,7 @@ function __Event() {
         writable: false,
         value: function (handler) {
             var index = handlers.indexOf(handler);
-            if (index == -1) {
+            if (index === -1) {
                 throw new Error("Only handlers that created by this event can detach.");
             }
             handlers.splice(index, 1);
@@ -182,7 +182,7 @@ function __Property() {
 }
 
 function __BuildOverloadingFunctions() {
-    if (arguments.length % 2 != 0) {
+    if (arguments.length % 2 !== 0) {
         throw new Error("Arguments for Overload should be typeList1, func1, typeList2, func2, ...");
     }
 
@@ -197,37 +197,36 @@ function __BuildOverloadingFunctions() {
     return function () {
         for (var i in typeLists) {
             var typeList = typeLists[i];
-            if (arguments.length != typeList.length) continue;
+            if (arguments.length !== typeList.length) continue;
 
-            var matched = true;
+            var matched = typeList.length === 0;
             for (var j in typeList) {
-                if (!matched) break;
                 var arg = arguments[j];
 
                 var type = typeList[j];
-                if (type == Number) {
-                    matched = typeof (arg) == "number";
+                if (type === Number) {
+                    matched = typeof (arg) === "number";
                 }
-                else if (type == Boolean) {
-                    matched = typeof (arg) == "boolean";
+                else if (type === Boolean) {
+                    matched = typeof (arg) === "boolean";
                 }
-                else if (type == String) {
-                    matched = typeof (arg) == "string";
+                else if (type === String) {
+                    matched = typeof (arg) === "string";
                 }
-                else if (type == Array) {
+                else if (type === Array) {
                     matched = arg instanceof Array;
                 }
-                else if (type == Function) {
-                    matched = typeof (arg) == "function";
+                else if (type === Function) {
+                    matched = typeof (arg) === "function";
                 }
-                else if (type == Object) {
-                    matched = typeof (arg) == "object";
+                else if (type === Object) {
+                    matched = typeof (arg) === "object";
                 }
-                else if (arg == undefined) {
+                else if (arg === undefined) {
                     matched = false;
                 }
-                else if (arg != null) {
-                    if (type.prototype.__proto__ == Class) {
+                else if (arg !== null) {
+                    if (type.prototype.__proto__ === Class) {
                         if (arg instanceof Class) {
                             matched = type.IsAssignableFrom(arg.GetType());
                         }
@@ -239,6 +238,7 @@ function __BuildOverloadingFunctions() {
                         matched = arg instanceof type;
                     }
                 }
+                if (!matched) break;
             }
 
             if (matched) {
@@ -257,8 +257,8 @@ function __DefineDecorator(accessor, name, decorator) {
         value: function (value) {
             var member = accessor(value);
             decorator(member, value);
-            if (typeof member.Value != "function") {
-                if (member.Virtual != __MemberBase.NORMAL) {
+            if (typeof member.Value !== "function") {
+                if (member.Virtual !== __MemberBase.NORMAL) {
                     throw new Error("Only function member can be virtual or override.");
                 }
             }
@@ -430,7 +430,7 @@ function Class(fullName) {
                     Object.defineProperty(internalReference, name, {
                         configurable: true,
                         enumerable: true,
-                        writable: typeof member.Value != "function" && !(member.Value instanceof __Event),
+                        writable: typeof member.Value !== "function" && !(member.Value instanceof __Event),
                         value: member.Value,
                     });
                 }
@@ -448,7 +448,7 @@ function Class(fullName) {
             }
         }
 
-        if (typeof member.Value == "function") {
+        if (typeof member.Value === "function") {
             Object.defineProperty(target, memberName, {
                 configurable: true,
                 enumerable: true,
@@ -476,7 +476,7 @@ function Class(fullName) {
     function CopyReferencableMembers(target, source, description, forInternalReference) {
         // copy all closured members from one internal reference to another
         for (var name in description) {
-            if (name != "__Constructor") {
+            if (name !== "__Constructor") {
                 (function () {
                     var memberName = name;
                     var member = description[memberName];
@@ -501,11 +501,11 @@ function Class(fullName) {
             var target = accumulated[targetType.FullName];
             var targetDescription = targetType.FlattenedDescription;
             var targetMember = targetDescription[memberName];
-            if (targetMember != undefined) {
-                if (targetMember.Virtual != __MemberBase.NORMAL) {
+            if (targetMember !== undefined) {
+                if (targetMember.Virtual !== __MemberBase.NORMAL) {
                     CopyReferencableMember(target, source, memberName, member, true, true);
                 }
-                if (targetMember.New == true) {
+                if (targetMember.New === true) {
                     continue;
                 }
             }
@@ -518,7 +518,7 @@ function Class(fullName) {
         var description = sourceType.Description;
         for (var name in description) {
             var member = description[name];
-            if (member.Virtual == __MemberBase.OVERRIDE) {
+            if (member.Virtual === __MemberBase.OVERRIDE) {
                 OverrideVirtualFunction(source, name, member, sourceType.BaseClasses, accumulated);
             }
         }
@@ -531,10 +531,10 @@ function Class(fullName) {
         var baseInstances = new Array(baseClasses.length);
 
         for (var i = 0; i <= baseClasses.length; i++) {
-            if (i == baseClasses.length) {
+            if (i === baseClasses.length) {
                 // only create one internal reference for one virtual base class
                 var instanceReference = accumulated[type.FullName];
-                if (instanceReference != undefined) {
+                if (instanceReference !== undefined) {
                     if (forVirtualBaseClass) {
                         return instanceReference;
                     }
@@ -581,14 +581,14 @@ function Class(fullName) {
         seScope = {};
 
         function GetScope(type, isDynamic, isInternal) {
-            if (typeObject == type || !accumulated.hasOwnProperty(type.FullName)) {
+            if (typeObject === type || !accumulated.hasOwnProperty(type.FullName)) {
                 throw new Error("Type \"" + typeObject.FullName + "\" does not directly or indirectly inherit from \"" + type.FullName + "\".");
             }
 
             var scopeCache = (isDynamic ? (isInternal ? diScope : deScope) : (isInternal ? siScope : seScope));
             var scopeObject = scopeCache[type.FullName];
 
-            if (scopeObject == undefined) {
+            if (scopeObject === undefined) {
                 scopeObject = {};
                 if (isDynamic) {
                     Object.defineProperty(scopeObject, "__Original", {
@@ -618,10 +618,10 @@ function Class(fullName) {
                             if (isDynamic) {
                                 var prop = Object.getOwnPropertyDescriptor(ref, memberName);
 
-                                if (prop.get != undefined) { // property
+                                if (prop.get !== undefined) { // property
                                     Object.defineProperty(scopeObject, memberName, prop);
                                 }
-                                else if (prop.writable == false) {
+                                else if (prop.writable === false) {
                                     if (prop.value instanceof __Event) { // event
                                         Object.defineProperty(scopeObject, memberName, prop);
                                     }
@@ -743,18 +743,18 @@ function Class(fullName) {
                 writable: false,
                 value: function (type, args) {
                     if (!refType.BaseClasses.some(function (baseClass) {
-                        return baseClass.Type == type;
+                        return baseClass.Type === type;
                     })) {
                         throw new Error("Type \"" + refType.FullName + "\" does not directly inherit from \"" + type.FullName + "\".");
                     }
 
                     baseRef = accumulated[type.FullName];
                     ctor = baseRef.__Constructor;
-                    if (ctor == undefined) {
+                    if (ctor === undefined) {
                         throw new Error("Type\"" + type.FullName + "\" does not have a constructor.");
                     }
 
-                    if (initBaseFlags[type.FullName] != undefined) {
+                    if (initBaseFlags[type.FullName] !== undefined) {
                         throw new Error("The constructor of type \"" + type.FullName + "\" has already been executed.");
                     }
                     else {
@@ -782,7 +782,7 @@ function Class(fullName) {
         if (typeObject.VirtualClass) {
             for (var i in typeObject.FlattenedDescription) {
                 var member = typeObject.FlattenedDescription[i];
-                if (member.Virtual == __MemberBase.ABSTRACT) {
+                if (member.Virtual === __MemberBase.ABSTRACT) {
                     throw new Error("Cannot create instance of type \"" + typeObject.FullName + "\" because it contains an abstract function \"" + i + "\".");
                 }
             }
@@ -821,8 +821,8 @@ function Class(fullName) {
         // check is there any constructor is not called
         for (var i in accumulated) {
             var ref = accumulated[i];
-            if (ref != internalReference) {
-                if (ref.__Constructor != undefined && initBaseFlags[i] == undefined) {
+            if (ref !== internalReference) {
+                if (ref.__Constructor !== undefined && initBaseFlags[i] === undefined) {
                     throw new Error("The constructor of type \"" + ref.__ScopeType.FullName + "\" has never been executed.");
                 }
             }
@@ -843,7 +843,7 @@ function Class(fullName) {
 
     // set __MemberBase.DeclaringType
     for (var name in description) {
-        if (name.substring(0, 2) == "__" && name != "__Constructor") {
+        if (name.substring(0, 2) === "__" && name !== "__Constructor") {
             throw new Error("Member name cannot start with \"__\" except \"__Constructor\".");
         }
 
@@ -852,13 +852,13 @@ function Class(fullName) {
 
         var value = member.Value;
         if (value instanceof __Property) {
-            if (value.GetterName == null) {
+            if (value.GetterName === null) {
                 value.GetterName = "Get" + name;
             }
-            if (!value.Readonly && value.SetterName == null) {
+            if (!value.Readonly && value.SetterName === null) {
                 value.SetterName = "Set" + name;
             }
-            if (value.HasEvent && value.EventName == null) {
+            if (value.HasEvent && value.EventName === null) {
                 value.EventName = name + "Changed";
             }
         }
@@ -869,12 +869,12 @@ function Class(fullName) {
     var flattenedBaseClassNames = {};
     function AddFlattenedBaseClass(baseClass) {
         var existingBaseClass = flattenedBaseClassNames[baseClass.Type.FullName];
-        if (existingBaseClass == undefined) {
+        if (existingBaseClass === undefined) {
             flattenedBaseClassNames[baseClass.Type.FullName] = baseClass;
             flattenedBaseClasses.push(baseClass);
         }
         else {
-            if (existingBaseClass.Virtual != true || baseClass.Virtual != true) {
+            if (existingBaseClass.Virtual !== true || baseClass.Virtual !== true) {
                 throw new Error("Type \"" + fullName + "\" cannot non-virtually inherit from type \"" + baseClass.Type.FullName + "\" multiple times.");
             }
         }
@@ -899,7 +899,7 @@ function Class(fullName) {
             var member = description[name];
             var baseMember = flattened[name];
 
-            if (name == "__Constructor") {
+            if (name === "__Constructor") {
                 continue;
             }
 
@@ -907,9 +907,9 @@ function Class(fullName) {
                 continue;
             }
 
-            if (member == undefined) {
-                if (flattenedDescription[name] != undefined) {
-                    if (flattenedBaseClassNames[baseMember.DeclaringType.FullName].Virtual == false) {
+            if (member === undefined) {
+                if (flattenedDescription[name] !== undefined) {
+                    if (flattenedBaseClassNames[baseMember.DeclaringType.FullName].Virtual === false) {
                         throw new Error("Type \"" + fullName + "\" cannot inherit multiple members of the same name \"" + name + "\" without defining a new one.");
                     }
                 }
@@ -933,28 +933,28 @@ function Class(fullName) {
             }
         }
 
-        if (member.Virtual == __MemberBase.OVERRIDE) {
-            if (member.HiddenMembers.length == 0) {
+        if (member.Virtual === __MemberBase.OVERRIDE) {
+            if (member.HiddenMembers.length === 0) {
                 throw new Error("Type \"" + fullName + "\" cannot find virtual function \"" + i + "\" to override.");
             }
             else {
                 for (var j in member.HiddenMembers) {
                     var hiddenMember = member.HiddenMembers[j];
-                    if (hiddenMember.Virtual == __MemberBase.NORMAL) {
+                    if (hiddenMember.Virtual === __MemberBase.NORMAL) {
                         throw new Error("Type \"" + fullName + "\" cannot override non-virtual function \"" + i + "\".");
                     }
                 }
             }
         }
         else if (member.New) {
-            if (member.HiddenMembers.length == 0) {
+            if (member.HiddenMembers.length === 0) {
                 throw new Error("Type \"" + fullName + "\" cannot define a new member \"" + i + "\" without hiding anything.");
             }
         }
         else {
             for (var j in member.HiddenMembers) {
                 var hiddenMember = member.HiddenMembers[j];
-                if (hiddenMember.Virtual == __MemberBase.NORMAL) {
+                if (hiddenMember.Virtual === __MemberBase.NORMAL) {
                     throw new Error("Type \"" + fullName + "\" cannot hide member \"" + i + "\" without new.");
                 }
                 else {
@@ -968,7 +968,7 @@ function Class(fullName) {
     var isVirtualClass = false;
     for (var i in flattenedDescription) {
         var member = flattenedDescription[i];
-        if (member.Virtual == __MemberBase.ABSTRACT) {
+        if (member.Virtual === __MemberBase.ABSTRACT) {
             isVirtualClass = true;
         }
     }
@@ -1025,7 +1025,7 @@ function Class(fullName) {
         enumerable: true,
         writable: false,
         value: function (childType) {
-            if (childType == Type) {
+            if (childType === Type) {
                 return true;
             }
             else {
