@@ -482,10 +482,10 @@ function Class(fullName) {
         for (var i in targetTypes) {
             var targetType = targetTypes[i];
             var target = accumulated[targetType.FullName];
-            var targetDescription = targetType.Description;
+            var targetDescription = targetType.FlattenedDescription;
             var targetMember = targetDescription[memberName];
             if (targetMember != undefined) {
-                if (targetMember.Virtual == __MemberBase.VIRTUAL || targetMember.Virtual == __MemberBase.OVERRIDE) {
+                if (targetMember.Virtual != __MemberBase.NORMAL) {
                     CopyReferencableMember(target, source, memberName, member, true, true);
                 }
                 if (targetMember.New == true) {
@@ -551,23 +551,51 @@ function Class(fullName) {
 
     function InjectObjects(externalReference, typeObject, accumulated, initBaseFlags) {
 
+        diScope = {};
+        deScope = {};
+        siScope = {};
+        seScope = {};
+
         function GetScope(type, isDynamic, isInternal) {
-            if (isDynamic) {
-                if (isInternal) {
-                    throw new Error("Not implemented.");
+            if (typeObject == type || !accumulated.hasOwnProperty(type.FullName)) {
+                throw new Error("Type \"" + typeObject.FullName + "\" does not directly or indirectly inherit from \"" + type.FullName + "\".");
+            }
+
+            var scopeCache = (isDynamic ? (isInternal ? diScope : deScope) : (isInternal ? siScope : seScope));
+            var scopeObject = scopeCache[type.FullName];
+
+            if (scopeObject == undefined) {
+                scopeObject = {};
+
+                if (isDynamic) {
+                    if (isInternal) {
+                        // TODO:
+                        scopeObject= accumulated[type.FullName];
+                    }
+                    else {
+                        // TODO:
+                        scopeObject=accumulated[type.FullName];
+                    }
                 }
                 else {
-                    throw new Error("Not implemented.");
+                    var flattened = type.FlattenedDescription;
+                    for (var i in flattened) {
+                        var member = flattened[i];
+                        if (member instanceof __PublicMember || (isInternal && member instanceof __ProtectedMember)) {
+                            CopyReferencableMember(
+                                scopeObject,
+                                accumulated[type.FullName],
+                                i,
+                                member,
+                                false);
+                        }
+                    }
                 }
+
+                scopeCache[type.FullName] = scopeObject;
             }
-            else {
-                if (isInternal) {
-                    throw new Error("Not implemented.");
-                }
-                else {
-                    throw new Error("Not implemented.");
-                }
-            }
+
+            return scopeObject;
         }
 
         // externalReference.__Type
