@@ -13,7 +13,7 @@
             });
 
             var x = new MyClass();
-            assert(x.__Type == MyClass);
+            assert(x.__Type === MyClass);
         });
     </script>
 
@@ -28,9 +28,9 @@
             delete x.GetType;
             delete x.a;
             delete x.b;
-            assert(x.__Type == MyClass);
-            assert(x.a == 0);
-            assert(x.b == 1);
+            assert(x.__Type === MyClass);
+            assert(x.a === 0);
+            assert(x.b === 1);
         });
     </script>
 
@@ -43,17 +43,17 @@
 
             var x = new MyClass();
             var y = new MyClass();
-            assert(x.a == 0);
-            assert(x.b == 1);
-            assert(y.a == 0);
-            assert(y.b == 1);
+            assert(x.a === 0);
+            assert(x.b === 1);
+            assert(y.a === 0);
+            assert(y.b === 1);
 
             x.a = 2;
             y.a = 3;
-            assert(x.a == 2);
-            assert(x.b == 1);
-            assert(y.a == 3);
-            assert(y.b == 1);
+            assert(x.a === 2);
+            assert(x.b === 1);
+            assert(y.a === 3);
+            assert(y.b === 1);
         });
     </script>
 
@@ -70,16 +70,16 @@
             });
 
             var x = new MyClass();
-            assert(x.value == 0);
-            assert(x.GetValue() == 0);
+            assert(x.value === 0);
+            assert(x.GetValue() === 0);
 
             x.value = 1;
-            assert(x.value == 1);
-            assert(x.GetValue() == 1);
+            assert(x.value === 1);
+            assert(x.GetValue() === 1);
 
             x.SetValue(2);
-            assert(x.value == 2);
-            assert(x.GetValue() == 2);
+            assert(x.value === 2);
+            assert(x.GetValue() === 2);
         })
     </script>
 
@@ -96,12 +96,12 @@
             });
 
             var x = new MyClass();
-            assert(x.value == undefined);
-            assert(x.GetValue() == 0);
+            assert(x.value === undefined);
+            assert(x.GetValue() === 0);
 
             x.SetValue(2);
-            assert(x.value == undefined);
-            assert(x.GetValue() == 2);
+            assert(x.value === undefined);
+            assert(x.GetValue() === 2);
         })
     </script>
 
@@ -139,50 +139,50 @@
 
             var DerivedClass = Class("DerivedClass", BaseClass, {
                 PrivateFunction1: Public(function () {
-                    return this.PrivateFunctionBase == undefined ? 0 : this.PrivateFunctionBase();
+                    return this.PrivateFunctionBase === undefined ? 0 : this.PrivateFunctionBase();
                 }),
 
                 ProtectedFunction1: Public(function () {
-                    return this.ProtectedFunctionBase == undefined ? 0 : this.ProtectedFunctionBase();
+                    return this.ProtectedFunctionBase === undefined ? 0 : this.ProtectedFunctionBase();
                 }),
 
                 PublicFunction1: Public(function () {
-                    return this.PublicFunctionBase == undefined ? 0 : this.PublicFunctionBase();
+                    return this.PublicFunctionBase === undefined ? 0 : this.PublicFunctionBase();
                 }),
 
                 PrivateFunction2: Public(function () {
-                    return this.privateMember == undefined ? 0 : this.privateMember;
+                    return this.privateMember === undefined ? 0 : this.privateMember;
                 }),
 
                 ProtectedFunction2: Public(function () {
-                    return this.protectedMember == undefined ? 0 : this.protectedMember;
+                    return this.protectedMember === undefined ? 0 : this.protectedMember;
                 }),
 
                 PublicFunction2: Public(function () {
-                    return this.publicMember == undefined ? 0 : this.publicMember;
+                    return this.publicMember === undefined ? 0 : this.publicMember;
                 }),
             });
 
             var x = new DerivedClass();
-            assert(x.privateMember == undefined);
-            assert(x.protectedMember == undefined);
-            assert(x.publicMember == 3);
+            assert(x.privateMember === undefined);
+            assert(x.protectedMember === undefined);
+            assert(x.publicMember === 3);
 
-            assert(x.PrivateFunctionInternal == undefined);
-            assert(x.ProtectedFunctionInternal == undefined);
-            assert(x.PublicFunctionInternal() == 6);
+            assert(x.PrivateFunctionInternal === undefined);
+            assert(x.ProtectedFunctionInternal === undefined);
+            assert(x.PublicFunctionInternal() === 6);
 
-            assert(x.PrivateFunctionBase == undefined);
-            assert(x.ProtectedFunctionBase == undefined);
-            assert(x.PublicFunctionBase() == 6);
+            assert(x.PrivateFunctionBase === undefined);
+            assert(x.ProtectedFunctionBase === undefined);
+            assert(x.PublicFunctionBase() === 6);
 
-            assert(x.PrivateFunction1() == 0);
-            assert(x.ProtectedFunction1() == 3);
-            assert(x.PublicFunction1() == 6);
+            assert(x.PrivateFunction1() === 0);
+            assert(x.ProtectedFunction1() === 3);
+            assert(x.PublicFunction1() === 6);
 
-            assert(x.PrivateFunction2() == 0);
-            assert(x.ProtectedFunction2() == 2);
-            assert(x.PublicFunction2() == 3);
+            assert(x.PrivateFunction2() === 0);
+            assert(x.ProtectedFunction2() === 2);
+            assert(x.PublicFunction2() === 3);
         })
     </script>
 
@@ -215,23 +215,23 @@
                 }),
             });
 
-            assert(A.IsAssignableFrom(A) == true);
-            assert(A.IsAssignableFrom(B) == true);
-            assert(A.IsAssignableFrom(C) == true);
-            assert(B.IsAssignableFrom(A) == false);
-            assert(B.IsAssignableFrom(B) == true);
-            assert(B.IsAssignableFrom(C) == true);
-            assert(C.IsAssignableFrom(A) == false);
-            assert(C.IsAssignableFrom(B) == false);
-            assert(C.IsAssignableFrom(C) == true);
+            assert(A.IsAssignableFrom(A) === true);
+            assert(A.IsAssignableFrom(B) === true);
+            assert(A.IsAssignableFrom(C) === true);
+            assert(B.IsAssignableFrom(A) === false);
+            assert(B.IsAssignableFrom(B) === true);
+            assert(B.IsAssignableFrom(C) === true);
+            assert(C.IsAssignableFrom(A) === false);
+            assert(C.IsAssignableFrom(B) === false);
+            assert(C.IsAssignableFrom(C) === true);
 
             var x = new C();
-            assert(x.DoA(1, 2) == 3);
-            assert(x.DoB(1, 2) == -1);
-            assert(x.DoC(1, 2) == 2);
-            assert(x.GetA() == C);
-            assert(x.GetB() == C);
-            assert(x.GetC() == C);
+            assert(x.DoA(1, 2) === 3);
+            assert(x.DoB(1, 2) === -1);
+            assert(x.DoC(1, 2) === 2);
+            assert(x.GetA() === C);
+            assert(x.GetB() === C);
+            assert(x.GetC() === C);
         });
     </script>
 
@@ -264,23 +264,23 @@
                 }),
             });
 
-            assert(A.IsAssignableFrom(A) == true);
-            assert(A.IsAssignableFrom(B) == false);
-            assert(A.IsAssignableFrom(C) == true);
-            assert(B.IsAssignableFrom(A) == false);
-            assert(B.IsAssignableFrom(B) == true);
-            assert(B.IsAssignableFrom(C) == true);
-            assert(C.IsAssignableFrom(A) == false);
-            assert(C.IsAssignableFrom(B) == false);
-            assert(C.IsAssignableFrom(C) == true);
+            assert(A.IsAssignableFrom(A) === true);
+            assert(A.IsAssignableFrom(B) === false);
+            assert(A.IsAssignableFrom(C) === true);
+            assert(B.IsAssignableFrom(A) === false);
+            assert(B.IsAssignableFrom(B) === true);
+            assert(B.IsAssignableFrom(C) === true);
+            assert(C.IsAssignableFrom(A) === false);
+            assert(C.IsAssignableFrom(B) === false);
+            assert(C.IsAssignableFrom(C) === true);
 
             var x = new C();
-            assert(x.DoA(1, 2) == 3);
-            assert(x.DoB(1, 2) == -1);
-            assert(x.DoC(1, 2) == 2);
-            assert(x.GetA() == C);
-            assert(x.GetB() == C);
-            assert(x.GetC() == C);
+            assert(x.DoA(1, 2) === 3);
+            assert(x.DoB(1, 2) === -1);
+            assert(x.DoC(1, 2) === 2);
+            assert(x.GetA() === C);
+            assert(x.GetB() === C);
+            assert(x.GetC() === C);
         });
     </script>
 
@@ -334,13 +334,13 @@
             var b = new B();
             var c = new C();
             var x = new MyClass();
-            assert(x.Do() == "1: ");
-            assert(x.Do(1, "2", true) == "2: number, string, boolean");
-            assert(x.Do(function () { }) == "3: function");
-            assert(x.Do(c) == "4: object");
-            assert(x.Do(b) == "5: object");
-            assert(x.Do(a) == "6: object");
-            assert(x.Do(null) == "7: object");
+            assert(x.Do() === "1: ");
+            assert(x.Do(1, "2", true) === "2: number, string, boolean");
+            assert(x.Do(function () { }) === "3: function");
+            assert(x.Do(c) === "4: object");
+            assert(x.Do(b) === "5: object");
+            assert(x.Do(a) === "6: object");
+            assert(x.Do(null) === "7: object");
         });
     </script>
 
@@ -363,8 +363,8 @@
 
             var x = new MyClass(1);
             var y = new MyClass("2");
-            assert(x.Get() == "number");
-            assert(y.Get() == "string");
+            assert(x.Get() === "number");
+            assert(y.Get() === "string");
         });
     </script>
 
@@ -401,7 +401,7 @@
             })
 
             var c = new C(1, 2);
-            assert(c.Get() == 3);
+            assert(c.Get() === 3);
         });
     </script>
 
@@ -430,8 +430,8 @@
 
             var a = new A();
             var b = new B();
-            assert(a.GetZ() == "X, Y");
-            assert(b.GetZ() == "U, Y");
+            assert(a.GetZ() === "X, Y");
+            assert(b.GetZ() === "U, Y");
         });
     </script>
 
@@ -485,12 +485,12 @@
             var a = new A();
             var b = new B();
             var c = new C();
-            assert(a.GetA() == "X, Y, Z");
-            assert(b.GetA() == "U, Y, Z");
-            assert(b.GetB() == "U, V, W");
-            assert(c.GetA() == "A, Y, Z");
-            assert(c.GetB() == "A, V, C");
-            assert(c.GetC() == "A, B, C");
+            assert(a.GetA() === "X, Y, Z");
+            assert(b.GetA() === "U, Y, Z");
+            assert(b.GetB() === "U, V, W");
+            assert(c.GetA() === "A, Y, Z");
+            assert(c.GetB() === "A, V, C");
+            assert(c.GetC() === "A, B, C");
         });
     </script>
 
@@ -530,12 +530,12 @@
             var b = new B();
             var c = new C();
             var d = new D();
-            assert(a.GetA() == "A");
-            assert(b.GetB() == "B");
-            assert(c.GetA() == "C");
-            assert(c.GetB() == "C");
-            assert(d.GetA() == "D");
-            assert(d.GetB() == "D");
+            assert(a.GetA() === "A");
+            assert(b.GetB() === "B");
+            assert(c.GetA() === "C");
+            assert(c.GetB() === "C");
+            assert(d.GetA() === "D");
+            assert(d.GetB() === "D");
         });
     </script>
 
@@ -567,16 +567,16 @@
             });
 
             var d = new D();
-            assert(d.GetB() == 0);
-            assert(d.GetC() == 0);
+            assert(d.GetB() === 0);
+            assert(d.GetC() === 0);
 
             d.SetB(1);
-            assert(d.GetB() == 1);
-            assert(d.GetC() == 1);
+            assert(d.GetB() === 1);
+            assert(d.GetC() === 1);
 
             d.SetC(2);
-            assert(d.GetB() == 2);
-            assert(d.GetC() == 2);
+            assert(d.GetB() === 2);
+            assert(d.GetC() === 2);
         });
     </script>
 
@@ -606,23 +606,23 @@
 
             var D = Class("D", B, C, {
                 __Constructor: Public(function () {
-                    this.__InitBase(A, [3]);
                     this.__InitBase(B, []);
+                    this.__InitBase(A, [3]);
                     this.__InitBase(C, []);
                 })
             });
 
             var a = new A(-1);
-            assert(a.Get() == -1);
+            assert(a.Get() === -1);
 
             var b = new B();
-            assert(b.Get() == 1);
+            assert(b.Get() === 1);
 
             var c = new C();
-            assert(c.Get() == 2);
+            assert(c.Get() === 2);
 
             var d = new D();
-            assert(d.Get() == 3);
+            assert(d.Get() === 3);
         });
     </script>
 
@@ -649,15 +649,15 @@
             assert(b instanceof __EventHandler);
 
             x.Event.Execute(1);
-            assert(values.join(", ") == "a:1, b:1");
+            assert(values.join(", ") === "a:1, b:1");
 
             x.Event.Detach(a);
             x.Event.Execute(2);
-            assert(values.join(", ") == "a:1, b:1, b:2");
+            assert(values.join(", ") === "a:1, b:1, b:2");
 
             x.Event.Detach(b);
             x.Event.Execute(2);
-            assert(values.join(", ") == "a:1, b:1, b:2");
+            assert(values.join(", ") === "a:1, b:1, b:2");
         });
     </script>
 
@@ -678,7 +678,7 @@
                     this.a = value;
                 }),
                 SetB: Public(function (value) {
-                    if (this.b != value) {
+                    if (this.b !== value) {
                         this.b = value;
                         this.BChanged.Execute();
                     }
@@ -687,7 +687,7 @@
                     this.c = value;
                 }),
                 SetD: Protected(function (value) {
-                    if (this.d != value) {
+                    if (this.d !== value) {
                         this.d = value;
                         this.DChanged.Execute();
                     }
@@ -715,29 +715,29 @@
 
             var x = new MyClass();
 
-            assert(x.__Type.Description.A.Value.Readonly == true);
-            assert(x.__Type.Description.A.Value.HasEvent == false);
-            assert(x.__Type.Description.A.Value.GetterName == "GetA");
-            assert(x.__Type.Description.A.Value.SetterName == null);
-            assert(x.__Type.Description.A.Value.EventName == null);
+            assert(x.__Type.Description.A.Value.Readonly === true);
+            assert(x.__Type.Description.A.Value.HasEvent === false);
+            assert(x.__Type.Description.A.Value.GetterName === "GetA");
+            assert(x.__Type.Description.A.Value.SetterName === null);
+            assert(x.__Type.Description.A.Value.EventName === null);
 
-            assert(x.__Type.Description.B.Value.Readonly == true);
-            assert(x.__Type.Description.B.Value.HasEvent == true);
-            assert(x.__Type.Description.B.Value.GetterName == "GetB");
-            assert(x.__Type.Description.B.Value.SetterName == null);
-            assert(x.__Type.Description.B.Value.EventName == "BChanged");
+            assert(x.__Type.Description.B.Value.Readonly === true);
+            assert(x.__Type.Description.B.Value.HasEvent === true);
+            assert(x.__Type.Description.B.Value.GetterName === "GetB");
+            assert(x.__Type.Description.B.Value.SetterName === null);
+            assert(x.__Type.Description.B.Value.EventName === "BChanged");
 
-            assert(x.__Type.Description.C.Value.Readonly == false);
-            assert(x.__Type.Description.C.Value.HasEvent == false);
-            assert(x.__Type.Description.C.Value.GetterName == "GetC");
-            assert(x.__Type.Description.C.Value.SetterName == "SetC");
-            assert(x.__Type.Description.C.Value.EventName == null);
+            assert(x.__Type.Description.C.Value.Readonly === false);
+            assert(x.__Type.Description.C.Value.HasEvent === false);
+            assert(x.__Type.Description.C.Value.GetterName === "GetC");
+            assert(x.__Type.Description.C.Value.SetterName === "SetC");
+            assert(x.__Type.Description.C.Value.EventName === null);
 
-            assert(x.__Type.Description.D.Value.Readonly == false);
-            assert(x.__Type.Description.D.Value.HasEvent == true);
-            assert(x.__Type.Description.D.Value.GetterName == "GetD");
-            assert(x.__Type.Description.D.Value.SetterName == "SetD");
-            assert(x.__Type.Description.D.Value.EventName == "DChanged");
+            assert(x.__Type.Description.D.Value.Readonly === false);
+            assert(x.__Type.Description.D.Value.HasEvent === true);
+            assert(x.__Type.Description.D.Value.GetterName === "GetD");
+            assert(x.__Type.Description.D.Value.SetterName === "SetD");
+            assert(x.__Type.Description.D.Value.EventName === "DChanged");
 
             var values = [];
             x.BChanged.Attach(function () {
@@ -747,20 +747,20 @@
                 values.push("D");
             });
 
-            assert(x.A == 0);
-            assert(x.B == 0);
-            assert(x.C == 0);
-            assert(x.D == 0);
+            assert(x.A === 0);
+            assert(x.B === 0);
+            assert(x.C === 0);
+            assert(x.D === 0);
 
             x.SetA(1);
             x.SetB(2);
             x.C = 3;
             x.D = 4;
-            assert(x.A == 1);
-            assert(x.B == 2);
-            assert(x.C == 3);
-            assert(x.D == 4);
-            assert(values.join(", ") == "B, D");
+            assert(x.A === 1);
+            assert(x.B === 2);
+            assert(x.C === 3);
+            assert(x.D === 4);
+            assert(values.join(", ") === "B, D");
         });
     </script>
 
@@ -808,27 +808,27 @@
             });
 
             var c = new C();
-            assert(c.Get1() == "A, B");
-            assert(c.Get2() == "X, B");
-            assert(c.Get3() == "A, B");
-            assert(c.Get4() == "X, Y");
-            assert(c.Get5() == "A, Y");
+            assert(c.Get1() === "A, B");
+            assert(c.Get2() === "X, B");
+            assert(c.Get3() === "A, B");
+            assert(c.Get4() === "X, Y");
+            assert(c.Get5() === "A, Y");
 
             var da = c.__Dynamic(A);
-            assert(da.GetX() == "X");
-            assert(da.GetY() == "B");
+            assert(da.GetX() === "X");
+            assert(da.GetY() === "B");
 
             var db = c.__Dynamic(B);
-            assert(db.GetX() == "A");
-            assert(db.GetY() == "B");
+            assert(db.GetX() === "A");
+            assert(db.GetY() === "B");
 
             var sa = c.__Static(A);
-            assert(sa.GetX() == "X");
-            assert(sa.GetY() == "Y");
+            assert(sa.GetX() === "X");
+            assert(sa.GetY() === "Y");
 
             var sb = c.__Static(B);
-            assert(sb.GetX() == "A");
-            assert(sb.GetY() == "Y");
+            assert(sb.GetX() === "A");
+            assert(sb.GetY() === "Y");
         });
     </script>
 
@@ -842,7 +842,7 @@
                 assert(false);
             }
             catch (ex) {
-                assert(ex.message == "Type \"D\" cannot non-virtually inherit from type \"A\" multiple times.");
+                assert(ex.message === "Type \"D\" cannot non-virtually inherit from type \"A\" multiple times.");
             }
         });
     </script>
@@ -862,7 +862,7 @@
                 assert(false);
             }
             catch (ex) {
-                assert(ex.message == "Type \"C\" cannot inherit multiple members of the same name \"Get\" without defining a new one.");
+                assert(ex.message === "Type \"C\" cannot inherit multiple members of the same name \"Get\" without defining a new one.");
             }
 
             try {
@@ -877,7 +877,7 @@
                 var C = Class("C", A, B, {});
             }
             catch (ex) {
-                assert(ex.message == "Type \"C\" cannot inherit multiple members of the same name \"Get\" without defining a new one.");
+                assert(ex.message === "Type \"C\" cannot inherit multiple members of the same name \"Get\" without defining a new one.");
             }
 
 
@@ -904,7 +904,7 @@
                 assert(false);
             }
             catch (ex) {
-                assert(ex.message == "Type \"B\" cannot find virtual function \"Get\" to override.");
+                assert(ex.message === "Type \"B\" cannot find virtual function \"Get\" to override.");
             }
 
             try {
@@ -917,7 +917,7 @@
                 assert(false);
             }
             catch (ex) {
-                assert(ex.message == "Type \"B\" cannot override non-virtual function \"Get\".");
+                assert(ex.message === "Type \"B\" cannot override non-virtual function \"Get\".");
             }
 
             try {
@@ -933,7 +933,7 @@
                 assert(false);
             }
             catch (ex) {
-                assert(ex.message == "Type \"C\" cannot override non-virtual function \"Get\".");
+                assert(ex.message === "Type \"C\" cannot override non-virtual function \"Get\".");
             }
         });
     </script>
@@ -950,7 +950,7 @@
                 assert(false);
             }
             catch (ex) {
-                assert(ex.message == "Type \"B\" cannot hide virtual function \"Get\" without overriding.");
+                assert(ex.message === "Type \"B\" cannot hide virtual function \"Get\" without overriding.");
             }
 
             try {
@@ -965,7 +965,7 @@
                 });
             }
             catch (ex) {
-                assert(ex.message == "Type \"C\" cannot hide virtual function \"Get\" without overriding.");
+                assert(ex.message === "Type \"C\" cannot hide virtual function \"Get\" without overriding.");
             }
         });
     </script>
@@ -982,7 +982,7 @@
                 assert(false);
             }
             catch (ex) {
-                assert(ex.message == "Type \"B\" cannot hide event \"Event\".");
+                assert(ex.message === "Type \"B\" cannot hide event \"Event\".");
             }
 
             try {
@@ -995,7 +995,7 @@
                 assert(false);
             }
             catch (ex) {
-                assert(ex.message == "Type \"B\" cannot hide event \"Event\".");
+                assert(ex.message === "Type \"B\" cannot hide event \"Event\".");
             }
         });
     </script>
@@ -1012,7 +1012,7 @@
                 assert(false);
             }
             catch (ex) {
-                assert(ex.message == "The constructor of type \"A\" has never been executed.");
+                assert(ex.message === "The constructor of type \"A\" has never been executed.");
             }
 
             try {
@@ -1029,7 +1029,7 @@
                 assert(false);
             }
             catch (ex) {
-                assert(ex.message == "The constructor of type \"A\" has already been executed.");
+                assert(ex.message === "The constructor of type \"A\" has already been executed.");
             }
         });
     </script>
@@ -1044,7 +1044,7 @@
                 new MyClass();
             }
             catch (ex) {
-                assert(ex.message == "Cannot create instance of type \"MyClass\" because it contains an abstract function \"Get\".");
+                assert(ex.message === "Cannot create instance of type \"MyClass\" because it contains an abstract function \"Get\".");
             }
         });
     </script>
@@ -1064,92 +1064,92 @@
                 Z4: Public.Abstract(),
             });
 
-            assert(A.FullName == "A");
-            assert(A.BaseClasses.length == 0);
-            assert(A.FlattenedBaseClasses.length == 0);
+            assert(A.FullName === "A");
+            assert(A.BaseClasses.length === 0);
+            assert(A.FlattenedBaseClasses.length === 0);
 
             var member = A.Description.X1;
             assert(member instanceof __PrivateMember);
-            assert(member.DeclaringType == A);
-            assert(member.Virtual == __MemberBase.NORMAL);
-            assert(member.New == false);
-            assert(member.HiddenMembers.length == 0);
-            assert(member.Value == 0);
+            assert(member.DeclaringType === A);
+            assert(member.Virtual === __MemberBase.NORMAL);
+            assert(member.New === false);
+            assert(member.HiddenMembers.length === 0);
+            assert(member.Value === 0);
 
             var member = A.Description.X2;
             assert(member instanceof __PrivateMember);
-            assert(member.DeclaringType == A);
-            assert(member.Virtual == __MemberBase.NORMAL);
-            assert(member.New == false);
-            assert(member.HiddenMembers.length == 0);
-            assert(typeof member.Value == "function");
+            assert(member.DeclaringType === A);
+            assert(member.Virtual === __MemberBase.NORMAL);
+            assert(member.New === false);
+            assert(member.HiddenMembers.length === 0);
+            assert(typeof member.Value === "function");
 
             var member = A.Description.Y1;
             assert(member instanceof __ProtectedMember);
-            assert(member.DeclaringType == A);
-            assert(member.Virtual == __MemberBase.NORMAL);
-            assert(member.New == false);
-            assert(member.HiddenMembers.length == 0);
-            assert(member.Value == 0);
+            assert(member.DeclaringType === A);
+            assert(member.Virtual === __MemberBase.NORMAL);
+            assert(member.New === false);
+            assert(member.HiddenMembers.length === 0);
+            assert(member.Value === 0);
 
             var member = A.Description.Y2;
             assert(member instanceof __ProtectedMember);
-            assert(member.DeclaringType == A);
-            assert(member.Virtual == __MemberBase.NORMAL);
-            assert(member.New == false);
-            assert(member.HiddenMembers.length == 0);
-            assert(typeof member.Value == "function");
+            assert(member.DeclaringType === A);
+            assert(member.Virtual === __MemberBase.NORMAL);
+            assert(member.New === false);
+            assert(member.HiddenMembers.length === 0);
+            assert(typeof member.Value === "function");
 
             var member = A.Description.Y3;
             assert(member instanceof __ProtectedMember);
-            assert(member.DeclaringType == A);
-            assert(member.Virtual == __MemberBase.VIRTUAL);
-            assert(member.New == false);
-            assert(member.HiddenMembers.length == 0);
-            assert(typeof member.Value == "function");
+            assert(member.DeclaringType === A);
+            assert(member.Virtual === __MemberBase.VIRTUAL);
+            assert(member.New === false);
+            assert(member.HiddenMembers.length === 0);
+            assert(typeof member.Value === "function");
 
             var member = A.Description.Y4;
             assert(member instanceof __ProtectedMember);
-            assert(member.DeclaringType == A);
-            assert(member.Virtual == __MemberBase.ABSTRACT);
-            assert(member.New == false);
-            assert(member.HiddenMembers.length == 0);
-            assert(typeof member.Value == "function");
+            assert(member.DeclaringType === A);
+            assert(member.Virtual === __MemberBase.ABSTRACT);
+            assert(member.New === false);
+            assert(member.HiddenMembers.length === 0);
+            assert(typeof member.Value === "function");
 
             var member = A.Description.Z1;
             assert(member instanceof __PublicMember);
-            assert(member.DeclaringType == A);
-            assert(member.Virtual == __MemberBase.NORMAL);
-            assert(member.New == false);
-            assert(member.HiddenMembers.length == 0);
-            assert(member.Value == 0);
+            assert(member.DeclaringType === A);
+            assert(member.Virtual === __MemberBase.NORMAL);
+            assert(member.New === false);
+            assert(member.HiddenMembers.length === 0);
+            assert(member.Value === 0);
 
             var member = A.Description.Z2;
             assert(member instanceof __PublicMember);
-            assert(member.DeclaringType == A);
-            assert(member.Virtual == __MemberBase.NORMAL);
-            assert(member.New == false);
-            assert(member.HiddenMembers.length == 0);
-            assert(typeof member.Value == "function");
+            assert(member.DeclaringType === A);
+            assert(member.Virtual === __MemberBase.NORMAL);
+            assert(member.New === false);
+            assert(member.HiddenMembers.length === 0);
+            assert(typeof member.Value === "function");
 
             var member = A.Description.Z3;
             assert(member instanceof __PublicMember);
-            assert(member.DeclaringType == A);
-            assert(member.Virtual == __MemberBase.VIRTUAL);
-            assert(member.New == false);
-            assert(member.HiddenMembers.length == 0);
-            assert(typeof member.Value == "function");
+            assert(member.DeclaringType === A);
+            assert(member.Virtual === __MemberBase.VIRTUAL);
+            assert(member.New === false);
+            assert(member.HiddenMembers.length === 0);
+            assert(typeof member.Value === "function");
 
             var member = A.Description.Z4;
             assert(member instanceof __PublicMember);
-            assert(member.DeclaringType == A);
-            assert(member.Virtual == __MemberBase.ABSTRACT);
-            assert(member.New == false);
-            assert(member.HiddenMembers.length == 0);
-            assert(typeof member.Value == "function");
+            assert(member.DeclaringType === A);
+            assert(member.Virtual === __MemberBase.ABSTRACT);
+            assert(member.New === false);
+            assert(member.HiddenMembers.length === 0);
+            assert(typeof member.Value === "function");
 
             for (var i in A.FlattenedDescription) {
-                assert(A.FlattenedDescription[i] == A.Description[i]);
+                assert(A.FlattenedDescription[i] === A.Description[i]);
             }
 
             var B = Class("B", A, {
@@ -1160,65 +1160,65 @@
                 Z4: Public.Override(function () { }),
             });
 
-            assert(B.FullName == "B");
-            assert(B.BaseClasses.length == 1);
-            assert(B.BaseClasses[0].Type == A);
-            assert(B.BaseClasses[0].Virtual == false);
-            assert(B.FlattenedBaseClasses.length == 1);
-            assert(B.FlattenedBaseClasses[0].Type == A);
-            assert(B.FlattenedBaseClasses[0].Virtual == false);
+            assert(B.FullName === "B");
+            assert(B.BaseClasses.length === 1);
+            assert(B.BaseClasses[0].Type === A);
+            assert(B.BaseClasses[0].Virtual === false);
+            assert(B.FlattenedBaseClasses.length === 1);
+            assert(B.FlattenedBaseClasses[0].Type === A);
+            assert(B.FlattenedBaseClasses[0].Virtual === false);
 
             var member = B.Description.Y3;
             assert(member instanceof __ProtectedMember);
-            assert(member.DeclaringType == B);
-            assert(member.Virtual == __MemberBase.OVERRIDE);
-            assert(member.New == false);
-            assert(member.HiddenMembers.length == 1);
-            assert(member.HiddenMembers[0] == A.Description.Y3);
-            assert(typeof member.Value == "function");
+            assert(member.DeclaringType === B);
+            assert(member.Virtual === __MemberBase.OVERRIDE);
+            assert(member.New === false);
+            assert(member.HiddenMembers.length === 1);
+            assert(member.HiddenMembers[0] === A.Description.Y3);
+            assert(typeof member.Value === "function");
 
             var member = B.Description.Y4;
             assert(member instanceof __ProtectedMember);
-            assert(member.DeclaringType == B);
-            assert(member.Virtual == __MemberBase.OVERRIDE);
-            assert(member.New == false);
-            assert(member.HiddenMembers.length == 1);
-            assert(member.HiddenMembers[0] == A.Description.Y4);
-            assert(typeof member.Value == "function");
+            assert(member.DeclaringType === B);
+            assert(member.Virtual === __MemberBase.OVERRIDE);
+            assert(member.New === false);
+            assert(member.HiddenMembers.length === 1);
+            assert(member.HiddenMembers[0] === A.Description.Y4);
+            assert(typeof member.Value === "function");
 
             var member = B.Description.Z2;
             assert(member instanceof __PublicMember);
-            assert(member.DeclaringType == B);
-            assert(member.Virtual == __MemberBase.NORMAL);
-            assert(member.New == true);
-            assert(member.HiddenMembers.length == 1);
-            assert(member.HiddenMembers[0] == A.Description.Z2);
-            assert(typeof member.Value == "function");
+            assert(member.DeclaringType === B);
+            assert(member.Virtual === __MemberBase.NORMAL);
+            assert(member.New === true);
+            assert(member.HiddenMembers.length === 1);
+            assert(member.HiddenMembers[0] === A.Description.Z2);
+            assert(typeof member.Value === "function");
 
             var member = B.Description.Z3;
             assert(member instanceof __PublicMember);
-            assert(member.DeclaringType == B);
-            assert(member.Virtual == __MemberBase.OVERRIDE);
-            assert(member.New == false);
-            assert(member.HiddenMembers.length == 1);
-            assert(member.HiddenMembers[0] == A.Description.Z3);
-            assert(typeof member.Value == "function");
+            assert(member.DeclaringType === B);
+            assert(member.Virtual === __MemberBase.OVERRIDE);
+            assert(member.New === false);
+            assert(member.HiddenMembers.length === 1);
+            assert(member.HiddenMembers[0] === A.Description.Z3);
+            assert(typeof member.Value === "function");
 
             var member = B.Description.Z4;
             assert(member instanceof __PublicMember);
-            assert(member.DeclaringType == B);
-            assert(member.Virtual == __MemberBase.OVERRIDE);
-            assert(member.New == false);
-            assert(member.HiddenMembers.length == 1);
-            assert(member.HiddenMembers[0] == A.Description.Z4);
-            assert(typeof member.Value == "function");
+            assert(member.DeclaringType === B);
+            assert(member.Virtual === __MemberBase.OVERRIDE);
+            assert(member.New === false);
+            assert(member.HiddenMembers.length === 1);
+            assert(member.HiddenMembers[0] === A.Description.Z4);
+            assert(typeof member.Value === "function");
 
             for (var i in B.FlattenedDescription) {
-                if (i == "Y3" || i == "Y4" || i == "Z2" || i == "Z3" || i == "Z4") {
-                    assert(B.FlattenedDescription[i] == B.Description[i]);
+                if (i === "Y3" || i === "Y4" || i === "Z2" || i === "Z3" || i === "Z4") {
+                    assert(B.FlattenedDescription[i] === B.Description[i]);
                 }
                 else {
-                    assert(B.FlattenedDescription[i] == A.Description[i]);
+                    assert(B.FlattenedDescription[i] === A.Description[i]);
                 }
             }
         });
