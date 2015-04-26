@@ -540,8 +540,43 @@
     </script>
 
     <script>
-        testCase("<virtual base class>", function () {
-            emptyCase();
+        testCase("different inheriting path to the same virtual base class shares the fields", function () {
+            var A = Class("A", {
+                value: Protected(0),
+            });
+
+            var B = Class("B", Virtual(A), {
+                GetB: Public(function () {
+                    return this.value;
+                }),
+                SetB: Public(function (value) {
+                    return this.value = value;
+                }),
+            });
+
+            var C = Class("C", Virtual(A), {
+                GetC: Public(function () {
+                    return this.value;
+                }),
+                SetC: Public(function (value) {
+                    return this.value = value;
+                }),
+            });
+
+            var D = Class("D", B, C, {
+            });
+
+            var d = new D();
+            assert(d.GetB() == 0);
+            assert(d.GetC() == 0);
+
+            d.SetB(1);
+            assert(d.GetB() == 1);
+            assert(d.GetC() == 1);
+
+            d.SetC(2);
+            assert(d.GetB() == 2);
+            assert(d.GetC() == 2);
         });
     </script>
 
@@ -1087,9 +1122,11 @@
 
             assert(B.FullName == "B");
             assert(B.BaseClasses.length == 1);
-            assert(B.BaseClasses[0] == A);
+            assert(B.BaseClasses[0].Type == A);
+            assert(B.BaseClasses[0].Virtual == false);
             assert(B.FlattenedBaseClasses.length == 1);
-            assert(B.FlattenedBaseClasses[0] == A);
+            assert(B.FlattenedBaseClasses[0].Type == A);
+            assert(B.FlattenedBaseClasses[0].Virtual == false);
 
             var member = B.Description.Y3;
             assert(member instanceof __ProtectedMember);

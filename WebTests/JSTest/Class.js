@@ -35,10 +35,15 @@ API:
         string                      FullName;               // Get the full name
         map<string, __MemberBase>   Description;            // Get all declared members in this type
         map<string, __MemberBase>   FlattenedDescription;   // Get all potentially visible members in this type
-        Type[]                      BaseClasses;            // Get all direct base classes of this type
-        Type[]                      FlattenedBaseClasses;   // Get all direct or indirect base classes of this type
+        __BaseClass[]               BaseClasses;            // Get all direct base classes of this type
+        __BaseClass[]               FlattenedBaseClasses;   // Get all direct or indirect base classes of this type
 
         bool IsAssignableFrom(Type childType);              // Returns true if "childType" is or inherits from "Type"
+    }
+
+    class __BaseClass {
+        Type                        Type;
+        bool                        Virtual;
     }
 
     class __MemberBase {
@@ -59,6 +64,12 @@ API:
     class __ProtectedMember : __MemberBase {}
     class __PublicMember : __MemberBase {}
 */
+
+function __BaseClass(value, virtual) {
+    this.Type = value;
+    this.Virtual = virtual;
+    Object.seal(this);
+}
 
 function __MemberBase() {
     this.DeclaringType = null;
@@ -350,6 +361,10 @@ function __DefineProperty(accessor) {
     });
 }
 
+function Virtual(value) {
+    return new __BaseClass(value, true);
+}
+
 function Private(value) {
     return new __PrivateMember(value);
 }
@@ -478,10 +493,10 @@ function Class(fullName) {
         }
     }
 
-    function OverrideVirtualFunction(source, memberName, member, targetTypes, accumulated) {
+    function OverrideVirtualFunction(source, memberName, member, targetBaseClasses, accumulated) {
         // override a virtual functions in base internal references
-        for (var i in targetTypes) {
-            var targetType = targetTypes[i];
+        for (var i in targetBaseClasses) {
+            var targetType = targetBaseClasses[i].Type;
             var target = accumulated[targetType.FullName];
             var targetDescription = targetType.FlattenedDescription;
             var targetMember = targetDescription[memberName];
@@ -527,7 +542,7 @@ function Class(fullName) {
                     CopyReferencableMembers(
                         internalReference,
                         baseInstances[j],
-                        baseClasses[j].Description,
+                        baseClasses[j].Type.Description,
                         true);
                 }
 
@@ -543,7 +558,7 @@ function Class(fullName) {
             else {
                 // create a complete internal reference for a base class
                 var baseInstance = CreateCompleteInternalReference(
-                    baseClasses[i],
+                    baseClasses[i].Type,
                     accumulated);
                 baseInstances[i] = baseInstance;
             }
@@ -719,7 +734,9 @@ function Class(fullName) {
                 enumerable: false,
                 writable: false,
                 value: function (type, args) {
-                    if (refType.BaseClasses.indexOf(type) == -1) {
+                    if (!refType.BaseClasses.some(function (baseClass) {
+                        return baseClass.Type == type;
+                    })) {
                         throw new Error("Type \"" + refType.FullName + "\" does not directly inherit from \"" + type.FullName + "\".");
                     }
 
@@ -743,7 +760,11 @@ function Class(fullName) {
 
     var directBaseClasses = new Array(arguments.length - 2);
     for (var i = 1; i < arguments.length - 1; i++) {
-        directBaseClasses[i - 1] = arguments[i];
+        baseClass = arguments[i];
+        if (!(baseClass instanceof __BaseClass)) {
+            baseClass = new __BaseClass(baseClass, false);
+        }
+        directBaseClasses[i - 1] = baseClass;
     }
     var description = arguments[arguments.length - 1];
 
@@ -834,29 +855,23 @@ function Class(fullName) {
 
     // calculate Type.FlattenedBaseClasses
     var flattenedBaseClasses = [];
-    function AddFlattenedBaseClass(type) {
-        if (flattenedBaseClasses.indexOf(type) == -1) {
-            flattenedBaseClasses.push(type);
-        }
-        else {
-            throw new Error("Type \"" + fullName + "\" cannot non-virtually inherit from type \"" + type.FullName + "\" multiple times.");
-        }
-    }
-
     var flattenedBaseClassNames = {};
-    for (var i in flattenedBaseClasses) {
-        var name = flattenedBaseClasses[i].FullName;
-        if (flattenedBaseClassNames.hasOwnProperty(name)) {
-            throw new Error("Type \"" + fullName + "\" cannot inherit from multiple types of the same name \"" + type.FullName + "\".");
+    function AddFlattenedBaseClass(baseClass) {
+        var existingBaseClass = flattenedBaseClassNames[baseClass.Type.FullName];
+        if (existingBaseClass == undefined) {
+            flattenedBaseClassNames[baseClass.Type.FullName] = baseClass;
+            flattenedBaseClasses.push(baseClass);
         }
         else {
-            flattenedBaseClassNames[name] = null;
+            if (existingBaseClass.Virtual != true || baseClass.Virtual != true) {
+                throw new Error("Type \"" + fullName + "\" cannot non-virtually inherit from type \"" + baseClass.Type.FullName + "\" multiple times.");
+            }
         }
     }
 
     for (var i in directBaseClasses) {
         var baseClass = directBaseClasses[i];
-        var baseFlattened = baseClass.FlattenedBaseClasses;
+        var baseFlattened = baseClass.Type.FlattenedBaseClasses;
         for (var j in baseFlattened) {
             AddFlattenedBaseClass(baseFlattened[j]);
         }
@@ -868,7 +883,7 @@ function Class(fullName) {
 
     for (var i in directBaseClasses) {
         var baseClass = directBaseClasses[i];
-        var flattened = baseClass.FlattenedDescription;
+        var flattened = baseClass.Type.FlattenedDescription;
         for (var name in flattened) {
             var member = description[name];
             var baseMember = flattened[name];
@@ -986,7 +1001,7 @@ function Class(fullName) {
             else {
                 var baseClasses = childType.BaseClasses;
                 for (var i in baseClasses) {
-                    if (Type.IsAssignableFrom(baseClasses[i])) {
+                    if (Type.IsAssignableFrom(baseClasses[i].Type)) {
                         return true;
                     }
                 }
