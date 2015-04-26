@@ -436,40 +436,6 @@
     </script>
 
     <script>
-        testCase("abstract function should not be called and should be able to override in child classes.", function () {
-            var A = Class("A", {
-                GetX: Protected.Abstract(),
-                GetY: Protected(function () {
-                    return "Y";
-                }),
-                GetZ: Public(function () {
-                    return this.GetX() + ", " + this.GetY();
-                })
-            });
-
-            var B = Class("B", A, {
-                GetX: Protected.Override(function () {
-                    return "U";
-                }),
-                GetY: Protected.New(function () {
-                    return "V";
-                }),
-            });
-
-            var a = new A();
-            var b = new B();
-            try {
-                a.GetZ();
-                assert(false);
-            }
-            catch (ex) {
-                assert(ex.message == "Cannot call an abstract function.");
-            }
-            assert(b.GetZ() == "U, Y");
-        });
-    </script>
-
-    <script>
         testCase("new function will hide the virtual function in base classes", function () {
             var A = Class("A", {
                 GetX: Protected.Virtual(function () {
@@ -989,6 +955,194 @@
             }
             catch (ex) {
                 assert(ex.message == "The constructor of type \"A\" has already been executed.");
+            }
+        });
+    </script>
+
+    <script>
+        testCase("abstract class should not be new directly", function () {
+            try {
+                var MyClass = Class("MyClass", {
+                    Get: Public.Abstract(),
+                });
+
+                new MyClass();
+            }
+            catch (ex) {
+                assert(ex.message == "Cannot create instance of type \"MyClass\" because it contains an abstract function \"Get\".");
+            }
+        });
+    </script>
+
+    <script>
+        testCase("metadata should reflect the real definition", function () {
+            var A = Class("A", {
+                X1: Private(0),
+                X2: Private(function () { }),
+                Y1: Protected(0),
+                Y2: Protected(function () { }),
+                Y3: Protected.Virtual(function () { }),
+                Y4: Protected.Abstract(),
+                Z1: Public(0),
+                Z2: Public(function () { }),
+                Z3: Public.Virtual(function () { }),
+                Z4: Public.Abstract(),
+            });
+
+            assert(A.FullName == "A");
+            assert(A.BaseClasses.length == 0);
+            assert(A.FlattenedBaseClasses.length == 0);
+
+            var member = A.Description.X1;
+            assert(member instanceof __PrivateMember);
+            assert(member.DeclaringType == A);
+            assert(member.Virtual == __MemberBase.NORMAL);
+            assert(member.New == false);
+            assert(member.HiddenMembers.length == 0);
+            assert(member.Value == 0);
+
+            var member = A.Description.X2;
+            assert(member instanceof __PrivateMember);
+            assert(member.DeclaringType == A);
+            assert(member.Virtual == __MemberBase.NORMAL);
+            assert(member.New == false);
+            assert(member.HiddenMembers.length == 0);
+            assert(typeof member.Value == "function");
+
+            var member = A.Description.Y1;
+            assert(member instanceof __ProtectedMember);
+            assert(member.DeclaringType == A);
+            assert(member.Virtual == __MemberBase.NORMAL);
+            assert(member.New == false);
+            assert(member.HiddenMembers.length == 0);
+            assert(member.Value == 0);
+
+            var member = A.Description.Y2;
+            assert(member instanceof __ProtectedMember);
+            assert(member.DeclaringType == A);
+            assert(member.Virtual == __MemberBase.NORMAL);
+            assert(member.New == false);
+            assert(member.HiddenMembers.length == 0);
+            assert(typeof member.Value == "function");
+
+            var member = A.Description.Y3;
+            assert(member instanceof __ProtectedMember);
+            assert(member.DeclaringType == A);
+            assert(member.Virtual == __MemberBase.VIRTUAL);
+            assert(member.New == false);
+            assert(member.HiddenMembers.length == 0);
+            assert(typeof member.Value == "function");
+
+            var member = A.Description.Y4;
+            assert(member instanceof __ProtectedMember);
+            assert(member.DeclaringType == A);
+            assert(member.Virtual == __MemberBase.ABSTRACT);
+            assert(member.New == false);
+            assert(member.HiddenMembers.length == 0);
+            assert(typeof member.Value == "function");
+
+            var member = A.Description.Z1;
+            assert(member instanceof __PublicMember);
+            assert(member.DeclaringType == A);
+            assert(member.Virtual == __MemberBase.NORMAL);
+            assert(member.New == false);
+            assert(member.HiddenMembers.length == 0);
+            assert(member.Value == 0);
+
+            var member = A.Description.Z2;
+            assert(member instanceof __PublicMember);
+            assert(member.DeclaringType == A);
+            assert(member.Virtual == __MemberBase.NORMAL);
+            assert(member.New == false);
+            assert(member.HiddenMembers.length == 0);
+            assert(typeof member.Value == "function");
+
+            var member = A.Description.Z3;
+            assert(member instanceof __PublicMember);
+            assert(member.DeclaringType == A);
+            assert(member.Virtual == __MemberBase.VIRTUAL);
+            assert(member.New == false);
+            assert(member.HiddenMembers.length == 0);
+            assert(typeof member.Value == "function");
+
+            var member = A.Description.Z4;
+            assert(member instanceof __PublicMember);
+            assert(member.DeclaringType == A);
+            assert(member.Virtual == __MemberBase.ABSTRACT);
+            assert(member.New == false);
+            assert(member.HiddenMembers.length == 0);
+            assert(typeof member.Value == "function");
+
+            for (var i in A.FlattenedDescription) {
+                assert(A.FlattenedDescription[i] == A.Description[i]);
+            }
+
+            var B = Class("B", A, {
+                Y3: Protected.Override(function () { }),
+                Y4: Protected.Override(function () { }),
+                Z2: Public.New(function () { }),
+                Z3: Public.Override(function () { }),
+                Z4: Public.Override(function () { }),
+            });
+
+            assert(B.FullName == "B");
+            assert(B.BaseClasses.length == 1);
+            assert(B.BaseClasses[0] == A);
+            assert(B.FlattenedBaseClasses.length == 1);
+            assert(B.FlattenedBaseClasses[0] == A);
+
+            var member = B.Description.Y3;
+            assert(member instanceof __ProtectedMember);
+            assert(member.DeclaringType == B);
+            assert(member.Virtual == __MemberBase.OVERRIDE);
+            assert(member.New == false);
+            assert(member.HiddenMembers.length == 1);
+            assert(member.HiddenMembers[0] == A.Description.Y3);
+            assert(typeof member.Value == "function");
+
+            var member = B.Description.Y4;
+            assert(member instanceof __ProtectedMember);
+            assert(member.DeclaringType == B);
+            assert(member.Virtual == __MemberBase.OVERRIDE);
+            assert(member.New == false);
+            assert(member.HiddenMembers.length == 1);
+            assert(member.HiddenMembers[0] == A.Description.Y4);
+            assert(typeof member.Value == "function");
+
+            var member = B.Description.Z2;
+            assert(member instanceof __PublicMember);
+            assert(member.DeclaringType == B);
+            assert(member.Virtual == __MemberBase.NORMAL);
+            assert(member.New == true);
+            assert(member.HiddenMembers.length == 1);
+            assert(member.HiddenMembers[0] == A.Description.Z2);
+            assert(typeof member.Value == "function");
+
+            var member = B.Description.Z3;
+            assert(member instanceof __PublicMember);
+            assert(member.DeclaringType == B);
+            assert(member.Virtual == __MemberBase.OVERRIDE);
+            assert(member.New == false);
+            assert(member.HiddenMembers.length == 1);
+            assert(member.HiddenMembers[0] == A.Description.Z3);
+            assert(typeof member.Value == "function");
+
+            var member = B.Description.Z4;
+            assert(member instanceof __PublicMember);
+            assert(member.DeclaringType == B);
+            assert(member.Virtual == __MemberBase.OVERRIDE);
+            assert(member.New == false);
+            assert(member.HiddenMembers.length == 1);
+            assert(member.HiddenMembers[0] == A.Description.Z4);
+            assert(typeof member.Value == "function");
+
+            for (var i in B.FlattenedDescription) {
+                if (i == "Y3" || i == "Y4" || i == "Z2" || i == "Z3" || i == "Z4") {
+                    assert(B.FlattenedDescription[i] == B.Description[i]);
+                }
+                else {
+                    assert(B.FlattenedDescription[i] == A.Description[i]);
+                }
             }
         });
     </script>

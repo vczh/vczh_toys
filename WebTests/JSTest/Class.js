@@ -73,17 +73,23 @@ Object.defineProperty(__MemberBase, "NORMAL", {
     writable: false,
     value: 1,
 });
-Object.defineProperty(__MemberBase, "VIRTUAL", {
+Object.defineProperty(__MemberBase, "ABSTRACT", {
     configurable: false,
     enumerable: true,
     writable: false,
     value: 2,
 });
-Object.defineProperty(__MemberBase, "OVERRIDE", {
+Object.defineProperty(__MemberBase, "VIRTUAL", {
     configurable: false,
     enumerable: true,
     writable: false,
     value: 3,
+});
+Object.defineProperty(__MemberBase, "OVERRIDE", {
+    configurable: false,
+    enumerable: true,
+    writable: false,
+    value: 4,
 });
 
 function __PrivateMember(value) {
@@ -290,7 +296,7 @@ function __DefineOverride(accessor) {
 
 function __DefineAbstract(accessor) {
     __DefineDecorator(accessor, "Abstract", function (member) {
-        member.Virtual = __MemberBase.VIRTUAL;
+        member.Virtual = __MemberBase.ABSTRACT;
         member.Value = function () {
             throw new Error("Cannot call an abstract function.");
         }
@@ -668,6 +674,13 @@ function Class(fullName) {
 
     function Type() {
         var typeObject = arguments.callee;
+
+        for (var i in typeObject.FlattenedDescription) {
+            var member = typeObject.FlattenedDescription[i];
+            if (member.Virtual == __MemberBase.ABSTRACT) {
+                throw new Error("Cannot create instance of type \"" + typeObject.FullName + "\" because it contains an abstract function \"" + i + "\".");
+            }
+        }
 
         // create every internalReference, which is the value of "this" in member functions
         var accumulated = {};
