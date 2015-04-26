@@ -567,31 +567,61 @@ function Class(fullName) {
             if (scopeObject == undefined) {
                 scopeObject = {};
 
-                if (isDynamic) {
-                    if (isInternal) {
-                        // TODO:
-                        scopeObject= accumulated[type.FullName];
-                    }
-                    else {
-                        // TODO:
-                        scopeObject=accumulated[type.FullName];
-                    }
-                }
-                else {
-                    var flattened = type.FlattenedDescription;
-                    for (var i in flattened) {
-                        var member = flattened[i];
+                var flattened = type.FlattenedDescription;
+                for (var i in flattened) {
+                    (function () {
+                        var memberName = i;
+                        var member = flattened[memberName];
                         if (member instanceof __PublicMember || (isInternal && member instanceof __ProtectedMember)) {
-                            CopyReferencableMember(
-                                scopeObject,
-                                accumulated[type.FullName],
-                                i,
-                                member,
-                                false);
+                            ref = accumulated[type.FullName];
+
+                            if (isDynamic) {
+                                var prop = Object.getOwnPropertyDescriptor(ref, memberName);
+
+                                if (prop.get != undefined) { // property
+                                    Object.defineProperty(scopeObject, memberName, prop);
+                                }
+                                else if (prop.writable == false) {
+                                    if (prop.value instanceof __Event) { // event
+                                        Object.defineProperty(scopeObject, memberName, prop);
+                                    }
+                                    else { // function
+                                        Object.defineProperty(scopeObject, memberName, {
+                                            configurable: false,
+                                            enumerable: true,
+                                            writable: false,
+                                            value: function () {
+                                                return prop.value.apply(ref, arguments);
+                                            }
+                                        });
+                                    }
+                                }
+                                else { // field
+                                    Object.defineProperty(scopeObject, memberName, {
+                                        configurable: false,
+                                        enumerable: true,
+                                        get: function () {
+                                            return ref[memberName];
+                                        },
+                                        set: function (value) {
+                                            ref[memberName] = value;
+                                        },
+                                    });
+                                }
+                            }
+                            else {
+                                CopyReferencableMember(
+                                    scopeObject,
+                                    ref,
+                                    memberName,
+                                    member,
+                                    false);
+                            }
                         }
-                    }
+                    })();
                 }
 
+                Object.seal(scopeObject);
                 scopeCache[type.FullName] = scopeObject;
             }
 
