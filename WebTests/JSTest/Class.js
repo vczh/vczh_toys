@@ -570,7 +570,7 @@ function Class(fullName) {
                 if (isDynamic) {
                     Object.defineProperty(scopeObject, "__Original", {
                         configurable: false,
-                        enumerable: true,
+                        enumerable: false,
                         writable: false,
                         value: accumulated[typeObject.FullName],
                     });
@@ -578,7 +578,7 @@ function Class(fullName) {
                 else {
                     Object.defineProperty(scopeObject, "__Original", {
                         configurable: false,
-                        enumerable: true,
+                        enumerable: false,
                         writable: false,
                         value: externalReference,
                     });
@@ -648,7 +648,7 @@ function Class(fullName) {
         // externalReference.__Type
         Object.defineProperty(externalReference, "__Type", {
             configurable: false,
-            enumerable: true,
+            enumerable: false,
             writable: false,
             value: typeObject,
         });
@@ -656,7 +656,7 @@ function Class(fullName) {
         // externalReference.__Dynamic
         Object.defineProperty(externalReference, "__Dynamic", {
             configurable: false,
-            enumerable: true,
+            enumerable: false,
             writable: false,
             value: function (type) {
                 return GetScope(type, true, false);
@@ -666,7 +666,7 @@ function Class(fullName) {
         // externalReference.__Static
         Object.defineProperty(externalReference, "__Static", {
             configurable: false,
-            enumerable: true,
+            enumerable: false,
             writable: false,
             value: function (type) {
                 return GetScope(type, false, false);
@@ -680,7 +680,7 @@ function Class(fullName) {
             // this.__Type
             Object.defineProperty(ref, "__Type", {
                 configurable: false,
-                enumerable: true,
+                enumerable: false,
                 writable: false,
                 value: typeObject,
             });
@@ -688,7 +688,7 @@ function Class(fullName) {
             // this.__ExternalReference
             Object.defineProperty(ref, "__ExternalReference", {
                 configurable: false,
-                enumerable: true,
+                enumerable: false,
                 writable: false,
                 value: externalReference,
             });
@@ -696,7 +696,7 @@ function Class(fullName) {
             // this.__Dynamic(type)
             Object.defineProperty(ref, "__Dynamic", {
                 configurable: false,
-                enumerable: true,
+                enumerable: false,
                 writable: false,
                 value: function (type) {
                     return GetScope(type, true, true);
@@ -706,7 +706,7 @@ function Class(fullName) {
             // this.__Static(type)
             Object.defineProperty(ref, "__Static", {
                 configurable: false,
-                enumerable: true,
+                enumerable: false,
                 writable: false,
                 value: function (type) {
                     return GetScope(type, false, true);
@@ -716,7 +716,7 @@ function Class(fullName) {
             // this.__InitBase(type)
             Object.defineProperty(ref, "__InitBase", {
                 configurable: true,
-                enumerable: true,
+                enumerable: false,
                 writable: false,
                 value: function (type, args) {
                     if (refType.BaseClasses.indexOf(type) == -1) {
