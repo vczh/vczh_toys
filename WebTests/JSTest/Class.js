@@ -775,6 +775,17 @@ function Class(fullName) {
         }
     }
 
+    var flattenedBaseClassNames = {};
+    for (var i in flattenedBaseClasses) {
+        var name = flattenedBaseClasses[i].FullName;
+        if (flattenedBaseClassNames.hasOwnProperty(name)) {
+            throw new Error("Type \"" + fullName + "\" cannot inherit from multiple types of the same name \"" + type.FullName + "\".");
+        }
+        else {
+            flattenedBaseClassNames[name] = null;
+        }
+    }
+
     for (var i in directBaseClasses) {
         var baseClass = directBaseClasses[i];
         var baseFlattened = baseClass.FlattenedBaseClasses;
