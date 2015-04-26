@@ -427,7 +427,7 @@
                 GetX: Protected.Override(function () {
                     return "U";
                 }),
-                GetY: Protected(function () {
+                GetY: Protected.New(function () {
                     return "V";
                 }),
             });
@@ -455,7 +455,7 @@
                 GetX: Protected.Override(function () {
                     return "U";
                 }),
-                GetY: Protected(function () {
+                GetY: Protected.New(function () {
                     return "V";
                 }),
             });
@@ -509,7 +509,7 @@
                 GetX: Protected.Override(function () {
                     return "A";
                 }),
-                GetY: Protected(function () {
+                GetY: Protected.New(function () {
                     return "B";
                 }),
                 GetZ: Protected.Override(function () {
@@ -739,7 +739,7 @@
             });
 
             var B = Class("B", A, {
-                GetX: Public(function () {
+                GetX: Public.New(function () {
                     return "A";
                 }),
             });
@@ -749,17 +749,33 @@
                     return "B";
                 }),
 
-                Get: Public(function () {
-                    var a = this.__Scope(A);
-                    var b = this.__Scope(B);
-                    return this.GetX() + ", " + this.GetY() +
-                        ", " + a.GetX() + ", " + a.GetY() +
-                        ", " + b.GetX() + ", " + b.GetY();
+                Get1: Public(function () {
+                    return this.GetX() + ", " + this.GetY();
+                }),
+                Get2: Public(function () {
+                    var s = this.__Dynamic(A);
+                    return s.GetX() + ", " + s.GetY();
+                }),
+                Get3: Public(function () {
+                    var s = this.__Dynamic(B);
+                    return s.GetX() + ", " + s.GetY();
+                }),
+                Get4: Public(function () {
+                    var s = this.__Static(A);
+                    return s.GetX() + ", " + s.GetY();
+                }),
+                Get5: Public(function () {
+                    var s = this.__Static(B);
+                    return s.GetX() + ", " + s.GetY();
                 }),
             });
 
             var c = new C();
-            assert(c.Get() == "A, B, X, Y, A, Y");
+            assert(c.Get1() == "A, B");
+            assert(c.Get2() == "X, B");
+            assert(c.Get3() == "A, B");
+            assert(c.Get4() == "X, Y");
+            assert(c.Get5() == "A, Y");
         });
     </script>
 
@@ -773,7 +789,7 @@
                 assert(false);
             }
             catch (ex) {
-                assert(ex.message == "Cannot non-virtually inherit from type \"A\" multiple times.");
+                assert(ex.message == "Type \"D\" cannot non-virtually inherit from type \"A\" multiple times.");
             }
         });
     </script>
@@ -793,7 +809,7 @@
                 assert(false);
             }
             catch (ex) {
-                assert(ex.message == "Cannot inherit multiple members of the same name \"Get\" without defining a new one.");
+                assert(ex.message == "Type \"C\" cannot inherit multiple members of the same name \"Get\" without defining a new one.");
             }
 
             try {
@@ -808,7 +824,7 @@
                 var C = Class("C", A, B, {});
             }
             catch (ex) {
-                assert(ex.message == "Cannot inherit multiple members of the same name \"Get\" without defining a new one.");
+                assert(ex.message == "Type \"C\" cannot inherit multiple members of the same name \"Get\" without defining a new one.");
             }
 
 
@@ -835,7 +851,7 @@
                 assert(false);
             }
             catch (ex) {
-                assert(ex.message == "Cannot find virtual function \"Get\" to override.");
+                assert(ex.message == "Type \"B\" cannot find virtual function \"Get\" to override.");
             }
 
             try {
@@ -848,7 +864,7 @@
                 assert(false);
             }
             catch (ex) {
-                assert(ex.message == "Cannot override non-virtual function \"Get\".");
+                assert(ex.message == "Type \"B\" cannot override non-virtual function \"Get\".");
             }
 
             try {
@@ -864,7 +880,7 @@
                 assert(false);
             }
             catch (ex) {
-                assert(ex.message == "Cannot override non-virtual function \"Get\".");
+                assert(ex.message == "Type \"C\" cannot override non-virtual function \"Get\".");
             }
         });
     </script>
@@ -881,7 +897,7 @@
                 assert(false);
             }
             catch (ex) {
-                assert(ex.message == "Cannot hide virtual function \"Get\" without overriding.");
+                assert(ex.message == "Type \"B\" cannot hide virtual function \"Get\" without overriding.");
             }
 
             try {
@@ -896,7 +912,7 @@
                 });
             }
             catch (ex) {
-                assert(ex.message == "Cannot hide virtual function \"Get\" without overriding.");
+                assert(ex.message == "Type \"C\" cannot hide virtual function \"Get\" without overriding.");
             }
         });
     </script>
@@ -913,7 +929,7 @@
                 assert(false);
             }
             catch (ex) {
-                assert(ex.message == "Cannot hide event \"Event\".");
+                assert(ex.message == "Type \"B\" cannot hide event \"Event\".");
             }
 
             try {
@@ -926,7 +942,7 @@
                 assert(false);
             }
             catch (ex) {
-                assert(ex.message == "Cannot hide event \"Event\".");
+                assert(ex.message == "Type \"B\" cannot hide event \"Event\".");
             }
         });
     </script>

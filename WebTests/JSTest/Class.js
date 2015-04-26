@@ -2,17 +2,13 @@
 API:
     this.__Type                                 // Get the real type that creates this object.
     this.__ExternalReference                    // Get the external reference of this instance, for passing the value of "this" out of the class.
-    this.__Scope(type)                          // Get the scope object of a base class.
+    this.__Dynamic(type)                        // Get the dynamic scope object of a base class.
+    this.__Static(type)                         // Get the static scope object of a base class.
     this.__InitBase(type, [arguments])          // Call the constructor of the base class.
 
     obj.__Type                                  // Get the real type that creates this object.
-
-    Type.FullName                               // Get the full name
-    Type.Description                            // Get all declared members in this type
-    Type.FlattenedDescription                   // Get all potentially visible members in this type
-    Type.BaseClasses                            // Get all direct base classes of this type
-    Type.FlattenedBaseClasses                   // Get all direct or indirect base classes of this type
-    Type.IsAssignableFrom(childType)            // Returns true if "childType" is or inherits from "Type"
+    obj.__Dynamic(type)                         // Get the dynamic scope object of a base class.
+    obj.__Static(type)                          // Get the static scope object of a base class.
 
     handler = Event.Attach(xxx);
     Event.Detach(handler);
@@ -32,6 +28,33 @@ API:
             eventName: "EventNameToOverride",   // (optional, "MemberChanged")  implies hasEvent: true
         }),
     });
+
+    class Type {
+        string                      FullName;               // Get the full name
+        map<string, __MemberBase>   Description;            // Get all declared members in this type
+        map<string, __MemberBase>   FlattenedDescription;   // Get all potentially visible members in this type
+        Type[]                      BaseClasses;            // Get all direct base classes of this type
+        Type[]                      FlattenedBaseClasses;   // Get all direct or indirect base classes of this type
+
+        bool IsAssignableFrom(Type childType);              // Returns true if "childType" is or inherits from "Type"
+    }
+
+    class __MemberBase {
+        enum <VirtualType> {
+            NORMAL,
+            VIRTUAL,
+            OVERRIDE,
+        }
+
+        Type            DeclaringType;
+        <VirtualType>   Virtual;
+        bool            New;
+        object          Value;
+    }
+
+    class __PrivateMember : __MemberBase {}
+    class __ProtectedMember : __MemberBase {}
+    class __PublicMember : __MemberBase {}
 */
 
 function __MemberBase() {
@@ -562,6 +585,26 @@ function Class(fullName) {
             value: typeObject,
         });
 
+        // externalReference.__Dynamic
+        Object.defineProperty(externalReference, "__Dynamic", {
+            configurable: false,
+            enumerable: true,
+            writable: false,
+            value: function (type) {
+                throw new Error("Not implemented.");
+            },
+        });
+
+        // externalReference.__Static
+        Object.defineProperty(externalReference, "__Static", {
+            configurable: false,
+            enumerable: true,
+            writable: false,
+            value: function (type) {
+                throw new Error("Not implemented.");
+            },
+        });
+
         for (var i in accumulatedBaseReferences) {
             var refType = accumulatedBaseClasses[i];
             var ref = accumulatedBaseReferences[i];
@@ -582,13 +625,23 @@ function Class(fullName) {
                 value: externalReference,
             });
 
-            // this.__Scope(type)
-            Object.defineProperty(ref, "__Scope", {
+            // this.__Dynamic(type)
+            Object.defineProperty(ref, "__Dynamic", {
                 configurable: false,
                 enumerable: true,
                 writable: false,
                 value: function (type) {
-                    return undefined;
+                    throw new Error("Not implemented.");
+                },
+            });
+
+            // this.__Static(type)
+            Object.defineProperty(ref, "__Static", {
+                configurable: false,
+                enumerable: true,
+                writable: false,
+                value: function (type) {
+                    throw new Error("Not implemented.");
                 },
             });
 
@@ -711,7 +764,7 @@ function Class(fullName) {
             flattenedBaseClasses.push(type);
         }
         else {
-            throw new Error("Cannot non-virtually inherit from type \"" + type.FullName + "\" multiple times.");
+            throw new Error("Type \"" + fullName + "\" cannot non-virtually inherit from type \"" + type.FullName + "\" multiple times.");
         }
     }
 
@@ -743,7 +796,7 @@ function Class(fullName) {
 
             if (flattenedDescription.hasOwnProperty(name)) {
                 if (!description.hasOwnProperty(name)) {
-                    throw new Error("Cannot inherit multiple members of the same name \"" + name + "\" without defining a new one.");
+                    throw new Error("Type \"" + fullName + "\" cannot inherit multiple members of the same name \"" + name + "\" without defining a new one.");
                 }
             }
         }
@@ -765,21 +818,24 @@ function Class(fullName) {
 
         if (flattenedMember == undefined) {
             if (member.Virtual == __MemberBase.OVERRIDE) {
-                throw new Error("Cannot find virtual function \"" + i + "\" to override.");
+                throw new Error("Type \"" + fullName + "\" cannot find virtual function \"" + i + "\" to override.");
             }
         }
         else {
             if (flattenedMember.Value instanceof __Event) {
-                throw new Error("Cannot hide event \"" + i + "\".");
+                throw new Error("Type \"" + fullName + "\" cannot hide event \"" + i + "\".");
             }
             else if (member.Virtual == __MemberBase.OVERRIDE) {
                 if (flattenedMember.Virtual == __MemberBase.NORMAL) {
-                    throw new Error("Cannot override non-virtual function \"" + i + "\".");
+                    throw new Error("Type \"" + fullName + "\" cannot override non-virtual function \"" + i + "\".");
                 }
             }
             else if (!member.New) {
-                if (flattenedMember.Virtual != __MemberBase.NORMAL) {
-                    throw new Error("Cannot hide virtual function \"" + i + "\" without overriding.");
+                if (flattenedMember.Virtual == __MemberBase.NORMAL) {
+                    throw new Error("Type \"" + fullName + "\" cannot hide function \"" + i + "\" without new.");
+                }
+                else {
+                    throw new Error("Type \"" + fullName + "\" cannot hide virtual function \"" + i + "\" without overriding.");
                 }
             }
         }
