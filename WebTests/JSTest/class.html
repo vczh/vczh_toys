@@ -581,8 +581,46 @@
     </script>
 
     <script>
-        testCase("<constructor in virtual base classes>", function () {
-            emptyCase();
+        testCase("constructors of virtual base classes can only be called by the final created type if there are multiple inheriting path to the same virtual base class", function () {
+            var A = Class("A", {
+                value: Protected(0),
+                Get: Public(function () {
+                    return this.value;
+                }),
+                __Constructor:Public(function(value){
+                    this.value = value;
+                }),
+            });
+
+            var B = Class("B", Virtual(A), {
+                __Constructor: Public(function () {
+                    this.__InitBase(A, [1]);
+                })
+            });
+
+            var C = Class("C", Virtual(A), {
+                __Constructor: Public(function () {
+                    this.__InitBase(A, [2]);
+                })
+            });
+
+            var D = Class("D", B, C, {
+                __Constructor: Public(function () {
+                    this.__InitBase(A, [3]);
+                    this.__InitBase(B, []);
+                    this.__InitBase(C, []);
+                })
+            });
+
+            var a = new A(-1);
+            var b = new B();
+            var c = new C();
+            var d = new D();
+
+            assert(a.Get() == -1);
+            assert(b.Get() == 1);
+            assert(c.Get() == 2);
+            assert(d.Get() == 3);
         });
     </script>
 
