@@ -10,6 +10,7 @@ API:
     obj.__Type                                  // Get the real type that creates this object.
     obj.__Dynamic(type)                         // Get the dynamic scope object of a base class.
     obj.__Static(type)                          // Get the static scope object of a base class.
+    scope.__Original                            // Get the original object that creates this scope object.
 
     handler = Event.Attach(xxx);
     Event.Detach(handler);
@@ -22,11 +23,11 @@ API:
         Member: (Public|Protected).Abstract();
         Member: Public.Event();
         Member: Public.Property({
-            readonly: true | false,             // (optional, false)
-            hasEvent: true | false,             // (optional, false)
-            getterName: "GetterNameToOverride", // (optional, "GetMember")
-            setterName: "SetterNameToOverride", // (optional, "SetMember")      implies readonly: false
-            eventName: "EventNameToOverride",   // (optional, "MemberChanged")  implies hasEvent: true
+            readonly: true | false,             // (optional), false
+            hasEvent: true | false,             // (optional), false
+            getterName: "GetterNameToOverride", // (optional), "GetMember"
+            setterName: "SetterNameToOverride", // (optional), "SetMember",     implies readonly: false
+            eventName: "EventNameToOverride",   // (optional), "MemberChanged", implies hasEvent: true
         }),
     });
 
@@ -566,6 +567,22 @@ function Class(fullName) {
 
             if (scopeObject == undefined) {
                 scopeObject = {};
+                if (isDynamic) {
+                    Object.defineProperty(scopeObject, "__Original", {
+                        configurable: false,
+                        enumerable: true,
+                        writable: false,
+                        value: accumulated[typeObject.FullName],
+                    });
+                }
+                else {
+                    Object.defineProperty(scopeObject, "__Original", {
+                        configurable: false,
+                        enumerable: true,
+                        writable: false,
+                        value: externalReference,
+                    });
+                }
 
                 var flattened = type.FlattenedDescription;
                 for (var i in flattened) {
