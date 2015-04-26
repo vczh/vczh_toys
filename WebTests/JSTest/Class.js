@@ -425,7 +425,7 @@ function Class(fullName) {
                         var setterName = member.Value.SetterName;
 
                         Object.defineProperty(internalReference, name, {
-                            configurable: false,
+                            configurable: true,
                             enumerable: true,
                             get: function () {
                                 return internalReference[getterName].apply(internalReference, []);
@@ -438,7 +438,7 @@ function Class(fullName) {
                 }
                 else {
                     Object.defineProperty(internalReference, name, {
-                        configurable: member.Virtual != __MemberBase.NORMAL,
+                        configurable: true,
                         enumerable: true,
                         writable: typeof member.Value != "function" && !(member.Value instanceof __Event),
                         value: member.Value,
@@ -450,7 +450,7 @@ function Class(fullName) {
         return internalReference;
     }
 
-    function CopyReferencableMember(target, source, memberName, member, forceReplace) {
+    function CopyReferencableMember(target, source, memberName, member, forceReplace, forInternalReference) {
         // copy a closured member from one internal reference to another
         if (target.hasOwnProperty(memberName)) {
             if (!forceReplace) {
@@ -460,7 +460,7 @@ function Class(fullName) {
 
         if (typeof member.Value == "function") {
             Object.defineProperty(target, memberName, {
-                configurable: member.Virtual != __MemberBase.NORMAL,
+                configurable: forInternalReference,
                 enumerable: true,
                 writable: false,
                 value: function () {
@@ -471,7 +471,7 @@ function Class(fullName) {
         else {
             var readonly = member.Value instanceof __Property && member.Value.Readonly;
             Object.defineProperty(target, memberName, {
-                configurable: false,
+                configurable: forInternalReference,
                 enumerable: true,
                 get: function () {
                     return source[memberName];
@@ -493,11 +493,11 @@ function Class(fullName) {
 
                     if (member instanceof __ProtectedMember) {
                         if (forInternalReference) {
-                            CopyReferencableMember(target, source, memberName, member, false);
+                            CopyReferencableMember(target, source, memberName, member, false, forInternalReference);
                         }
                     }
                     else if (member instanceof __PublicMember) {
-                        CopyReferencableMember(target, source, memberName, member, false);
+                        CopyReferencableMember(target, source, memberName, member, false, forInternalReference);
                     }
                 })();
             }
@@ -513,7 +513,7 @@ function Class(fullName) {
             var targetMember = targetDescription[memberName];
             if (targetMember != undefined) {
                 if (targetMember.Virtual == __MemberBase.VIRTUAL || targetMember.Virtual == __MemberBase.OVERRIDE) {
-                    CopyReferencableMember(target, source, memberName, member, true);
+                    CopyReferencableMember(target, source, memberName, member, true, true);
                 }
                 if (targetMember.New == true) {
                     continue;
@@ -538,6 +538,7 @@ function Class(fullName) {
         // create an internal reference from a type with inherited members
         var description = type.Description;
         var baseClasses = type.BaseClasses;
+        var baseInstances = new Array(baseClasses.length);
 
         for (var i = 0; i <= baseClasses.length; i++) {
             if (i == baseClasses.length) {
@@ -548,11 +549,11 @@ function Class(fullName) {
                 OverrideVirtualFunctions(internalReference, type, accumulatedBaseClasses, accumulatedBaseReferences);
 
                 // inherit members from base classes
-                for (var j = 0; j < accumulatedBaseClasses.length; j++) {
+                for (var j = 0; j < baseClasses.length; j++) {
                     CopyReferencableMembers(
                         internalReference,
-                        accumulatedBaseReferences[j],
-                        accumulatedBaseClasses[j].Description,
+                        baseInstances[j],
+                        baseClasses[j].Description,
                         true);
                 }
 
@@ -572,6 +573,7 @@ function Class(fullName) {
                     baseClasses[i],
                     accumulatedBaseClasses,
                     accumulatedBaseReferences);
+                baseInstances[i] = baseInstance;
             }
         }
     }
