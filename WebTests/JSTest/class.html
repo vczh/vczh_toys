@@ -776,6 +776,22 @@
             assert(c.Get3() == "A, B");
             assert(c.Get4() == "X, Y");
             assert(c.Get5() == "A, Y");
+
+            var da = c.__Dynamic(A);
+            assert(da.GetX() == "X");
+            assert(da.GetY() == "B");
+
+            var db = c.__Dynamic(B);
+            assert(db.GetX() == "A");
+            assert(db.GetY() == "B");
+
+            var sa = c.__Static(A);
+            assert(sa.GetX() == "X");
+            assert(sa.GetY() == "Y");
+
+            var sb = c.__Static(B);
+            assert(sb.GetX() == "A");
+            assert(sb.GetY() == "Y");
         });
     </script>
 

@@ -579,6 +579,11 @@ function Class(fullName) {
     }
 
     function InjectObjects(externalReference, typeObject, accumulatedBaseClasses, accumulatedBaseReferences, initBaseFlags) {
+
+        function GetScope(type, isDynamic, isInternal) {
+            throw new Error("Not implemented.");
+        }
+
         // externalReference.__Type
         Object.defineProperty(externalReference, "__Type", {
             configurable: false,
@@ -593,7 +598,7 @@ function Class(fullName) {
             enumerable: true,
             writable: false,
             value: function (type) {
-                throw new Error("Not implemented.");
+                return GetScope(type, true, false);
             },
         });
 
@@ -603,7 +608,7 @@ function Class(fullName) {
             enumerable: true,
             writable: false,
             value: function (type) {
-                throw new Error("Not implemented.");
+                return GetScope(type, false, false);
             },
         });
 
@@ -633,7 +638,7 @@ function Class(fullName) {
                 enumerable: true,
                 writable: false,
                 value: function (type) {
-                    throw new Error("Not implemented.");
+                    return GetScope(type, true, true);
                 },
             });
 
@@ -643,7 +648,7 @@ function Class(fullName) {
                 enumerable: true,
                 writable: false,
                 value: function (type) {
-                    throw new Error("Not implemented.");
+                    return GetScope(type, false, true);
                 },
             });
 
@@ -653,8 +658,8 @@ function Class(fullName) {
                 enumerable: true,
                 writable: false,
                 value: function (type, args) {
-                    if (typeObject.BaseClasses.indexOf(type) == -1) {
-                        throw new Error("Type \"" + typeObject.FullName + "\" does not directly inherit from \"" + type.FullName + "\".");
+                    if (refType.BaseClasses.indexOf(type) == -1) {
+                        throw new Error("Type \"" + refType.FullName + "\" does not directly inherit from \"" + type.FullName + "\".");
                     }
 
                     var index = accumulatedBaseClasses.indexOf(type);
