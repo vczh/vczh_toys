@@ -613,13 +613,15 @@
             });
 
             var a = new A(-1);
-            var b = new B();
-            var c = new C();
-            var d = new D();
-
             assert(a.Get() == -1);
+
+            var b = new B();
             assert(b.Get() == 1);
+
+            var c = new C();
             assert(c.Get() == 2);
+
+            var d = new D();
             assert(d.Get() == 3);
         });
     </script>
