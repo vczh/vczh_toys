@@ -32,6 +32,7 @@ API:
     });
 
     class Type {
+        bool                        VirtualClass            // True if this type contains unoverrided abstract members
         string                      FullName;               // Get the full name
         map<string, __MemberBase>   Description;            // Get all declared members in this type
         map<string, __MemberBase>   FlattenedDescription;   // Get all potentially visible members in this type
@@ -132,7 +133,7 @@ function __Event() {
 
     Object.defineProperty(this, "Attach", {
         configurable: false,
-        enumerable: false,
+        enumerable: true,
         writable: false,
         value: function (func) {
             if (typeof func != "function") {
@@ -146,7 +147,7 @@ function __Event() {
 
     Object.defineProperty(this, "Detach", {
         configurable: false,
-        enumerable: false,
+        enumerable: true,
         writable: false,
         value: function (handler) {
             var index = handlers.indexOf(handler);
@@ -159,7 +160,7 @@ function __Event() {
 
     Object.defineProperty(this, "Execute", {
         configurable: false,
-        enumerable: false,
+        enumerable: true,
         writable: false,
         value: function () {
             for (var i in handlers) {
@@ -523,7 +524,7 @@ function Class(fullName) {
         }
     }
 
-    function CreateCompleteInternalReference(type, accumulated) {
+    function CreateCompleteInternalReference(type, accumulated, forVirtualBaseClass) {
         // create an internal reference from a type with inherited members
         var description = type.Description;
         var baseClasses = type.BaseClasses;
@@ -531,8 +532,19 @@ function Class(fullName) {
 
         for (var i = 0; i <= baseClasses.length; i++) {
             if (i == baseClasses.length) {
+                // only create one internal reference for one virtual base class
+                var instanceReference = accumulated[type.FullName];
+                if (instanceReference != undefined) {
+                    if (forVirtualBaseClass) {
+                        return instanceReference;
+                    }
+                    else {
+                        throw new Error("Internal error: Internal reference for type \"" + type.FullName + "\" has already been created.");
+                    }
+                }
+
                 // create the internal reference for the current type
-                var internalReference = CreateInternalReference(type);
+                internalReference = CreateInternalReference(type);
 
                 // override virtual functions in base internal references
                 OverrideVirtualFunctions(internalReference, type, accumulated);
@@ -547,19 +559,15 @@ function Class(fullName) {
                 }
 
                 accumulated[type.FullName] = internalReference;
-
-                // implement __GetBase
-                internalReference.__GetBase = function (baseType) {
-                    return accumulated[baseType.FullName];
-                }
-
                 return internalReference;
             }
             else {
                 // create a complete internal reference for a base class
+                var baseClass = baseClasses[i];
                 var baseInstance = CreateCompleteInternalReference(
-                    baseClasses[i].Type,
-                    accumulated);
+                    baseClass.Type,
+                    accumulated,
+                    baseClass.Virtual);
                 baseInstances[i] = baseInstance;
             }
         }
@@ -771,10 +779,12 @@ function Class(fullName) {
     function Type() {
         var typeObject = arguments.callee;
 
-        for (var i in typeObject.FlattenedDescription) {
-            var member = typeObject.FlattenedDescription[i];
-            if (member.Virtual == __MemberBase.ABSTRACT) {
-                throw new Error("Cannot create instance of type \"" + typeObject.FullName + "\" because it contains an abstract function \"" + i + "\".");
+        if (typeObject.VirtualClass) {
+            for (var i in typeObject.FlattenedDescription) {
+                var member = typeObject.FlattenedDescription[i];
+                if (member.Virtual == __MemberBase.ABSTRACT) {
+                    throw new Error("Cannot create instance of type \"" + typeObject.FullName + "\" because it contains an abstract function \"" + i + "\".");
+                }
             }
         }
 
@@ -782,7 +792,8 @@ function Class(fullName) {
         var accumulated = {};
         var internalReference = CreateCompleteInternalReference(
             typeObject,
-            accumulated);
+            accumulated,
+            false);
 
         // create the externalReference
         var externalReference = {};
@@ -898,9 +909,13 @@ function Class(fullName) {
 
             if (member == undefined) {
                 if (flattenedDescription[name] != undefined) {
-                    throw new Error("Type \"" + fullName + "\" cannot inherit multiple members of the same name \"" + name + "\" without defining a new one.");
+                    if (flattenedBaseClassNames[baseMember.DeclaringType.FullName].Virtual == false) {
+                        throw new Error("Type \"" + fullName + "\" cannot inherit multiple members of the same name \"" + name + "\" without defining a new one.");
+                    }
                 }
-                flattenedDescription[name] = baseMember;
+                else {
+                    flattenedDescription[name] = baseMember;
+                }
             }
             else {
                 member.HiddenMembers.push(baseMember);
@@ -948,6 +963,21 @@ function Class(fullName) {
             }
         }
     }
+
+    // Type.VirtualClass
+    var isVirtualClass = false;
+    for (var i in flattenedDescription) {
+        var member = flattenedDescription[i];
+        if (member.Virtual == __MemberBase.ABSTRACT) {
+            isVirtualClass = true;
+        }
+    }
+    Object.defineProperty(Type, "VirtualClass", {
+        configurable: false,
+        enumerable: true,
+        writable: false,
+        value: isVirtualClass,
+    });
 
     // Type.FullName
     Object.defineProperty(Type, "FullName", {
