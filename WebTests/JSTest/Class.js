@@ -558,6 +558,17 @@ function Class(fullName) {
                         true);
                 }
 
+                // this.__FromVirtualBaseClass (deleted after constructor)
+                internalReference.__FromVirtualBaseClass = forVirtualBaseClass;
+
+                if (description.__Constructor !== undefined) {
+                    // this.__ConstructedBy (deleted after constructor)
+                    internalReference.__ConstructedBy = null;
+
+                    // this.__CanBeConstructedBy (deleted after constructor)
+                    internalReference.__CanBeConstructedBy = null;
+                }
+
                 accumulated[type.FullName] = internalReference;
                 return internalReference;
             }
@@ -568,12 +579,13 @@ function Class(fullName) {
                     baseClass.Type,
                     accumulated,
                     baseClass.Virtual);
+                baseInstance.__CanBeConstructedBy = type;
                 baseInstances[i] = baseInstance;
             }
         }
     }
 
-    function InjectObjects(externalReference, typeObject, accumulated, initBaseFlags) {
+    function InjectObjects(externalReference, typeObject, accumulated) {
 
         diScope = {};
         deScope = {};
@@ -697,72 +709,81 @@ function Class(fullName) {
         });
 
         for (var i in accumulated) {
-            var ref = accumulated[i];
-            var refType = ref.__ScopeType;
+            (function () {
+                var ref = accumulated[i];
+                var refType = ref.__ScopeType;
 
-            // this.__Type
-            Object.defineProperty(ref, "__Type", {
-                configurable: false,
-                enumerable: false,
-                writable: false,
-                value: typeObject,
-            });
+                // this.__Type
+                Object.defineProperty(ref, "__Type", {
+                    configurable: false,
+                    enumerable: false,
+                    writable: false,
+                    value: typeObject,
+                });
 
-            // this.__ExternalReference
-            Object.defineProperty(ref, "__ExternalReference", {
-                configurable: false,
-                enumerable: false,
-                writable: false,
-                value: externalReference,
-            });
+                // this.__ExternalReference
+                Object.defineProperty(ref, "__ExternalReference", {
+                    configurable: false,
+                    enumerable: false,
+                    writable: false,
+                    value: externalReference,
+                });
 
-            // this.__Dynamic(type)
-            Object.defineProperty(ref, "__Dynamic", {
-                configurable: false,
-                enumerable: false,
-                writable: false,
-                value: function (type) {
-                    return GetScope(type, true, true);
-                },
-            });
+                // this.__Dynamic(type)
+                Object.defineProperty(ref, "__Dynamic", {
+                    configurable: false,
+                    enumerable: false,
+                    writable: false,
+                    value: function (type) {
+                        return GetScope(type, true, true);
+                    },
+                });
 
-            // this.__Static(type)
-            Object.defineProperty(ref, "__Static", {
-                configurable: false,
-                enumerable: false,
-                writable: false,
-                value: function (type) {
-                    return GetScope(type, false, true);
-                },
-            });
+                // this.__Static(type)
+                Object.defineProperty(ref, "__Static", {
+                    configurable: false,
+                    enumerable: false,
+                    writable: false,
+                    value: function (type) {
+                        return GetScope(type, false, true);
+                    },
+                });
 
-            // this.__InitBase(type)
-            Object.defineProperty(ref, "__InitBase", {
-                configurable: true,
-                enumerable: false,
-                writable: false,
-                value: function (type, args) {
-                    if (!refType.BaseClasses.some(function (baseClass) {
-                        return baseClass.Type === type;
-                    })) {
-                        throw new Error("Type \"" + refType.FullName + "\" does not directly inherit from \"" + type.FullName + "\".");
-                    }
+                // this.__InitBase(type) (deleted after constructor)
+                Object.defineProperty(ref, "__InitBase", {
+                    configurable: true,
+                    enumerable: false,
+                    writable: false,
+                    value: function (type, args) {
+                        var baseRef = accumulated[type.FullName];
+                        if (baseRef === undefined) {
+                            throw new Error("Type \"" + refType.FullName + "\" does not directly inherit from \"" + type.FullName + "\".");
+                        }
 
-                    baseRef = accumulated[type.FullName];
-                    ctor = baseRef.__Constructor;
-                    if (ctor === undefined) {
-                        throw new Error("Type\"" + type.FullName + "\" does not have a constructor.");
-                    }
+                        if (baseRef.__CanBeConstructedBy !== refType) {
+                            if (baseRef.__FromVirtualBaseClass) {
+                                return;
+                            }
+                            else {
+                                throw new Error("In the construction of type \"" + typeObject.FullName + "\", type \"" + refType.FullName + "\" cannot initialize type \"" + type.FullName + "\" because the correct type to initialize it is \"" + baseRef.__CanBeConstructedBy.FullName + "\".");
+                            }
+                        }
 
-                    if (initBaseFlags[type.FullName] !== undefined) {
-                        throw new Error("The constructor of type \"" + type.FullName + "\" has already been executed.");
-                    }
-                    else {
-                        ctor.apply(baseRef, args);
-                        initBaseFlags[type.FullName] = type;
-                    }
-                },
-            });
+                        var ctor = baseRef.__Constructor;
+                        if (ctor === undefined) {
+                            throw new Error("Type\"" + type.FullName + "\" does not have a constructor.");
+                        }
+
+                        if (baseRef.__ConstructedBy === null) {
+                            ctor.apply(baseRef, args);
+                            baseRef.__ConstructedBy = refType;
+                        }
+                        else {
+                            throw new Error("The constructor of type \"" + type.FullName + "\" has already been executed by \"" + baseRef.__ConstructedBy.FullName + "\".");
+                        }
+                    },
+                });
+            })();
         }
     }
 
@@ -809,8 +830,7 @@ function Class(fullName) {
         }
 
         // inject API into references
-        initBaseFlags = {};
-        InjectObjects(externalReference, typeObject, accumulated, initBaseFlags);
+        InjectObjects(externalReference, typeObject, accumulated);
 
         // call the constructor
         externalReference.__proto__ = typeObject.prototype;
@@ -822,7 +842,7 @@ function Class(fullName) {
         for (var i in accumulated) {
             var ref = accumulated[i];
             if (ref !== internalReference) {
-                if (ref.__Constructor !== undefined && initBaseFlags[i] === undefined) {
+                if (ref.__ConstructedBy === null) {
                     throw new Error("The constructor of type \"" + ref.__ScopeType.FullName + "\" has never been executed.");
                 }
             }
@@ -830,6 +850,9 @@ function Class(fullName) {
 
         // delete every __InitBase so that this function can only be called when constructing the object
         for (var i in accumulated) {
+            delete accumulated[i].__FromVirtualBaseClass;
+            delete accumulated[i].__ConstructedBy;
+            delete accumulated[i].__CanBeConstructedBy;
             delete accumulated[i].__InitBase;
         }
 
