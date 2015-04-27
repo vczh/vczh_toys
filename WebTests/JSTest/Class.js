@@ -38,6 +38,7 @@ API:
         map<string, __MemberBase>   FlattenedDescription;   // Get all potentially visible members in this type
         __BaseClass[]               BaseClasses;            // Get all direct base classes of this type
         __BaseClass[]               FlattenedBaseClasses;   // Get all direct or indirect base classes of this type
+        map<string, Type>           VirtuallyConstructedBy; // If type of "key" virtually inherits this type, than this type can only be constructed by "value"
 
         bool IsAssignableFrom(Type childType);              // Returns true if "childType" is or inherits from "Type"
     }
@@ -524,7 +525,7 @@ function Class(fullName) {
         }
     }
 
-    function CreateCompleteInternalReference(type, accumulated, forVirtualBaseClass) {
+    function CreateCompleteInternalReference(constructingType, type, accumulated, forVirtualBaseClass) {
         // create an internal reference from a type with inherited members
         var description = type.Description;
         var baseClasses = type.BaseClasses;
@@ -566,7 +567,7 @@ function Class(fullName) {
                     internalReference.__ConstructedBy = null;
 
                     // this.__CanBeConstructedBy (deleted after constructor)
-                    internalReference.__CanBeConstructedBy = null;
+                    internalReference.__CanBeConstructedBy = type.VirtuallyConstructedBy[constructingType.FullName];
                 }
 
                 accumulated[type.FullName] = internalReference;
@@ -576,10 +577,13 @@ function Class(fullName) {
                 // create a complete internal reference for a base class
                 var baseClass = baseClasses[i];
                 var baseInstance = CreateCompleteInternalReference(
+                    constructingType,
                     baseClass.Type,
                     accumulated,
                     baseClass.Virtual);
-                baseInstance.__CanBeConstructedBy = type;
+                if (baseInstance.__CanBeConstructedBy === undefined) {
+                    baseInstance.__CanBeConstructedBy = type;
+                }
                 baseInstances[i] = baseInstance;
             }
         }
@@ -813,6 +817,7 @@ function Class(fullName) {
         var accumulated = {};
         var internalReference = CreateCompleteInternalReference(
             typeObject,
+            typeObject,
             accumulated,
             false);
 
@@ -910,6 +915,32 @@ function Class(fullName) {
             AddFlattenedBaseClass(baseFlattened[j]);
         }
         AddFlattenedBaseClass(baseClass);
+    }
+
+    for (var i in flattenedBaseClasses) {
+        var virtualBaseClass = flattenedBaseClasses[i];
+        if (virtualBaseClass.Virtual === true) {
+            var firstClass = null;
+            var counter = 0;
+
+            for (var j in directBaseClasses) {
+                var directBaseClass = directBaseClasses[j];
+                var constructedBy = virtualBaseClass.Type.VirtuallyConstructedBy[directBaseClass.Type.FullName];
+                if (constructedBy !== undefined) {
+                    if (firstClass === null) {
+                        firstClass = constructedBy;
+                    }
+                    counter++;
+                }
+            }
+
+            if (firstClass === null || counter > 0) {
+                virtualBaseClass.Type.VirtuallyConstructedBy[fullName] = Type;
+            }
+            else {
+                virtualBaseClass.Type.VirtuallyConstructedBy[fullName] = firstClass;
+            }
+        }
     }
 
     // calculate Type.FlattenedDescription
@@ -1040,6 +1071,14 @@ function Class(fullName) {
         enumerable: true,
         writable: false,
         value: flattenedBaseClasses,
+    });
+
+    // Type.FlattenedBaseClasses
+    Object.defineProperty(Type, "VirtuallyConstructedBy", {
+        configurable: false,
+        enumerable: true,
+        writable: false,
+        value: {},
     });
 
     // Type.IsAssignableFrom(childType)
