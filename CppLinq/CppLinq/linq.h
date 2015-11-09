@@ -1342,7 +1342,7 @@ namespace vczh
 					{
 						inners->push_back(it->second);
 					}
-					result->push_back(TFullJoinPair({ key1, { from_empty<TValue1>(), from_values(inners) } }));
+					result->push_back(TFullJoinPair({ key2, { from_empty<TValue1>(), from_values(inners) } }));
 					lower2 = upper2;
 				}
 				else
