@@ -1,10 +1,26 @@
-sudo apt-get install apt-file/clang/libclang-dev
+======================
+apt-get install
+	htop
+	cgdb
+	manpages-posix-dev
+	git
+	vim
+	apt-file
+	clang
+	libclang-dev
+	openssh-server
+	lcov
+======================
 cd /usr/lib/llvm-3.6/lib
 ln -s libclang.so.1 libclang.so
 git clone https://github.com/gmarik/Vundle.vim.git ~/.vim/bundle/Vundle.vim
-
 ======================
 .vimrc
+
+set tabstop=4
+set number
+set hlsearch
+set fileencodings=utf-8,ucs-bom,cp936
 
 set nocompatible
 filetype off
@@ -27,36 +43,23 @@ let g:clang_use_library=1
 let g:clang_user_options='-std=c++14'
 let g:neocomplcache_enable_at_startup=1
 ======================
-
 vim
 :PluginInstall
-
 ======================
-apt-get install
-	htop
-	cgdb
-	manpages-posix-dev
-	git
-	vim
-	apt-file
-	clang
-	libclang-dev
-
-.vimrc
-set tabstop=4
-set number
-set hlsearch
-set fileencodings=utf-8,ucs-bom,cp936
-
-sudo auto-get openssh-server
-
-/etc/rc.local
 /etc/init.d/ssh start
+
+ssh-keygen -t rsa -b 4096 -C "your_email@example.com"
+eval "$(ssh-agent -s)"
+ssh-add ~/.ssh/id_rsa
+// add id_rsa.pub to github
+ssh -T git@github.com
+
+git clone git@github.com:vczh-libraries/<every-repo>.git
+run Tools/Tools/BuildToolsLinux.sh
 
 make 2>&1 | tee make_log
 gedit make_log &
 nautilus .
-
 ====================
 .bashrc
 export PS1="\[\e]0;\u@\h: \w\a\]${debian_chroot:+($debian_chroot)}\u@\h:\$ "
