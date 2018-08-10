@@ -1,6 +1,7 @@
 *.sdf
 *.suo
 *.opensdf
+**/.vs/**
 **/Debug/**
 **/Release/**
 *.test.txt
