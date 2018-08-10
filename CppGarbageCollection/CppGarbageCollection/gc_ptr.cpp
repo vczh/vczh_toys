@@ -50,7 +50,7 @@ namespace vczh
 
 	struct gc_handle_comparer
 	{
-		bool operator ()(gc_handle* a, gc_handle* b)
+		bool operator ()(gc_handle* a, gc_handle* b) const
 		{
 			if (a->counter == gc_handle::counter_range)
 			{
