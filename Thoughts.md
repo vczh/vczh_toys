@@ -53,7 +53,7 @@
 - INIT {int64}：初始化。
   - s0设置为可用内存最大值
   - r0r1f0f1清0
-  - 开辟堆栈空间的return address和old s1都为0xFFFFFFFF
+  - 开辟堆栈空间的return address和old s0都为0xFFFFFFFF
   - ef为0
   - en为-1
 - HALT：关机。
@@ -90,7 +90,7 @@
 ```
 s1                               s0
 |                                |
-|free space|return address|old s1|
+|free space|return address|old s0|
 ```
 
 ## 下一步
