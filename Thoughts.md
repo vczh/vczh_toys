@@ -91,3 +91,10 @@ s1                               s0
 |                                |
 |free space|return address|old s1|
 ```
+
+## 下一步
+超级简单的单任务单线程操作系统
+文件系统
+内存管理（malloc、free）
+屏幕管理
+简化后的C语言编译器（外部）
